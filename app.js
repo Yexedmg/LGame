@@ -10,14 +10,30 @@ const RARITY_LABEL = {
   5: '5★ Legendary', 4: '4★ Epic', 3: '3★ Rare', 2: '2★ Common', 1: '1★ Basic',
 };
 
-const STAT_KEYS = ['money','boldness','fear','health','social','charm','sexAppeal','power','fight'];
+const STAT_KEYS = ['money','boldness','fear','health','social','charm','sexAppeal','power','fight','looks'];
 const STAT_LABELS = {
   money: 'Money', boldness: 'Boldness', fear: 'Fear', health: 'Health',
-  social: 'Social', charm: 'Charm', sexAppeal: 'Sex Appeal', power: 'Power', fight: 'Fight'
+  social: 'Social', charm: 'Charm', sexAppeal: 'Sex Appeal', power: 'Power', fight: 'Fight', looks: 'Looks'
 };
 const STAT_CSS = {
   money: 'money', boldness: 'boldness', fear: 'fear', health: 'health',
-  social: 'social', charm: 'charm', sexAppeal: 'sex', power: 'power', fight: 'fight'
+  social: 'social', charm: 'charm', sexAppeal: 'sex', power: 'power', fight: 'fight', looks: 'looks'
+};
+const STAT_EMOJI = {
+  money:'💰', boldness:'⚡', fear:'😨', health:'❤️', social:'🗣️',
+  charm:'✨', sexAppeal:'💋', power:'💪', fight:'🥊', looks:'🪞'
+};
+const STAT_DESC = {
+  money:'Currency. Earned from work, spent on dates, summons and lifestyle.',
+  boldness:'Raised by successful cold approaches and wins. Gates risky actions.',
+  fear:'Grows from failures and rejections. Offsets boldness.',
+  health:'Raised by sports, rest and grooming. Drained by overwork.',
+  social:'Raised by hangouts and parties. Feeds the Meet bar strongly.',
+  charm:'Charisma. Grows from social wins and successful dates.',
+  sexAppeal:'Grows from sports + charm combos. Major Meet driver.',
+  power:'Raw strength — built by strength sports.',
+  fight:'Combat skill — raised by combat activities (Judo, boxing).',
+  looks:'Grooming and style. Feeds the Meet bar like Sex Appeal.'
 };
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -72,19 +88,74 @@ function defaultData() {
   return {
     player: {
       level: 1, xp: 0,
-      stats: { money: 0, boldness: 1, fear: 1, health: 5, social: 1, charm: 1, sexAppeal: 1, power: 1, fight: 1 },
+      stats: { money: 0, boldness: 1, fear: 1, health: 5, social: 1, charm: 1, sexAppeal: 1, power: 1, fight: 1, looks: 1 },
       streaks: { coldApproach: 0 },
     },
     girls: [],
     friends: [],
     relationships: { theOne: null, commons: [], sidelined: [] },
     customActivities: [],
+    // Categorized activity inventories with drag-drop slots.
+    // Each category: { id, name, emoji, maxSlots, slots:[itemId|null,...], inventory:[ {id,name,emoji,statEffects,meetBonus} ] }
+    activityCategories: defaultActivityCategories(),
+    // Lead generation — parallel system feeding its own bar
+    leadgen: defaultLeadgen(),
+    // World map + cities
+    world: defaultWorld(),
+    // Planned self-moves
+    nextMoves: [],
     log: [],            // { t, day, month, year, msg, tag }
     months: {},         // "2026-3" -> { events: [], summary: {...} } (index 3 = April)
     day: 1,
     settings: {},
   };
 }
+
+function defaultActivityCategories() {
+  return [
+    { id:'cat-sports', name:'Sports', emoji:'🏋️', maxSlots:3, slots:[null,null,null], inventory:[] },
+    { id:'cat-job', name:'Part-time Job', emoji:'💼', maxSlots:1, slots:[null], inventory:[] },
+    { id:'cat-school', name:'School / Classes', emoji:'🎓', maxSlots:2, slots:[null,null], inventory:[] },
+    { id:'cat-combat', name:'Combat', emoji:'🥊', maxSlots:2, slots:[null,null], inventory:[] },
+    { id:'cat-social', name:'Social', emoji:'🎉', maxSlots:2, slots:[null,null], inventory:[] },
+    { id:'cat-grooming', name:'Grooming', emoji:'🪞', maxSlots:1, slots:[null], inventory:[] },
+    { id:'cat-custom', name:'Other', emoji:'⭐', maxSlots:3, slots:[null,null,null], inventory:[] },
+  ];
+}
+
+function defaultLeadgen() {
+  return {
+    methods: [
+      { id:'lm-job', name:'Part-time Job', emoji:'💼', maxSlots:1, slots:[null],
+        inventory:[
+          { id:'li-ah', name:'Albert Heijn vakkenvuller', difficulty:'easy', roi:'medium' },
+        ] },
+      { id:'lm-cold', name:'Cold Approach', emoji:'🔥', maxSlots:2, slots:[null,null], inventory:[] },
+      { id:'lm-event', name:'Event Hosting', emoji:'🎤', maxSlots:1, slots:[null], inventory:[] },
+      { id:'lm-online', name:'Online Presence', emoji:'📱', maxSlots:2, slots:[null,null], inventory:[] },
+    ],
+  };
+}
+
+function defaultWorld() {
+  return {
+    currentCityId: 'city-amsterdam',
+    cities: [
+      { id:'city-amsterdam', name:'Amsterdam', discovered:true, completion:0 },
+      { id:'city-rotterdam', name:'Rotterdam', discovered:false, completion:0 },
+      { id:'city-utrecht', name:'Utrecht', discovered:false, completion:0 },
+    ],
+  };
+}
+
+// Gain % lookup: difficulty × ROI → gainPct contribution
+const LEAD_GAIN_MATRIX = {
+  easy:   { low:2, medium:4, high:6 },
+  medium: { low:3, medium:5, high:8 },
+  hard:   { low:4, medium:7, high:12 },
+};
+const DIFFICULTY_LABEL = { easy:'Easy', medium:'Medium', hard:'Hard' };
+const ROI_LABEL = { low:'Low ROI', medium:'Med ROI', high:'High ROI' };
 
 let D = defaultData();
 let currentPage = 'home';
@@ -247,6 +318,7 @@ function computeMeetBar() {
   parts.push({ label: 'Social', val: s.social * 1.0 });
   parts.push({ label: 'Charm', val: s.charm * 0.5 });
   parts.push({ label: 'Sex Appeal', val: s.sexAppeal * 1.0 });
+  parts.push({ label: 'Looks', val: (s.looks || 0) * 1.0 });
   parts.push({ label: 'Boldness', val: s.boldness * 0.5 });
   parts.push({ label: 'Fear', val: -s.fear * 0.5 });
 
@@ -606,11 +678,16 @@ function finalizeMonth(info) {
 function render() {
   updateXPDisplay();
   updateHeaderSubtitle();
+  renderHeaderDate();
   if (currentPage === 'home') renderHome();
-  if (currentPage === 'activities') renderActivities();
+  if (currentPage === 'activities') { renderActivities(); renderActivitiesV2(); }
   if (currentPage === 'meet') renderMeet();
   if (currentPage === 'roster') renderRoster();
   if (currentPage === 'life') renderLife();
+  if (currentPage === 'girls') renderGirls();
+  if (currentPage === 'leadgen') renderLeadgen();
+  if (currentPage === 'world') renderWorld();
+  if (currentPage === 'stat') renderStatPage();
 }
 
 function updateXPDisplay() {
@@ -636,10 +713,10 @@ function renderHome() {
   // Stats grid
   const grid = document.getElementById('home-stats-grid');
   grid.innerHTML = STAT_KEYS.map(k => `
-    <div class="qstat ${STAT_CSS[k]}">
-      <div class="qstat-label">${STAT_LABELS[k]}${k==='money'?' ($)':''}</div>
+    <button class="qstat qstat-btn ${STAT_CSS[k]}" onclick="openStatPage('${k}')">
+      <div class="qstat-label">${STAT_EMOJI[k]||''} ${STAT_LABELS[k]}${k==='money'?' ($)':''}</div>
       <div class="qstat-value">${Math.round(D.player.stats[k])}</div>
-    </div>
+    </button>
   `).join('');
 
   // Slots preview
@@ -1121,6 +1198,651 @@ function resetAllData() {
 // ── Utility ──
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── Header date ──
+function renderHeaderDate() {
+  const el = document.getElementById('wordmark-date');
+  if (!el) return;
+  const info = currentMonthInfo();
+  const dayInMonth = ((D.day - 1) % DAYS_PER_MONTH) + 1;
+  el.textContent = `${info.year}-${String(MONTH_NAMES.indexOf(info.name)+1).padStart(2,'0')}-${String(dayInMonth).padStart(2,'0')}`;
+}
+
+// ── Stat page ──
+let currentStatKey = null;
+function openStatPage(key) {
+  currentStatKey = key;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-stat').classList.add('active');
+  renderStatPage();
+}
+function renderStatPage() {
+  const k = currentStatKey;
+  if (!k) return;
+  const el = document.getElementById('stat-page-content');
+  const val = Math.round(D.player.stats[k] || 0);
+  const relatedActs = PRESET_ACTIVITIES.filter(a => a.effects && a.effects[k])
+    .concat(D.customActivities.filter(a => a.effects && a.effects[k]));
+  const related = D.activityCategories.flatMap(c => c.inventory.filter(it => it.statEffects && it.statEffects[k]));
+  el.innerHTML = `
+    <div class="stat-hero ${STAT_CSS[k]}">
+      <div class="stat-hero-emoji">${STAT_EMOJI[k]||'✦'}</div>
+      <div class="stat-hero-body">
+        <div class="stat-hero-name">${STAT_LABELS[k]}${k==='money'?' ($)':''}</div>
+        <div class="stat-hero-val">${val}</div>
+        <div class="stat-hero-desc">${STAT_DESC[k]||''}</div>
+      </div>
+    </div>
+    ${k==='social' ? `
+      <div class="section-header"><span>FRIENDS (boost this stat)</span></div>
+      <div class="inv-content active">
+        ${D.friends.length ? D.friends.map(friendCard).join('') : '<div class="empty-state">No friends yet.</div>'}
+      </div>` : ''}
+    <div class="section-header"><span>ACTIVITIES THAT AFFECT ${STAT_LABELS[k].toUpperCase()}</span></div>
+    <div class="activities-list">
+      ${relatedActs.length ? relatedActs.map(a => activityCard(a)).join('')
+        : '<div class="empty-state">No activity currently impacts this stat.</div>'}
+    </div>
+    ${related.length ? `
+      <div class="section-header"><span>INVENTORY ITEMS</span></div>
+      <div class="activities-list">
+        ${related.map(it => `<div class="activity-card"><div class="name">${it.emoji||'⭐'} ${escapeHtml(it.name)}</div><div class="meta">${statEffectsStr(it.statEffects)}</div></div>`).join('')}
+      </div>` : ''}
+  `;
+}
+
+function statEffectsStr(effs) {
+  if (!effs) return '';
+  return Object.entries(effs).map(([k,v]) => `${v>=0?'+':''}${v} ${STAT_LABELS[k]||k}`).join(' · ');
+}
+
+// ── Girls hub ──
+function renderGirls() {
+  const girlsCount = D.girls.filter(g => g.status !== 'Sidelined').length;
+  const taken = (D.relationships.theOne ? 1 : 0) + D.relationships.commons.length;
+  const leadPct = computeLeadBar().percent.toFixed(0);
+  const el = document.getElementById('girls-hub');
+  if (!el) return;
+  el.innerHTML = `
+    <button class="hub-card" onclick="navigateTo('roster')">
+      <div class="hub-icon">💋</div>
+      <div class="hub-body"><div class="hub-title">Roster</div><div class="hub-desc">${girlsCount} girls · ${D.friends.length} friends</div></div>
+    </button>
+    <button class="hub-card" onclick="navigateTo('life')">
+      <div class="hub-icon">💞</div>
+      <div class="hub-body"><div class="hub-title">Life (Slots)</div><div class="hub-desc">${taken} girlfriend${taken===1?'':'s'}</div></div>
+    </button>
+    <button class="hub-card" onclick="navigateTo('meet')">
+      <div class="hub-icon">💘</div>
+      <div class="hub-body"><div class="hub-title">Meet</div><div class="hub-desc">${computeMeetBar().percent.toFixed(0)}% chance bar</div></div>
+    </button>
+    <button class="hub-card" onclick="navigateTo('leadgen')">
+      <div class="hub-icon">🎯</div>
+      <div class="hub-body"><div class="hub-title">Lead Generation</div><div class="hub-desc">Total gain ${leadPct}%</div></div>
+    </button>
+  `;
+}
+
+// ── Lead Generation ──
+function leadItemGain(item) {
+  if (!item) return 0;
+  return (LEAD_GAIN_MATRIX[item.difficulty]?.[item.roi]) || 0;
+}
+function computeLeadBar() {
+  const slotted = [];
+  D.leadgen.methods.forEach(m => {
+    m.slots.forEach(itemId => {
+      if (!itemId) return;
+      const item = m.inventory.find(x => x.id === itemId);
+      if (item) slotted.push({ method:m, item });
+    });
+  });
+  if (slotted.length === 0) return { percent: 0, parts: [], slotted };
+  const gains = slotted.map(s => leadItemGain(s.item));
+  const avg = gains.reduce((a,b)=>a+b,0) / gains.length;
+  const parts = slotted.map(s => ({
+    label: `${s.method.name}: ${s.item.name}`,
+    val: leadItemGain(s.item),
+  }));
+  return { percent: clamp(avg, 0, 100), parts, slotted };
+}
+function renderLeadgen() {
+  const { percent, parts, slotted } = computeLeadBar();
+  const bar = document.getElementById('lead-bar-fill');
+  if (bar) bar.style.width = Math.min(percent, 100) + '%';
+  const pctEl = document.getElementById('lead-bar-pct');
+  if (pctEl) pctEl.textContent = `${percent.toFixed(0)}% total gain`;
+  const subEl = document.getElementById('lead-bar-sub');
+  if (subEl) subEl.textContent = slotted.length
+    ? `${slotted.length} active lead${slotted.length===1?'':'s'} — avg of their gain %`
+    : 'No active leads. Drag items into a slot.';
+
+  const methodsEl = document.getElementById('lead-methods');
+  methodsEl.innerHTML = D.leadgen.methods.map(renderLeadMethod).join('');
+}
+function renderLeadMethod(m) {
+  const slotsHtml = m.slots.map((itemId, idx) => {
+    const item = itemId ? m.inventory.find(x => x.id === itemId) : null;
+    return `
+      <div class="slot-zone"
+           ondragover="onDragOver(event,this)"
+           ondragleave="onDragLeave(event,this)"
+           ondrop="onDropLead(event,'${m.id}',${idx})">
+        ${item ? leadItemTile(m, item, true) : '<span class="slot-empty">empty slot</span>'}
+      </div>`;
+  }).join('');
+  const inventoryHtml = m.inventory.length
+    ? m.inventory.map(it => leadItemTile(m, it, false)).join('')
+    : '<div class="empty-state">No items. Add one.</div>';
+  const used = m.slots.filter(Boolean).length;
+  return `
+    <div class="category-block">
+      <div class="category-head">
+        <div class="category-title">${m.emoji} ${escapeHtml(m.name)} — <span class="slot-count">${used}/${m.maxSlots}</span></div>
+        <div class="category-actions">
+          <button class="slot-pm" onclick="adjustLeadMax('${m.id}',-1)">−</button>
+          <button class="slot-pm" onclick="adjustLeadMax('${m.id}',1)">+</button>
+          <button class="small-btn" onclick="openAddLeadItem('${m.id}')">+ Item</button>
+        </div>
+      </div>
+      <div class="slot-row">${slotsHtml}</div>
+      <div class="inv-label">Inventory</div>
+      <div class="inv-row"
+           ondragover="onDragOver(event,this)"
+           ondragleave="onDragLeave(event,this)"
+           ondrop="onDropLeadInv(event,'${m.id}')">${inventoryHtml}</div>
+    </div>`;
+}
+function leadItemTile(m, it, inSlot) {
+  const gain = leadItemGain(it);
+  return `
+    <div class="lead-tile" draggable="true"
+         ondragstart="onDragStartLead(event,'${m.id}','${it.id}')"
+         ondragend="onDragEnd(event)"
+         ondblclick="openEditLeadItem('${m.id}','${it.id}')">
+      <div class="tile-name">${escapeHtml(it.name)}</div>
+      <div class="tile-meta">
+        <span class="dot dot-${it.difficulty}"></span>${DIFFICULTY_LABEL[it.difficulty]}
+        · <span class="dot roi-${it.roi}"></span>${ROI_LABEL[it.roi]}
+      </div>
+      <div class="tile-gain">+${gain}%</div>
+      ${inSlot ? `<button class="tile-x" onclick="event.stopPropagation();clearLeadSlot('${m.id}','${it.id}')">×</button>` : ''}
+    </div>`;
+}
+function adjustLeadMax(methodId, delta) {
+  const m = D.leadgen.methods.find(x => x.id === methodId);
+  if (!m) return;
+  const next = clamp(m.maxSlots + delta, 1, 10);
+  if (next === m.maxSlots) return;
+  if (next < m.slots.length) {
+    // trim
+    m.slots = m.slots.slice(0, next);
+  } else {
+    while (m.slots.length < next) m.slots.push(null);
+  }
+  m.maxSlots = next;
+  save(); renderLeadgen();
+}
+function openAddLeadItem(methodId) {
+  openModal(`
+    <h3>🎯 Add Lead Item</h3>
+    <div class="form-row"><label>NAME</label><input id="li-name" placeholder="e.g. Albert Heijn vakkenvuller"/></div>
+    <div class="form-row"><label>DIFFICULTY</label>
+      <select id="li-diff">
+        <option value="easy">🟢 Easy</option>
+        <option value="medium" selected>🟡 Medium</option>
+        <option value="hard">🔴 Hard</option>
+      </select></div>
+    <div class="form-row"><label>SOCIAL ROI</label>
+      <select id="li-roi">
+        <option value="low">Low</option>
+        <option value="medium" selected>Medium</option>
+        <option value="high">High</option>
+      </select></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddLeadItem('${methodId}')">Add</button>
+    </div>`);
+}
+function submitAddLeadItem(methodId) {
+  const m = D.leadgen.methods.find(x => x.id === methodId);
+  if (!m) return;
+  const name = (document.getElementById('li-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  m.inventory.push({
+    id: uid('li'), name,
+    difficulty: document.getElementById('li-diff').value,
+    roi: document.getElementById('li-roi').value,
+  });
+  closeModal();
+  save(); renderLeadgen();
+  toast(`Added ${name}.`);
+}
+function openEditLeadItem(methodId, itemId) {
+  const m = D.leadgen.methods.find(x => x.id === methodId);
+  const it = m?.inventory.find(x => x.id === itemId);
+  if (!it) return;
+  openModal(`
+    <h3>✏️ Edit ${escapeHtml(it.name)}</h3>
+    <div class="form-row"><label>NAME</label><input id="li-name" value="${escapeHtml(it.name)}"/></div>
+    <div class="form-row"><label>DIFFICULTY</label>
+      <select id="li-diff">
+        ${['easy','medium','hard'].map(d =>
+          `<option value="${d}" ${d===it.difficulty?'selected':''}>${DIFFICULTY_LABEL[d]}</option>`).join('')}
+      </select></div>
+    <div class="form-row"><label>SOCIAL ROI</label>
+      <select id="li-roi">
+        ${['low','medium','high'].map(d =>
+          `<option value="${d}" ${d===it.roi?'selected':''}>${ROI_LABEL[d]}</option>`).join('')}
+      </select></div>
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteLeadItem('${methodId}','${itemId}')">Delete</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditLeadItem('${methodId}','${itemId}')">Save</button>
+    </div>`);
+}
+function submitEditLeadItem(methodId, itemId) {
+  const m = D.leadgen.methods.find(x => x.id === methodId);
+  const it = m?.inventory.find(x => x.id === itemId);
+  if (!it) return;
+  it.name = document.getElementById('li-name').value || it.name;
+  it.difficulty = document.getElementById('li-diff').value;
+  it.roi = document.getElementById('li-roi').value;
+  closeModal();
+  save(); renderLeadgen();
+}
+function deleteLeadItem(methodId, itemId) {
+  const m = D.leadgen.methods.find(x => x.id === methodId);
+  if (!m) return;
+  m.inventory = m.inventory.filter(x => x.id !== itemId);
+  m.slots = m.slots.map(s => s === itemId ? null : s);
+  closeModal();
+  save(); renderLeadgen();
+}
+function clearLeadSlot(methodId, itemId) {
+  const m = D.leadgen.methods.find(x => x.id === methodId);
+  if (!m) return;
+  m.slots = m.slots.map(s => s === itemId ? null : s);
+  save(); renderLeadgen();
+}
+
+// ── Drag/drop state ──
+let dragPayload = null; // { kind:'lead'|'activity', methodId/catId, itemId }
+function onDragStartLead(e, methodId, itemId) {
+  dragPayload = { kind:'lead', methodId, itemId };
+  e.dataTransfer.effectAllowed = 'move';
+  e.target.classList.add('dragging');
+}
+function onDragStartActivity(e, catId, itemId) {
+  dragPayload = { kind:'activity', catId, itemId };
+  e.dataTransfer.effectAllowed = 'move';
+  e.target.classList.add('dragging');
+}
+function onDragOver(e, target) { e.preventDefault(); target.classList.add('drop-active'); }
+function onDragLeave(e, target) { target.classList.remove('drop-active'); }
+function onDragEnd(e) { e.target.classList.remove('dragging'); document.querySelectorAll('.drop-active').forEach(x=>x.classList.remove('drop-active')); }
+function onDropLead(e, methodId, slotIdx) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drop-active');
+  if (!dragPayload || dragPayload.kind !== 'lead') return;
+  const srcM = D.leadgen.methods.find(x => x.id === dragPayload.methodId);
+  const dstM = D.leadgen.methods.find(x => x.id === methodId);
+  if (!srcM || !dstM) return;
+  // Item can only move within its owning method (different methods own different items).
+  if (srcM !== dstM) { toast('Item belongs to another method.'); return; }
+  // Clear any existing slot occupancy for this item (dragging from another slot)
+  dstM.slots = dstM.slots.map(s => s === dragPayload.itemId ? null : s);
+  dstM.slots[slotIdx] = dragPayload.itemId;
+  dragPayload = null;
+  save(); renderLeadgen();
+}
+function onDropLeadInv(e, methodId) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drop-active');
+  if (!dragPayload || dragPayload.kind !== 'lead') return;
+  if (dragPayload.methodId !== methodId) return;
+  const m = D.leadgen.methods.find(x => x.id === methodId);
+  m.slots = m.slots.map(s => s === dragPayload.itemId ? null : s);
+  dragPayload = null;
+  save(); renderLeadgen();
+}
+
+// ── Activity categories (drag/drop) ──
+function renderActivitiesV2() {
+  const el = document.getElementById('activity-categories');
+  if (!el) return;
+  el.innerHTML = D.activityCategories.map(renderActivityCategory).join('');
+}
+function renderActivityCategory(cat) {
+  const slots = cat.slots.map((itemId, idx) => {
+    const item = itemId ? cat.inventory.find(x => x.id === itemId) : null;
+    return `
+      <div class="slot-zone"
+           ondragover="onDragOver(event,this)"
+           ondragleave="onDragLeave(event,this)"
+           ondrop="onDropActivity(event,'${cat.id}',${idx})">
+        ${item ? activityTile(cat, item, true) : '<span class="slot-empty">empty</span>'}
+      </div>`;
+  }).join('');
+  const inv = cat.inventory.length
+    ? cat.inventory.map(it => activityTile(cat, it, false)).join('')
+    : '<div class="empty-state">No items. Add one.</div>';
+  const used = cat.slots.filter(Boolean).length;
+  return `
+    <div class="category-block">
+      <div class="category-head">
+        <div class="category-title">${cat.emoji} ${escapeHtml(cat.name)} — <span class="slot-count">${used}/${cat.maxSlots}</span></div>
+        <div class="category-actions">
+          <button class="slot-pm" onclick="adjustCatMax('${cat.id}',-1)">−</button>
+          <button class="slot-pm" onclick="adjustCatMax('${cat.id}',1)">+</button>
+          <button class="small-btn" onclick="openAddActivityItem('${cat.id}')">+ Item</button>
+        </div>
+      </div>
+      <div class="slot-row">${slots}</div>
+      <div class="inv-label">Inventory</div>
+      <div class="inv-row"
+           ondragover="onDragOver(event,this)"
+           ondragleave="onDragLeave(event,this)"
+           ondrop="onDropActivityInv(event,'${cat.id}')">${inv}</div>
+    </div>`;
+}
+function activityTile(cat, it, inSlot) {
+  return `
+    <div class="act-tile" draggable="true"
+         ondragstart="onDragStartActivity(event,'${cat.id}','${it.id}')"
+         ondragend="onDragEnd(event)"
+         ondblclick="openEditActivityItem('${cat.id}','${it.id}')">
+      <div class="tile-name">${it.emoji||'⭐'} ${escapeHtml(it.name)}</div>
+      <div class="tile-meta">${statEffectsStr(it.statEffects)}${it.meetBonus?` · Meet +${it.meetBonus}`:''}</div>
+      <div class="row" style="margin-top:4px">
+        <button class="pill-btn good" onclick="event.stopPropagation();doActivityItem('${cat.id}','${it.id}')">Do</button>
+        ${inSlot ? `<button class="pill-btn" onclick="event.stopPropagation();clearActivitySlot('${cat.id}','${it.id}')">Unslot</button>` : ''}
+      </div>
+    </div>`;
+}
+function adjustCatMax(catId, delta) {
+  const c = D.activityCategories.find(x => x.id === catId);
+  if (!c) return;
+  const next = clamp(c.maxSlots + delta, 1, 10);
+  if (next === c.maxSlots) return;
+  if (next < c.slots.length) c.slots = c.slots.slice(0, next);
+  else while (c.slots.length < next) c.slots.push(null);
+  c.maxSlots = next;
+  save(); renderActivitiesV2();
+}
+function onDropActivity(e, catId, slotIdx) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drop-active');
+  if (!dragPayload || dragPayload.kind !== 'activity') return;
+  const src = D.activityCategories.find(c => c.id === dragPayload.catId);
+  const dst = D.activityCategories.find(c => c.id === catId);
+  if (!src || !dst || src !== dst) { toast('Item belongs to another category.'); return; }
+  dst.slots = dst.slots.map(s => s === dragPayload.itemId ? null : s);
+  dst.slots[slotIdx] = dragPayload.itemId;
+  dragPayload = null;
+  save(); renderActivitiesV2();
+}
+function onDropActivityInv(e, catId) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drop-active');
+  if (!dragPayload || dragPayload.kind !== 'activity') return;
+  if (dragPayload.catId !== catId) return;
+  const c = D.activityCategories.find(x => x.id === catId);
+  c.slots = c.slots.map(s => s === dragPayload.itemId ? null : s);
+  dragPayload = null;
+  save(); renderActivitiesV2();
+}
+function clearActivitySlot(catId, itemId) {
+  const c = D.activityCategories.find(x => x.id === catId);
+  if (!c) return;
+  c.slots = c.slots.map(s => s === itemId ? null : s);
+  save(); renderActivitiesV2();
+}
+function openAddActivityItem(catId) {
+  const effRows = STAT_KEYS.map(k =>
+    `<div class="eff-row"><label>${STAT_LABELS[k]}</label><input type="number" value="0" data-stat="${k}" class="eff-input"/></div>`
+  ).join('');
+  openModal(`
+    <h3>⭐ Add Item</h3>
+    <div class="form-row"><label>NAME</label><input id="ai-name" placeholder="e.g. Judo class"/></div>
+    <div class="form-row"><label>EMOJI</label><input id="ai-emoji" placeholder="🥋" maxlength="2"/></div>
+    <div class="form-row"><label>MEET BAR BONUS</label><input id="ai-meet" type="number" min="0" max="15" value="0"/></div>
+    <div class="form-row"><label>XP PER DO</label><input id="ai-xp" type="number" min="1" max="50" value="5"/></div>
+    <div class="form-row"><label>STAT EFFECTS</label><div class="effects-grid">${effRows}</div></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddActivityItem('${catId}')">Add</button>
+    </div>`);
+}
+function readEffectInputs() {
+  const out = {};
+  document.querySelectorAll('.eff-input').forEach(inp => {
+    const v = parseInt(inp.value);
+    if (v) out[inp.dataset.stat] = v;
+  });
+  return out;
+}
+function submitAddActivityItem(catId) {
+  const c = D.activityCategories.find(x => x.id === catId);
+  if (!c) return;
+  const name = (document.getElementById('ai-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  c.inventory.push({
+    id: uid('ai'),
+    name,
+    emoji: document.getElementById('ai-emoji').value || '⭐',
+    meetBonus: Number(document.getElementById('ai-meet').value) || 0,
+    xp: Number(document.getElementById('ai-xp').value) || 5,
+    statEffects: readEffectInputs(),
+  });
+  closeModal();
+  save(); renderActivitiesV2();
+}
+function openEditActivityItem(catId, itemId) {
+  const c = D.activityCategories.find(x => x.id === catId);
+  const it = c?.inventory.find(x => x.id === itemId);
+  if (!it) return;
+  const effRows = STAT_KEYS.map(k =>
+    `<div class="eff-row"><label>${STAT_LABELS[k]}</label><input type="number" value="${it.statEffects?.[k]||0}" data-stat="${k}" class="eff-input"/></div>`
+  ).join('');
+  openModal(`
+    <h3>✏️ Edit ${escapeHtml(it.name)}</h3>
+    <div class="form-row"><label>NAME</label><input id="ai-name" value="${escapeHtml(it.name)}"/></div>
+    <div class="form-row"><label>EMOJI</label><input id="ai-emoji" value="${it.emoji||''}" maxlength="2"/></div>
+    <div class="form-row"><label>MEET BAR BONUS</label><input id="ai-meet" type="number" min="0" max="15" value="${it.meetBonus||0}"/></div>
+    <div class="form-row"><label>XP PER DO</label><input id="ai-xp" type="number" min="1" max="50" value="${it.xp||5}"/></div>
+    <div class="form-row"><label>STAT EFFECTS</label><div class="effects-grid">${effRows}</div></div>
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteActivityItem('${catId}','${itemId}')">Delete</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditActivityItem('${catId}','${itemId}')">Save</button>
+    </div>`);
+}
+function submitEditActivityItem(catId, itemId) {
+  const c = D.activityCategories.find(x => x.id === catId);
+  const it = c?.inventory.find(x => x.id === itemId);
+  if (!it) return;
+  it.name = document.getElementById('ai-name').value || it.name;
+  it.emoji = document.getElementById('ai-emoji').value || it.emoji;
+  it.meetBonus = Number(document.getElementById('ai-meet').value) || 0;
+  it.xp = Number(document.getElementById('ai-xp').value) || 5;
+  it.statEffects = readEffectInputs();
+  closeModal();
+  save(); renderActivitiesV2();
+}
+function deleteActivityItem(catId, itemId) {
+  const c = D.activityCategories.find(x => x.id === catId);
+  if (!c) return;
+  c.inventory = c.inventory.filter(x => x.id !== itemId);
+  c.slots = c.slots.map(s => s === itemId ? null : s);
+  closeModal();
+  save(); renderActivitiesV2();
+}
+function doActivityItem(catId, itemId) {
+  const c = D.activityCategories.find(x => x.id === catId);
+  const it = c?.inventory.find(x => x.id === itemId);
+  if (!it) return;
+  applyEffects(it.statEffects || {});
+  addXP(it.xp || 4, it.name);
+  // Track city completion
+  const city = D.world.cities.find(x => x.id === D.world.currentCityId);
+  if (city && city.discovered) city.completion = Math.min(100, (city.completion||0) + 2);
+  addLog(`Did ${it.name} in ${city?.name||'somewhere'}.`, 'activity');
+  tickDay();
+}
+
+// ── World map ──
+function renderWorld() {
+  const el = document.getElementById('world-grid');
+  if (!el) return;
+  el.innerHTML = D.world.cities.map(c => `
+    <button class="city-card ${c.discovered?'':'undiscovered'} ${c.id===D.world.currentCityId?'current':''}"
+            onclick="selectCity('${c.id}')">
+      <div class="city-name">${c.discovered ? escapeHtml(c.name) : '???'}</div>
+      <div class="city-ring"><div class="city-ring-fill" style="width:${c.completion||0}%"></div></div>
+      <div class="city-pct">${c.discovered ? (c.completion||0).toFixed(0)+'%' : 'locked'}</div>
+    </button>
+  `).join('') + `
+    <button class="city-card discover-card" onclick="discoverCity()">
+      <div class="city-name">+ Discover</div>
+      <div class="city-pct">$50</div>
+    </button>`;
+  renderNextMoves();
+}
+function selectCity(id) {
+  const c = D.world.cities.find(x => x.id === id);
+  if (!c) return;
+  if (!c.discovered) { toast('Undiscovered. Use Discover to unlock.'); return; }
+  D.world.currentCityId = id;
+  save(); renderWorld();
+  toast(`Moved to ${c.name}.`);
+}
+function discoverCity() {
+  if (D.player.stats.money < 50) { toast('Need $50 to discover.'); return; }
+  const undiscovered = D.world.cities.find(c => !c.discovered);
+  if (undiscovered) {
+    D.player.stats.money -= 50;
+    undiscovered.discovered = true;
+    addLog(`Discovered ${undiscovered.name}.`, 'world');
+    toast(`Discovered ${undiscovered.name}!`);
+  } else {
+    // Invent a new one
+    const names = ['The Hague','Groningen','Eindhoven','Leiden','Haarlem','Delft','Maastricht','Breda','Nijmegen','Tilburg'];
+    const existing = new Set(D.world.cities.map(c => c.name));
+    const pool = names.filter(n => !existing.has(n));
+    if (pool.length === 0) { toast('Map is full.'); return; }
+    D.player.stats.money -= 50;
+    const name = pickRandom(pool);
+    D.world.cities.push({ id: uid('city'), name, discovered:true, completion:0 });
+    addLog(`Discovered ${name}.`, 'world');
+    toast(`Discovered ${name}!`);
+  }
+  save(); renderWorld();
+}
+
+// ── Next Moves ──
+function renderNextMoves() {
+  const el = document.getElementById('next-moves-list');
+  if (!el) return;
+  if (D.nextMoves.length === 0) {
+    el.innerHTML = '<div class="empty-state">No planned moves. Add one like "Join judo class".</div>';
+    return;
+  }
+  el.innerHTML = D.nextMoves.map(m => `
+    <div class="move-card">
+      <div class="move-body">
+        <div class="move-name">${escapeHtml(m.name)}</div>
+        <div class="move-meta">${statEffectsStr(m.statEffects)}${m.city?` · 📍 ${escapeHtml(cityName(m.city))}`:''}</div>
+      </div>
+      <div class="row">
+        <button class="pill-btn good" onclick="executeMove('${m.id}')">Execute</button>
+        <button class="pill-btn" onclick="openEditMove('${m.id}')">Edit</button>
+        <button class="pill-btn danger" onclick="deleteMove('${m.id}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+function cityName(id) { return D.world.cities.find(c => c.id === id)?.name || '?'; }
+function openAddMove() {
+  const statOpts = STAT_KEYS.map(k => `<option value="${k}">${STAT_EMOJI[k]} ${STAT_LABELS[k]}</option>`).join('');
+  const cityOpts = '<option value="">— none —</option>' +
+    D.world.cities.filter(c=>c.discovered).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  openModal(`
+    <h3>📝 Plan a Next Move</h3>
+    <div class="form-row"><label>NAME</label><input id="nm-name" placeholder="e.g. Join judo class"/></div>
+    <div class="form-row"><label>STATS IMPROVED (hold Ctrl/Cmd to multi-select)</label>
+      <select id="nm-stats" multiple size="6">${statOpts}</select></div>
+    <div class="form-row"><label>MAGNITUDE (applied to each selected stat)</label>
+      <input id="nm-mag" type="number" min="1" max="10" value="2"/></div>
+    <div class="form-row"><label>CITY (optional)</label><select id="nm-city">${cityOpts}</select></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddMove()">Add</button>
+    </div>`);
+}
+function submitAddMove() {
+  const name = (document.getElementById('nm-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  const mag = Number(document.getElementById('nm-mag').value) || 1;
+  const selected = Array.from(document.getElementById('nm-stats').selectedOptions).map(o => o.value);
+  if (selected.length === 0) { toast('Pick at least one stat.'); return; }
+  const statEffects = {};
+  selected.forEach(k => statEffects[k] = mag);
+  const city = document.getElementById('nm-city').value || null;
+  D.nextMoves.push({ id: uid('nm'), name, statEffects, city, done:false });
+  closeModal();
+  save(); renderNextMoves();
+  toast(`Planned: ${name}`);
+}
+function openEditMove(id) {
+  const m = D.nextMoves.find(x => x.id === id);
+  if (!m) return;
+  const statOpts = STAT_KEYS.map(k => `<option value="${k}" ${m.statEffects[k]?'selected':''}>${STAT_EMOJI[k]} ${STAT_LABELS[k]}</option>`).join('');
+  const firstMag = Object.values(m.statEffects)[0] || 2;
+  const cityOpts = '<option value="">— none —</option>' +
+    D.world.cities.filter(c=>c.discovered).map(c => `<option value="${c.id}" ${m.city===c.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
+  openModal(`
+    <h3>✏️ Edit Move</h3>
+    <div class="form-row"><label>NAME</label><input id="nm-name" value="${escapeHtml(m.name)}"/></div>
+    <div class="form-row"><label>STATS IMPROVED</label>
+      <select id="nm-stats" multiple size="6">${statOpts}</select></div>
+    <div class="form-row"><label>MAGNITUDE</label><input id="nm-mag" type="number" min="1" max="10" value="${firstMag}"/></div>
+    <div class="form-row"><label>CITY</label><select id="nm-city">${cityOpts}</select></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditMove('${id}')">Save</button>
+    </div>`);
+}
+function submitEditMove(id) {
+  const m = D.nextMoves.find(x => x.id === id);
+  if (!m) return;
+  m.name = document.getElementById('nm-name').value || m.name;
+  const mag = Number(document.getElementById('nm-mag').value) || 1;
+  const selected = Array.from(document.getElementById('nm-stats').selectedOptions).map(o => o.value);
+  m.statEffects = {};
+  selected.forEach(k => m.statEffects[k] = mag);
+  m.city = document.getElementById('nm-city').value || null;
+  closeModal();
+  save(); renderNextMoves();
+}
+function executeMove(id) {
+  const m = D.nextMoves.find(x => x.id === id);
+  if (!m) return;
+  applyEffects(m.statEffects);
+  addXP(10, `Executed: ${m.name}`);
+  addLog(`Executed planned move: ${m.name}.`, 'activity');
+  if (m.city) {
+    const c = D.world.cities.find(x => x.id === m.city);
+    if (c) c.completion = Math.min(100, (c.completion||0) + 5);
+  }
+  D.nextMoves = D.nextMoves.filter(x => x.id !== id);
+  tickDay();
+  toast(`Did: ${m.name}`);
+}
+function deleteMove(id) {
+  D.nextMoves = D.nextMoves.filter(x => x.id !== id);
+  save(); renderNextMoves();
 }
 
 // ── Init ──

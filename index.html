@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=1.0" />
+  <link rel="stylesheet" href="styles.css?v=2.0" />
 </head>
 <body>
   <div id="app">
@@ -28,7 +28,7 @@
               <span class="xp-level-label">LVL</span>
             </div>
             <div class="xp-info">
-              <div class="xp-title">LIFE<span class="accent">::</span>RPG</div>
+              <div class="xp-title">LIFE<span class="accent">::</span><span id="wordmark-date" class="wordmark-date">2026-04-01</span></div>
               <div class="xp-subtitle" id="home-day-label">Day 1 — taken: 0 / talking: 0</div>
             </div>
             <button class="menu-btn" onclick="showOverlay('saveload')">
@@ -84,9 +84,10 @@
     <div id="page-activities" class="page">
       <div class="page-scroll">
         <div class="page-title">💼 ACTIVITIES</div>
-        <div class="section-header">
-          <span>PRESETS</span>
-        </div>
+        <div class="section-header"><span>CATEGORIES (drag &amp; drop into slots)</span></div>
+        <div id="activity-categories"></div>
+
+        <div class="section-header"><span>PRESETS</span></div>
         <div id="activities-presets" class="activities-list"></div>
 
         <div class="section-header">
@@ -94,7 +95,7 @@
           <button class="small-btn" onclick="openAddActivityModal()">+ Add</button>
         </div>
         <div id="activities-custom" class="activities-list">
-          <div class="empty-state">No custom activities. Add one like "Judo" to boost your Meet bar.</div>
+          <div class="empty-state">No legacy custom activities.</div>
         </div>
       </div>
     </div>
@@ -194,6 +195,60 @@
       </div>
     </div>
 
+    <!-- GIRLS HUB PAGE -->
+    <div id="page-girls" class="page">
+      <div class="page-scroll">
+        <div class="page-title">👩 GIRLS</div>
+        <div class="hub-grid" id="girls-hub"></div>
+      </div>
+    </div>
+
+    <!-- LEAD GENERATION PAGE -->
+    <div id="page-leadgen" class="page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="navigateTo('girls')">← Girls</button>
+          <div class="page-title" style="margin:0">🎯 LEAD GENERATION</div>
+        </div>
+        <div class="meet-bar-wrap">
+          <div class="meet-bar-track">
+            <div class="meet-bar-fill" id="lead-bar-fill" style="width:0%"></div>
+            <div class="meet-bar-sheen"></div>
+          </div>
+          <div class="meet-bar-meta">
+            <span id="lead-bar-pct">0% total gain</span>
+            <span id="lead-bar-sub">No active leads.</span>
+          </div>
+        </div>
+        <div id="lead-methods"></div>
+      </div>
+    </div>
+
+    <!-- WORLD MAP PAGE -->
+    <div id="page-world" class="page">
+      <div class="page-scroll">
+        <div class="page-title">🗺️ WORLD</div>
+        <div class="section-header"><span>CITIES</span></div>
+        <div id="world-grid" class="world-grid"></div>
+        <div class="section-header">
+          <span>NEXT MOVES</span>
+          <button class="small-btn" onclick="openAddMove()">+ Plan</button>
+        </div>
+        <div id="next-moves-list" class="next-moves-list"></div>
+      </div>
+    </div>
+
+    <!-- STAT DETAIL PAGE -->
+    <div id="page-stat" class="page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="navigateTo('home')">← Home</button>
+          <div class="page-title" style="margin:0">STAT</div>
+        </div>
+        <div id="stat-page-content"></div>
+      </div>
+    </div>
+
     <!-- STATS OVERLAY -->
     <div id="page-stats" class="page overlay-page">
       <div class="page-scroll">
@@ -274,15 +329,15 @@
       <button class="dock-btn home-btn active" data-page="home" onclick="navigateTo('home')">
         <span class="dock-icon-home">🏠</span>
       </button>
-      <button class="dock-btn" data-page="roster" onclick="navigateTo('roster')">
-        <span class="dock-icon">📒</span><span class="dock-label">Roster</span>
+      <button class="dock-btn" data-page="girls" onclick="navigateTo('girls')">
+        <span class="dock-icon">👩</span><span class="dock-label">Girls</span>
       </button>
-      <button class="dock-btn" data-page="life" onclick="navigateTo('life')">
-        <span class="dock-icon">💞</span><span class="dock-label">Life</span>
+      <button class="dock-btn" data-page="world" onclick="navigateTo('world')">
+        <span class="dock-icon">🗺️</span><span class="dock-label">World</span>
       </button>
     </nav>
   </div>
 
-  <script src="app.js?v=1.0"></script>
+  <script src="app.js?v=2.0"></script>
 </body>
 </html>
