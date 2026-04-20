@@ -232,6 +232,13 @@ function addLog(msg, tag) {
   if (!D.months[m.key]) D.months[m.key] = { name: m.name, year: m.year, events: [], summary: null };
   D.months[m.key].events.push(entry);
 
+  if (D.settings.streamerMode) {
+    if (tag === 'meet') addFauxChatMessage(`NEW GIRL! ${msg.split('(')[1]?.split(')')[0] || ''} hype!`);
+    if (tag === 'meet-miss') addFauxChatMessage(pickRandom(["Oof...", "L", "Rip", "F in chat"]));
+    if (tag === 'xp') addFauxChatMessage("Gains! LFG");
+    if (tag === 'relationship') addFauxChatMessage("W RIZZZZZ");
+  }
+
   save();
 }
 
@@ -1307,8 +1314,28 @@ function computeLeadBar() {
   }));
   return { percent: clamp(avg, 0, 100), parts, slotted };
 }
+// ── Tier coloring for lead items / methods ──
+const GAIN_TIERS = [
+  { min:10, cls:'tier-legendary', label:'Legendary' },
+  { min: 7, cls:'tier-epic',      label:'Epic'      },
+  { min: 5, cls:'tier-rare',      label:'Rare'      },
+  { min: 3, cls:'tier-uncommon',  label:'Uncommon'  },
+  { min: 0, cls:'tier-common',    label:'Common'    },
+];
+function gainTierClass(pct) { for (const t of GAIN_TIERS) if (pct >= t.min) return t.cls; return 'tier-common'; }
+function gainTierLabel(pct) { for (const t of GAIN_TIERS) if (pct >= t.min) return t.label; return 'Common'; }
+function methodAvgGain(m) {
+  const items = m.slots.map(id => id ? m.inventory.find(x => x.id === id) : null).filter(Boolean);
+  if (items.length === 0) return 0;
+  return items.map(leadItemGain).reduce((a,b)=>a+b,0) / items.length;
+}
+
+// ── Lead Gen HEAD page (list of methods) ──
+let currentLeadMethodId = null;
+function openLeadMethod(id) { currentLeadMethodId = id; navigateTo('leadmethod'); }
+
 function renderLeadgen() {
-  const { percent, parts, slotted } = computeLeadBar();
+  const { percent, slotted } = computeLeadBar();
   const bar = document.getElementById('lead-bar-fill');
   if (bar) bar.style.width = Math.min(percent, 100) + '%';
   const pctEl = document.getElementById('lead-bar-pct');
@@ -1316,48 +1343,79 @@ function renderLeadgen() {
   const subEl = document.getElementById('lead-bar-sub');
   if (subEl) subEl.textContent = slotted.length
     ? `${slotted.length} active lead${slotted.length===1?'':'s'} — avg of their gain %`
-    : 'No active leads. Drag items into a slot.';
+    : 'No active leads. Open a method to slot items.';
 
   const methodsEl = document.getElementById('lead-methods');
-  methodsEl.innerHTML = D.leadgen.methods.map(renderLeadMethod).join('');
+  methodsEl.innerHTML = D.leadgen.methods.map(m => {
+    const avg = methodAvgGain(m);
+    const tier = avg > 0 ? gainTierClass(avg) : 'tier-common';
+    const used = m.slots.filter(Boolean).length;
+    return `
+      <button class="method-row ${tier}" onclick="openLeadMethod('${m.id}')">
+        <div class="method-body">
+          <div class="method-name">${escapeHtml(m.name)}</div>
+          <div class="method-meta">${used}/${m.maxSlots} slot${m.maxSlots===1?'':'s'} · ${avg>0?gainTierLabel(avg):'empty'}</div>
+        </div>
+        <div class="method-gain">+${avg.toFixed(0)}%</div>
+      </button>`;
+  }).join('');
 }
-function renderLeadMethod(m) {
+
+// ── Lead method DETAIL page ──
+function renderLeadMethodDetail() {
+  const m = D.leadgen.methods.find(x => x.id === currentLeadMethodId);
+  if (!m) { navigateTo('leadgen'); return; }
+  const title = document.getElementById('leadmethod-title');
+  if (title) title.textContent = m.name.toUpperCase();
+  const avg = methodAvgGain(m);
+  const used = m.slots.filter(Boolean).length;
+  const tierCls = avg > 0 ? gainTierClass(avg) : '';
+
   const slotsHtml = m.slots.map((itemId, idx) => {
     const item = itemId ? m.inventory.find(x => x.id === itemId) : null;
+    const tCls = item ? gainTierClass(leadItemGain(item)) : '';
     return `
-      <div class="slot-zone"
+      <div class="slot-zone ${tCls}"
            ondragover="onDragOver(event,this)"
            ondragleave="onDragLeave(event,this)"
            ondrop="onDropLead(event,'${m.id}',${idx})">
-        ${item ? leadItemTile(m, item, true) : '<span class="slot-empty">empty slot</span>'}
+        ${item ? leadItemTile(m, item, true) : `<span class="slot-empty">Slot ${idx+1}</span>`}
       </div>`;
   }).join('');
+
   const inventoryHtml = m.inventory.length
     ? m.inventory.map(it => leadItemTile(m, it, false)).join('')
-    : '<div class="empty-state">No items. Add one.</div>';
-  const used = m.slots.filter(Boolean).length;
-  return `
-    <div class="category-block">
-      <div class="category-head">
-        <div class="category-title">${m.emoji} ${escapeHtml(m.name)} — <span class="slot-count">${used}/${m.maxSlots}</span></div>
-        <div class="category-actions">
-          <button class="slot-pm" onclick="adjustLeadMax('${m.id}',-1)">−</button>
-          <button class="slot-pm" onclick="adjustLeadMax('${m.id}',1)">+</button>
-          <button class="small-btn" onclick="openAddLeadItem('${m.id}')">+ Item</button>
-        </div>
+    : '<div class="empty-state">No items yet. Tap “+ Item” to add one.</div>';
+
+  document.getElementById('leadmethod-content').innerHTML = `
+    <div class="method-summary ${tierCls}">
+      <div class="method-summary-row">
+        <div class="ms-cell"><div class="k">Slots</div><div class="v">${used}/${m.maxSlots}</div></div>
+        <div class="ms-cell"><div class="k">Avg gain</div><div class="v green">${avg.toFixed(1)}%</div></div>
+        <div class="ms-cell"><div class="k">Tier</div><div class="v">${avg>0?gainTierLabel(avg):'—'}</div></div>
       </div>
-      <div class="slot-row">${slotsHtml}</div>
-      <div class="inv-label">Inventory</div>
-      <div class="inv-row"
-           ondragover="onDragOver(event,this)"
-           ondragleave="onDragLeave(event,this)"
-           ondrop="onDropLeadInv(event,'${m.id}')">${inventoryHtml}</div>
-    </div>`;
+      <div class="method-summary-actions">
+        <span class="slot-count">${used}/${m.maxSlots}</span>
+        <button class="slot-pm" onclick="adjustLeadMax('${m.id}',-1)">−</button>
+        <button class="slot-pm" onclick="adjustLeadMax('${m.id}',1)">+</button>
+        <button class="small-btn" onclick="openAddLeadItem('${m.id}')">+ Item</button>
+      </div>
+    </div>
+    <div class="section-header"><span>CURRENT PARTY</span></div>
+    <div class="slot-grid" style="grid-template-columns: repeat(${m.maxSlots}, minmax(0, 1fr));">${slotsHtml}</div>
+    <div class="section-header"><span>INVENTORY</span></div>
+    <div class="inv-row"
+         ondragover="onDragOver(event,this)"
+         ondragleave="onDragLeave(event,this)"
+         ondrop="onDropLeadInv(event,'${m.id}')">${inventoryHtml}</div>
+  `;
 }
+
 function leadItemTile(m, it, inSlot) {
   const gain = leadItemGain(it);
+  const tier = gainTierClass(gain);
   return `
-    <div class="lead-tile" draggable="true"
+    <div class="lead-tile ${tier}" draggable="true"
          ondragstart="onDragStartLead(event,'${m.id}','${it.id}')"
          ondragend="onDragEnd(event)"
          ondblclick="openEditLeadItem('${m.id}','${it.id}')">
@@ -1367,8 +1425,40 @@ function leadItemTile(m, it, inSlot) {
         · <span class="dot roi-${it.roi}"></span>${ROI_LABEL[it.roi]}
       </div>
       <div class="tile-gain">+${gain}%</div>
-      ${inSlot ? `<button class="tile-x" onclick="event.stopPropagation();clearLeadSlot('${m.id}','${it.id}')">×</button>` : ''}
+      <div class="tile-actions">
+        ${inSlot
+          ? `<button class="tile-btn" onclick="event.stopPropagation();clearLeadSlot('${m.id}','${it.id}')">Unslot</button>`
+          : `<button class="tile-btn" onclick="event.stopPropagation();tapSlotLead('${m.id}','${it.id}')">Slot →</button>`}
+        <button class="tile-btn" onclick="event.stopPropagation();openEditLeadItem('${m.id}','${it.id}')">Edit</button>
+      </div>
     </div>`;
+}
+
+// Mobile-friendly tap-to-slot
+function tapSlotLead(methodId, itemId) {
+  const m = D.leadgen.methods.find(x => x.id === methodId);
+  if (!m) return;
+  if (m.maxSlots === 1) { placeLeadInSlot(methodId, itemId, 0); return; }
+  const btns = m.slots.map((sid, idx) => {
+    const occ = sid ? m.inventory.find(x=>x.id===sid) : null;
+    return `<button class="pill-btn good" onclick="placeLeadInSlot('${methodId}','${itemId}',${idx})">Slot ${idx+1}${occ?` (replace ${escapeHtml(occ.name)})`:''}</button>`;
+  }).join('');
+  openModal(`
+    <h3>Place in slot</h3>
+    <div style="display:flex;flex-direction:column;gap:6px">${btns}</div>
+    <div class="row"><button class="pill-btn" onclick="closeModal()">Cancel</button></div>`);
+}
+function placeLeadInSlot(methodId, itemId, idx) {
+  const m = D.leadgen.methods.find(x => x.id === methodId);
+  if (!m) return;
+  m.slots = m.slots.map(s => s === itemId ? null : s);
+  m.slots[idx] = itemId;
+  closeModal();
+  save(); redrawLeadgen();
+}
+function redrawLeadgen() {
+  if (currentPage === 'leadmethod') renderLeadMethodDetail();
+  else renderLeadgen();
 }
 function adjustLeadMax(methodId, delta) {
   const m = D.leadgen.methods.find(x => x.id === methodId);
@@ -1851,8 +1941,85 @@ function init() {
   // ensure current month exists
   const m = currentMonthInfo();
   if (!D.months[m.key]) D.months[m.key] = { name: m.name, year: m.year, events: [], summary: null };
+  
+  // Streamer Mode restore
+  if (D.settings.streamerMode) {
+    const toggle = document.getElementById('streamer-mode-toggle');
+    if (toggle) toggle.checked = true;
+    document.getElementById('streamer-overlay').classList.add('active');
+    startStreaming();
+  }
+
   save();
   navigateTo('home');
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+/* ── Streamer Mode Logic ── */
+function toggleStreamerMode(on) {
+  if (!D.settings) D.settings = {};
+  D.settings.streamerMode = on;
+  document.getElementById('streamer-overlay').classList.toggle('active', on);
+  if (on) {
+    startStreaming();
+    addFauxChatMessage("Hello chat! We are LIVE!");
+  } else {
+    stopStreaming();
+  }
+  save();
+}
+
+let streamInterval = null;
+function startStreaming() {
+  if (streamInterval) clearInterval(streamInterval);
+  updateViewers();
+  streamInterval = setInterval(() => {
+    if (!D.settings.streamerMode) { clearInterval(streamInterval); return; }
+    updateViewers();
+    if (Math.random() < 0.25) addFauxChatMessage();
+  }, 4000);
+}
+
+function stopStreaming() {
+  if (streamInterval) clearInterval(streamInterval);
+  streamInterval = null;
+}
+
+function updateViewers() {
+  const base = (D.player.stats.social || 1) * 12;
+  const statusBonus = ((D.relationships.theOne ? 1 : 0) + D.relationships.commons.length) * 50;
+  const jitter = Math.floor(Math.random() * 30) - 15;
+  const count = Math.max(0, base + statusBonus + jitter);
+  const el = document.getElementById('viewer-count');
+  if (el) el.textContent = count.toLocaleString();
+}
+
+const CHAT_USERS = [
+  { name: 'GamerGuy99', color: 'user-blue' },
+  { name: 'SimpLord', color: 'user-pink' },
+  { name: 'X_Shadow_X', color: 'user-gold' },
+  { name: 'AnimeFan', color: 'user-blue' },
+  { name: 'CodeWizard', color: 'user-gold' },
+  { name: 'LuckyShot', color: 'user-pink' },
+  { name: 'Doomer_66', color: 'user-blue' },
+  { name: 'TwitchPrime', color: 'user-gold' }
+];
+
+const CHAT_REACTIONS = [
+  "POG!", "LFG", "W", "L", "Wait, what?", "She's cute", "Huge gains", "That's crazy", "Kappa", "He's cooking", "KEKW", 
+  "Chat is this real?", "SHEEEEESH", "Check the stats", "No way", "Is he him?", "Main character energy"
+];
+
+function addFauxChatMessage(msg) {
+  const chat = document.getElementById('streamer-chat');
+  if (!chat) return;
+  const user = pickRandom(CHAT_USERS);
+  const text = msg || pickRandom(CHAT_REACTIONS);
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.innerHTML = `<span class="chat-user ${user.color}">${user.name}:</span><span class="chat-text">${text}</span>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  if (chat.childNodes.length > 8) chat.removeChild(chat.firstChild);
+}

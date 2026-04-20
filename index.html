@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.3" />
+  <link rel="stylesheet" href="styles.css?v=2.4" />
 </head>
 <body>
   <div id="app">
@@ -221,6 +221,17 @@
       </div>
     </div>
 
+    <!-- LEAD METHOD DETAIL PAGE -->
+    <div id="page-leadmethod" class="page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="navigateTo('leadgen')">← Leads</button>
+          <div class="page-title" id="leadmethod-title" style="margin:0">METHOD</div>
+        </div>
+        <div id="leadmethod-content"></div>
+      </div>
+    </div>
+
     <!-- WORLD MAP PAGE -->
     <div id="page-world" class="page">
       <div class="page-scroll">
@@ -281,6 +292,17 @@
         </div>
         <div class="saveload-container">
           <div class="saveload-section">
+            <div class="saveload-section-title">GAME SETTINGS</div>
+            <div class="saveload-section-desc">Customize your interface and experience.</div>
+            <div class="settings-row">
+              <span>Streamer Overlay</span>
+              <label class="switch">
+                <input type="checkbox" id="streamer-mode-toggle" onchange="toggleStreamerMode(this.checked)">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="saveload-section">
             <div class="saveload-section-icon"></div>
             <div class="saveload-section-title">EXPORT SAVE</div>
             <div class="saveload-section-desc">Download your save as JSON.</div>
@@ -333,8 +355,18 @@
         <span class="dock-icon">MAP</span><span class="dock-label">World</span>
       </button>
     </nav>
+
+    <!-- STREAMER OVERLAY -->
+    <div id="streamer-overlay" class="streamer-overlay">
+      <div class="streamer-top-bar">
+        <div class="live-tag"><span class="blink">●</span> LIVE</div>
+        <div class="viewer-count" id="viewer-count">0</div>
+        <div class="stream-goal">GOAL: Meet someone today</div>
+      </div>
+      <div class="streamer-chat" id="streamer-chat"></div>
+    </div>
   </div>
 
-  <script src="app.js?v=2.3"></script>
+  <script src="app.js?v=2.4"></script>
 </body>
 </html>
