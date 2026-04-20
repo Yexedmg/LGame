@@ -976,3 +976,44 @@ body {
 
 /* Scroll padding */
 .page-scroll { padding: 16px !important; padding-bottom: calc(var(--dock-height) + 24px) !important; }
+
+/* ===== v2.3 restore CGame-style navy+cyan palette, keep UI cleanup ===== */
+:root {
+  --bg-primary: #0E1530;
+  --bg-secondary: #162043;
+  --bg-card: #1B2748;
+  --bg-card-hover: #243262;
+  --bg-modal: rgba(14,21,48,0.98);
+  --border-subtle: rgba(120,170,255,0.12);
+  --border-medium: rgba(120,170,255,0.22);
+  --border-accent: rgba(78,200,255,0.35);
+  --border-accent-strong: rgba(78,200,255,0.6);
+  --cyan: #4EC8FF;
+  --cyan-dim: rgba(78,200,255,0.14);
+  --cyan-glow: rgba(78,200,255,0.35);
+  --green: #40E382;
+  --yellow: #FFE81A;
+  --red: #FF3B30;
+  --pink: #4EC8FF;         /* remap "pink" accent back to cyan so every rule reads navy */
+  --purple: #C852FF;
+  --gold: #FFCB1C;
+  --orange: #FF7B00;
+  --text-primary: #ECF0FA;
+  --text-secondary: #A4B0D0;
+  --text-muted: #6878A0;
+  --text-dark: #465170;
+}
+body {
+  background:
+    radial-gradient(ellipse at 20% -5%, rgba(120,170,255,0.14) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 105%, rgba(78,200,255,0.08) 0%, transparent 55%),
+    #0E1530 !important;
+}
+.scanline-overlay { display: block; }
+.meet-bar-fill { background: linear-gradient(90deg, #FF3B30 0%, #FFCB1C 50%, #40E382 85%, #4EC8FF 100%) !important; }
+.city-ring-fill { background: linear-gradient(90deg, #40E382, #4EC8FF) !important; }
+.xp-bar-fill { background: linear-gradient(90deg, var(--cyan), var(--purple)) !important; }
+.affinity-bar-fill { background: linear-gradient(90deg, var(--cyan), var(--purple)) !important; }
+.pill-btn.good { background: var(--cyan) !important; color: #001827 !important; border-color: var(--cyan) !important; }
+.xp-level-badge { background: var(--cyan) !important; color: #001827 !important; }
+.dock-btn.home-btn { background: var(--cyan) !important; color: #001827 !important; }
