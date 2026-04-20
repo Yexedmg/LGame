@@ -20,8 +20,8 @@ const STAT_CSS = {
   social: 'social', charm: 'charm', sexAppeal: 'sex', power: 'power', fight: 'fight', looks: 'looks'
 };
 const STAT_EMOJI = {
-  money:'💰', boldness:'⚡', fear:'😨', health:'❤️', social:'🗣️',
-  charm:'✨', sexAppeal:'💋', power:'💪', fight:'🥊', looks:'🪞'
+  money:'$', boldness:'!', fear:'~', health:'+', social:'●',
+  charm:'◆', sexAppeal:'♦', power:'■', fight:'▲', looks:'○'
 };
 const STAT_DESC = {
   money:'Currency. Earned from work, spent on dates, summons and lifestyle.',
@@ -44,22 +44,22 @@ const START_YEAR = 2026;
 const PRESET_ACTIVITIES = [
   { id:'p-job', name:'Part-time Job (shift)', desc:'Clock in a shift at your job.',
     effects:{ money:+25, health:-2 }, meetBonus:0, xp:8,
-    emoji:'💼', kind:'job' },
+    emoji:'[JOB]', kind:'job' },
   { id:'p-gym', name:'Gym Session', desc:'Hit the weights.',
     effects:{ health:+2, power:+2, sexAppeal:+1 }, meetBonus:1, xp:6,
-    emoji:'🏋️', kind:'sport' },
+    emoji:'[GYM]', kind:'sport' },
   { id:'p-run', name:'Go for a Run', desc:'Cardio morning.',
     effects:{ health:+3, sexAppeal:+1 }, meetBonus:1, xp:5,
-    emoji:'🏃', kind:'sport' },
+    emoji:'[RUN]', kind:'sport' },
   { id:'p-class', name:'Attend Classes', desc:'Show up, pay attention, meet classmates.',
     effects:{ social:+1 }, meetBonus:3, xp:8,
-    emoji:'🎓', kind:'school' },
+    emoji:'[CLS]', kind:'school' },
   { id:'p-party', name:'Go to a Party', desc:'Socialize at a house / club party.',
     effects:{ social:+3, charm:+2, health:-1, money:-10 }, meetBonus:2, xp:10,
-    emoji:'🎉', kind:'social' },
+    emoji:'[PTY]', kind:'social' },
   { id:'p-rest', name:'Rest Day', desc:'Recover health and chill.',
     effects:{ health:+3, fear:-1 }, meetBonus:0, xp:2,
-    emoji:'🛌', kind:'rest' },
+    emoji:'[RST]', kind:'rest' },
 ];
 
 const SUMMON_COST_TABLE = [
@@ -113,26 +113,26 @@ function defaultData() {
 
 function defaultActivityCategories() {
   return [
-    { id:'cat-sports', name:'Sports', emoji:'🏋️', maxSlots:3, slots:[null,null,null], inventory:[] },
-    { id:'cat-job', name:'Part-time Job', emoji:'💼', maxSlots:1, slots:[null], inventory:[] },
-    { id:'cat-school', name:'School / Classes', emoji:'🎓', maxSlots:2, slots:[null,null], inventory:[] },
-    { id:'cat-combat', name:'Combat', emoji:'🥊', maxSlots:2, slots:[null,null], inventory:[] },
-    { id:'cat-social', name:'Social', emoji:'🎉', maxSlots:2, slots:[null,null], inventory:[] },
-    { id:'cat-grooming', name:'Grooming', emoji:'🪞', maxSlots:1, slots:[null], inventory:[] },
-    { id:'cat-custom', name:'Other', emoji:'⭐', maxSlots:3, slots:[null,null,null], inventory:[] },
+    { id:'cat-sports', name:'Sports', emoji:'[SPT]', maxSlots:3, slots:[null,null,null], inventory:[] },
+    { id:'cat-job', name:'Part-time Job', emoji:'[JOB]', maxSlots:1, slots:[null], inventory:[] },
+    { id:'cat-school', name:'School / Classes', emoji:'[CLS]', maxSlots:2, slots:[null,null], inventory:[] },
+    { id:'cat-combat', name:'Combat', emoji:'[CMB]', maxSlots:2, slots:[null,null], inventory:[] },
+    { id:'cat-social', name:'Social', emoji:'[SOC]', maxSlots:2, slots:[null,null], inventory:[] },
+    { id:'cat-grooming', name:'Grooming', emoji:'[GRM]', maxSlots:1, slots:[null], inventory:[] },
+    { id:'cat-custom', name:'Other', emoji:'[···]', maxSlots:3, slots:[null,null,null], inventory:[] },
   ];
 }
 
 function defaultLeadgen() {
   return {
     methods: [
-      { id:'lm-job', name:'Part-time Job', emoji:'💼', maxSlots:1, slots:[null],
+      { id:'lm-job', name:'Part-time Job', emoji:'[JOB]', maxSlots:1, slots:[null],
         inventory:[
           { id:'li-ah', name:'Albert Heijn vakkenvuller', difficulty:'easy', roi:'medium' },
         ] },
-      { id:'lm-cold', name:'Cold Approach', emoji:'🔥', maxSlots:2, slots:[null,null], inventory:[] },
-      { id:'lm-event', name:'Event Hosting', emoji:'🎤', maxSlots:1, slots:[null], inventory:[] },
-      { id:'lm-online', name:'Online Presence', emoji:'📱', maxSlots:2, slots:[null,null], inventory:[] },
+      { id:'lm-cold', name:'Cold Approach', emoji:'[CLD]', maxSlots:2, slots:[null,null], inventory:[] },
+      { id:'lm-event', name:'Event Hosting', emoji:'[EVT]', maxSlots:1, slots:[null], inventory:[] },
+      { id:'lm-online', name:'Online Presence', emoji:'[NET]', maxSlots:2, slots:[null,null], inventory:[] },
     ],
   };
 }
@@ -295,7 +295,7 @@ function addCustomActivity(data) {
     effects: data.effects || {},
     meetBonus: Number(data.meetBonus) || 0,
     xp: Number(data.xp) || 5,
-    emoji: data.emoji || '⭐',
+    emoji: data.emoji || '★',
     kind: 'custom',
   };
   D.customActivities.push(a);
@@ -456,7 +456,7 @@ function openSummonModal() {
       </div>
     </div>`).join('');
   openModal(`
-    <h3>💎 Summon</h3>
+    <h3> Summon</h3>
     <div class="desc" style="color:var(--text-secondary);font-size:12px;margin-bottom:10px">Spend money for a guaranteed meet at a venue.</div>
     <div style="display:flex;flex-direction:column;gap:8px">${body}</div>
     <div class="row"><button class="pill-btn" onclick="closeModal()">Close</button></div>
@@ -543,7 +543,7 @@ function promoteTheOne(id) {
   D.relationships.theOne = id;
   g.status = 'TheOne';
   addXP(80, `${g.name} is The One`);
-  addLog(`${g.name} became The One. 💖`, 'relationship');
+  addLog(`${g.name} became The One. ★`, 'relationship');
   toast(`${g.name} is The One.`);
   save(); render();
 }
@@ -669,7 +669,7 @@ function finalizeMonth(info) {
   };
   mo.summary = sum;
 
-  const recap = `📅 ${info.name} recap: met ${sum.girlsMet}, dates ${sum.dates}, promotions ${sum.promotions}, XP +${sum.xpGained}.`;
+  const recap = ` ${info.name} recap: met ${sum.girlsMet}, dates ${sum.dates}, promotions ${sum.promotions}, XP +${sum.xpGained}.`;
   D.log.push({ t: Date.now(), day: D.day - 1, month: info.name, year: info.year, msg: recap, tag: 'monthly' });
   save();
 }
@@ -769,7 +769,7 @@ function activityCard(a, isCustom) {
   const meet = a.meetBonus ? `  •  Meet +${a.meetBonus}` : '';
   return `
     <div class="activity-card">
-      <div class="name">${a.emoji || '⭐'} ${escapeHtml(a.name)}</div>
+      <div class="name">${a.emoji || '★'} ${escapeHtml(a.name)}</div>
       <div class="desc">${escapeHtml(a.desc || '')}</div>
       <div class="meta">${effectsStr}${meet}  •  +${a.xp} XP</div>
       <div class="row">
@@ -847,7 +847,7 @@ function renderRoster() {
 function girlCard(g) {
   const sidelined = g.status === 'Sidelined';
   const badge = {
-    Talking:'', Dating:'DATING', Common:'COMMON', TheOne:'💖 THE ONE', Sidelined:'SIDELINED'
+    Talking:'', Dating:'DATING', Common:'COMMON', TheOne:'★ THE ONE', Sidelined:'SIDELINED'
   }[g.status] || '';
   return `
     <div class="entity-card ${sidelined?'sidelined':''}" onclick="openGirlDetails('${g.id}')">
@@ -876,7 +876,7 @@ function openGirlDetails(id) {
   const gateOne = g.affinity >= 90 && g.looksLikeYou >= 70;
   const gateCommon = g.affinity >= 60;
   openModal(`
-    <h3>💋 ${escapeHtml(g.name)}</h3>
+    <h3> ${escapeHtml(g.name)}</h3>
     <div class="meta" style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);margin-bottom:10px">
       ${starsHtml(g.rarity)} • ${escapeHtml(g.origin)} • status: ${g.status}<br>
       affinity: ${g.affinity}% • looks-like-you: ${g.dates >= 3 ? g.looksLikeYou : '? (after 3 dates)'} • dates: ${g.dates}
@@ -886,7 +886,7 @@ function openGirlDetails(id) {
       <button class="pill-btn" onclick="hangOut('${g.id}');closeModal()">Hang out ($5)</button>
       <button class="pill-btn warm" onclick="dateGirl('${g.id}');closeModal()">Date ($20)</button>
       ${gateCommon && g.status === 'Talking' ? `<button class="pill-btn good" onclick="askOut('${g.id}');closeModal()">Ask out (Slot 2)</button>` : ''}
-      ${gateOne ? `<button class="pill-btn good" onclick="promoteTheOne('${g.id}');closeModal()">💖 Make her The One</button>` : ''}
+      ${gateOne ? `<button class="pill-btn good" onclick="promoteTheOne('${g.id}');closeModal()">★ Make her The One</button>` : ''}
       ${g.status !== 'Sidelined' ? `<button class="pill-btn danger" onclick="sideline('${g.id}');closeModal()">Sideline</button>` : ''}
       <button class="pill-btn danger" onclick="release('${g.id}');closeModal()">Release</button>
     </div>
@@ -897,7 +897,7 @@ function openGirlDetails(id) {
 function openFriendDetails(id) {
   const f = friendById(id); if (!f) return;
   openModal(`
-    <h3>🤝 ${escapeHtml(f.name)}</h3>
+    <h3> ${escapeHtml(f.name)}</h3>
     <div class="meta" style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);margin-bottom:10px">
       ${starsHtml(f.rarity)} social • ${escapeHtml(f.origin || 'Unknown')}<br>
       Boost to Meet bar: +${(f.rarity * 0.5).toFixed(1)}
@@ -913,7 +913,7 @@ function openFriendDetails(id) {
 function openAddRosterModal() {
   const isGirl = currentRosterTab === 'girls';
   openModal(`
-    <h3>${isGirl ? '💋 Add Girl' : '🤝 Add Friend'}</h3>
+    <h3>${isGirl ? ' Add Girl' : ' Add Friend'}</h3>
     <div class="form-row"><label>NAME</label><input id="f-name" placeholder="${isGirl ? 'e.g. Mia' : 'e.g. Mike'}"/></div>
     <div class="form-row"><label>RARITY (1–5)${isGirl ? '' : ' — their Social star'}</label><input id="f-rarity" type="number" min="1" max="5" value="3"/></div>
     <div class="form-row"><label>ORIGIN</label><input id="f-origin" placeholder="${isGirl ? 'Where you met' : 'Where you met them'}"/></div>
@@ -945,9 +945,9 @@ function submitAddRoster(isGirl) {
 
 function openAddActivityModal() {
   openModal(`
-    <h3>⭐ Add Custom Activity</h3>
+    <h3>★ Add Custom Activity</h3>
     <div class="form-row"><label>NAME</label><input id="ca-name" placeholder="e.g. Judo class"/></div>
-    <div class="form-row"><label>EMOJI</label><input id="ca-emoji" placeholder="🥋" maxlength="2"/></div>
+    <div class="form-row"><label>EMOJI</label><input id="ca-emoji" placeholder="" maxlength="2"/></div>
     <div class="form-row"><label>MEET BAR BONUS (0–15)</label><input id="ca-meet" type="number" min="0" max="15" value="3"/></div>
     <div class="form-row"><label>XP PER DO</label><input id="ca-xp" type="number" min="1" max="50" value="6"/></div>
     <div class="form-row"><label>EFFECTS (advanced — e.g. fight:+2,power:+1)</label><input id="ca-effects" placeholder="fight:+2,power:+1"/></div>
@@ -962,7 +962,7 @@ function openAddActivityModal() {
 function submitAddActivity() {
   const name = (document.getElementById('ca-name').value || '').trim();
   if (!name) { toast('Need a name.'); return; }
-  const emoji = document.getElementById('ca-emoji').value || '⭐';
+  const emoji = document.getElementById('ca-emoji').value || '★';
   const meetBonus = Number(document.getElementById('ca-meet').value) || 0;
   const xp = Number(document.getElementById('ca-xp').value) || 5;
   const desc = document.getElementById('ca-desc').value || '';
@@ -1033,7 +1033,7 @@ function renderLife() {
         <div class="row">
           <button class="pill-btn" onclick="hangOut('${g.id}')">Hang</button>
           <button class="pill-btn warm" onclick="dateGirl('${g.id}')">Date</button>
-          ${g.affinity >= 90 && g.looksLikeYou >= 70 ? `<button class="pill-btn good" onclick="promoteTheOne('${g.id}')">💖 Promote</button>` : ''}
+          ${g.affinity >= 90 && g.looksLikeYou >= 70 ? `<button class="pill-btn good" onclick="promoteTheOne('${g.id}')">★ Promote</button>` : ''}
           <button class="pill-btn danger" onclick="sideline('${g.id}')">Sideline</button>
         </div>
       </div>`).join('');
@@ -1227,7 +1227,7 @@ function renderStatPage() {
   const related = D.activityCategories.flatMap(c => c.inventory.filter(it => it.statEffects && it.statEffects[k]));
   el.innerHTML = `
     <div class="stat-hero ${STAT_CSS[k]}">
-      <div class="stat-hero-emoji">${STAT_EMOJI[k]||'✦'}</div>
+      <div class="stat-hero-emoji">${STAT_EMOJI[k]||'◆'}</div>
       <div class="stat-hero-body">
         <div class="stat-hero-name">${STAT_LABELS[k]}${k==='money'?' ($)':''}</div>
         <div class="stat-hero-val">${val}</div>
@@ -1247,7 +1247,7 @@ function renderStatPage() {
     ${related.length ? `
       <div class="section-header"><span>INVENTORY ITEMS</span></div>
       <div class="activities-list">
-        ${related.map(it => `<div class="activity-card"><div class="name">${it.emoji||'⭐'} ${escapeHtml(it.name)}</div><div class="meta">${statEffectsStr(it.statEffects)}</div></div>`).join('')}
+        ${related.map(it => `<div class="activity-card"><div class="name">${it.emoji||'★'} ${escapeHtml(it.name)}</div><div class="meta">${statEffectsStr(it.statEffects)}</div></div>`).join('')}
       </div>` : ''}
   `;
 }
@@ -1266,19 +1266,19 @@ function renderGirls() {
   if (!el) return;
   el.innerHTML = `
     <button class="hub-card" onclick="navigateTo('roster')">
-      <div class="hub-icon">💋</div>
+      <div class="hub-icon"></div>
       <div class="hub-body"><div class="hub-title">Roster</div><div class="hub-desc">${girlsCount} girls · ${D.friends.length} friends</div></div>
     </button>
     <button class="hub-card" onclick="navigateTo('life')">
-      <div class="hub-icon">💞</div>
+      <div class="hub-icon"></div>
       <div class="hub-body"><div class="hub-title">Life (Slots)</div><div class="hub-desc">${taken} girlfriend${taken===1?'':'s'}</div></div>
     </button>
     <button class="hub-card" onclick="navigateTo('meet')">
-      <div class="hub-icon">💘</div>
+      <div class="hub-icon"></div>
       <div class="hub-body"><div class="hub-title">Meet</div><div class="hub-desc">${computeMeetBar().percent.toFixed(0)}% chance bar</div></div>
     </button>
     <button class="hub-card" onclick="navigateTo('leadgen')">
-      <div class="hub-icon">🎯</div>
+      <div class="hub-icon"></div>
       <div class="hub-body"><div class="hub-title">Lead Generation</div><div class="hub-desc">Total gain ${leadPct}%</div></div>
     </button>
   `;
@@ -1386,13 +1386,13 @@ function adjustLeadMax(methodId, delta) {
 }
 function openAddLeadItem(methodId) {
   openModal(`
-    <h3>🎯 Add Lead Item</h3>
+    <h3> Add Lead Item</h3>
     <div class="form-row"><label>NAME</label><input id="li-name" placeholder="e.g. Albert Heijn vakkenvuller"/></div>
     <div class="form-row"><label>DIFFICULTY</label>
       <select id="li-diff">
-        <option value="easy">🟢 Easy</option>
-        <option value="medium" selected>🟡 Medium</option>
-        <option value="hard">🔴 Hard</option>
+        <option value="easy">• Easy</option>
+        <option value="medium" selected>• Medium</option>
+        <option value="hard">• Hard</option>
       </select></div>
     <div class="form-row"><label>SOCIAL ROI</label>
       <select id="li-roi">
@@ -1424,7 +1424,7 @@ function openEditLeadItem(methodId, itemId) {
   const it = m?.inventory.find(x => x.id === itemId);
   if (!it) return;
   openModal(`
-    <h3>✏️ Edit ${escapeHtml(it.name)}</h3>
+    <h3> Edit ${escapeHtml(it.name)}</h3>
     <div class="form-row"><label>NAME</label><input id="li-name" value="${escapeHtml(it.name)}"/></div>
     <div class="form-row"><label>DIFFICULTY</label>
       <select id="li-diff">
@@ -1553,7 +1553,7 @@ function activityTile(cat, it, inSlot) {
          ondragstart="onDragStartActivity(event,'${cat.id}','${it.id}')"
          ondragend="onDragEnd(event)"
          ondblclick="openEditActivityItem('${cat.id}','${it.id}')">
-      <div class="tile-name">${it.emoji||'⭐'} ${escapeHtml(it.name)}</div>
+      <div class="tile-name">${it.emoji||'★'} ${escapeHtml(it.name)}</div>
       <div class="tile-meta">${statEffectsStr(it.statEffects)}${it.meetBonus?` · Meet +${it.meetBonus}`:''}</div>
       <div class="row" style="margin-top:4px">
         <button class="pill-btn good" onclick="event.stopPropagation();doActivityItem('${cat.id}','${it.id}')">Do</button>
@@ -1604,9 +1604,9 @@ function openAddActivityItem(catId) {
     `<div class="eff-row"><label>${STAT_LABELS[k]}</label><input type="number" value="0" data-stat="${k}" class="eff-input"/></div>`
   ).join('');
   openModal(`
-    <h3>⭐ Add Item</h3>
+    <h3>★ Add Item</h3>
     <div class="form-row"><label>NAME</label><input id="ai-name" placeholder="e.g. Judo class"/></div>
-    <div class="form-row"><label>EMOJI</label><input id="ai-emoji" placeholder="🥋" maxlength="2"/></div>
+    <div class="form-row"><label>EMOJI</label><input id="ai-emoji" placeholder="" maxlength="2"/></div>
     <div class="form-row"><label>MEET BAR BONUS</label><input id="ai-meet" type="number" min="0" max="15" value="0"/></div>
     <div class="form-row"><label>XP PER DO</label><input id="ai-xp" type="number" min="1" max="50" value="5"/></div>
     <div class="form-row"><label>STAT EFFECTS</label><div class="effects-grid">${effRows}</div></div>
@@ -1631,7 +1631,7 @@ function submitAddActivityItem(catId) {
   c.inventory.push({
     id: uid('ai'),
     name,
-    emoji: document.getElementById('ai-emoji').value || '⭐',
+    emoji: document.getElementById('ai-emoji').value || '★',
     meetBonus: Number(document.getElementById('ai-meet').value) || 0,
     xp: Number(document.getElementById('ai-xp').value) || 5,
     statEffects: readEffectInputs(),
@@ -1647,7 +1647,7 @@ function openEditActivityItem(catId, itemId) {
     `<div class="eff-row"><label>${STAT_LABELS[k]}</label><input type="number" value="${it.statEffects?.[k]||0}" data-stat="${k}" class="eff-input"/></div>`
   ).join('');
   openModal(`
-    <h3>✏️ Edit ${escapeHtml(it.name)}</h3>
+    <h3> Edit ${escapeHtml(it.name)}</h3>
     <div class="form-row"><label>NAME</label><input id="ai-name" value="${escapeHtml(it.name)}"/></div>
     <div class="form-row"><label>EMOJI</label><input id="ai-emoji" value="${it.emoji||''}" maxlength="2"/></div>
     <div class="form-row"><label>MEET BAR BONUS</label><input id="ai-meet" type="number" min="0" max="15" value="${it.meetBonus||0}"/></div>
@@ -1753,7 +1753,7 @@ function renderNextMoves() {
     <div class="move-card">
       <div class="move-body">
         <div class="move-name">${escapeHtml(m.name)}</div>
-        <div class="move-meta">${statEffectsStr(m.statEffects)}${m.city?` · 📍 ${escapeHtml(cityName(m.city))}`:''}</div>
+        <div class="move-meta">${statEffectsStr(m.statEffects)}${m.city?` ·  ${escapeHtml(cityName(m.city))}`:''}</div>
       </div>
       <div class="row">
         <button class="pill-btn good" onclick="executeMove('${m.id}')">Execute</button>
@@ -1769,7 +1769,7 @@ function openAddMove() {
   const cityOpts = '<option value="">— none —</option>' +
     D.world.cities.filter(c=>c.discovered).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   openModal(`
-    <h3>📝 Plan a Next Move</h3>
+    <h3> Plan a Next Move</h3>
     <div class="form-row"><label>NAME</label><input id="nm-name" placeholder="e.g. Join judo class"/></div>
     <div class="form-row"><label>STATS IMPROVED (hold Ctrl/Cmd to multi-select)</label>
       <select id="nm-stats" multiple size="6">${statOpts}</select></div>
@@ -1803,7 +1803,7 @@ function openEditMove(id) {
   const cityOpts = '<option value="">— none —</option>' +
     D.world.cities.filter(c=>c.discovered).map(c => `<option value="${c.id}" ${m.city===c.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
   openModal(`
-    <h3>✏️ Edit Move</h3>
+    <h3> Edit Move</h3>
     <div class="form-row"><label>NAME</label><input id="nm-name" value="${escapeHtml(m.name)}"/></div>
     <div class="form-row"><label>STATS IMPROVED</label>
       <select id="nm-stats" multiple size="6">${statOpts}</select></div>

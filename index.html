@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.0" />
+  <link rel="stylesheet" href="styles.css?v=2.1" />
 </head>
 <body>
   <div id="app">
@@ -57,16 +57,16 @@
         <div class="section-header"><span>QUICK ACTIONS</span></div>
         <div class="quick-actions">
           <button class="action-card" onclick="navigateTo('activities')">
-            <span class="action-icon">💼</span><span class="action-label">Activities</span>
+            <span class="action-icon">ACT</span><span class="action-label">Activities</span>
           </button>
           <button class="action-card" onclick="navigateTo('meet')">
-            <span class="action-icon">💘</span><span class="action-label">Meet</span>
+            <span class="action-icon">MEET</span><span class="action-label">Meet</span>
           </button>
           <button class="action-card" onclick="navigateTo('roster')">
-            <span class="action-icon">📒</span><span class="action-label">Roster</span>
+            <span class="action-icon">RSTR</span><span class="action-label">Roster</span>
           </button>
           <button class="action-card" onclick="endDay()">
-            <span class="action-icon">🌙</span><span class="action-label">End Day</span>
+            <span class="action-icon">END</span><span class="action-label">End Day</span>
           </button>
         </div>
 
@@ -83,7 +83,7 @@
     <!-- ACTIVITIES PAGE -->
     <div id="page-activities" class="page">
       <div class="page-scroll">
-        <div class="page-title">💼 ACTIVITIES</div>
+        <div class="page-title">ACTIVITIES</div>
         <div class="section-header"><span>CATEGORIES (drag &amp; drop into slots)</span></div>
         <div id="activity-categories"></div>
 
@@ -103,7 +103,7 @@
     <!-- MEET PAGE -->
     <div id="page-meet" class="page">
       <div class="page-scroll">
-        <div class="page-title">💘 MEET</div>
+        <div class="page-title">MEET</div>
 
         <div class="meet-chips" id="meet-chips"></div>
 
@@ -120,15 +120,12 @@
 
         <div class="meet-actions">
           <button class="meet-go-btn" onclick="rollEncounter()">
-            <span class="meet-go-icon">✨</span>
             <span class="meet-go-text">GO OUT</span>
           </button>
           <button class="meet-summon-btn" onclick="openSummonModal()">
-            <span class="meet-go-icon">💎</span>
             <span class="meet-go-text">SUMMON</span>
           </button>
           <button class="meet-cold-btn" onclick="coldApproach()">
-            <span class="meet-go-icon">🔥</span>
             <span class="meet-go-text">COLD APPROACH</span>
           </button>
         </div>
@@ -148,10 +145,10 @@
     <!-- ROSTER PAGE -->
     <div id="page-roster" class="page">
       <div class="page-scroll">
-        <div class="page-title">📒 ROSTER</div>
+        <div class="page-title">ROSTER</div>
         <div class="inventory-tabs">
-          <button class="inv-tab active" id="roster-tab-girls" onclick="switchRosterTab('girls')">💋 Girls</button>
-          <button class="inv-tab" id="roster-tab-friends" onclick="switchRosterTab('friends')">🤝 Friends</button>
+          <button class="inv-tab active" id="roster-tab-girls" onclick="switchRosterTab('girls')">Girls</button>
+          <button class="inv-tab" id="roster-tab-friends" onclick="switchRosterTab('friends')">Friends</button>
         </div>
         <div class="inv-search-container">
           <input type="text" class="inv-search" id="roster-search" placeholder="Search..." oninput="renderRoster()" />
@@ -169,7 +166,7 @@
     <!-- LIFE (Relationships) PAGE -->
     <div id="page-life" class="page">
       <div class="page-scroll">
-        <div class="page-title">💞 LIFE</div>
+        <div class="page-title">LIFE</div>
 
         <div class="domino-ratio" id="domino-ratio">0 : 1 — no chasers yet</div>
 
@@ -198,7 +195,7 @@
     <!-- GIRLS HUB PAGE -->
     <div id="page-girls" class="page">
       <div class="page-scroll">
-        <div class="page-title">👩 GIRLS</div>
+        <div class="page-title">GIRLS</div>
         <div class="hub-grid" id="girls-hub"></div>
       </div>
     </div>
@@ -208,7 +205,7 @@
       <div class="page-scroll">
         <div class="overlay-header">
           <button class="back-btn" onclick="navigateTo('girls')">← Girls</button>
-          <div class="page-title" style="margin:0">🎯 LEAD GENERATION</div>
+          <div class="page-title" style="margin:0">LEAD GENERATION</div>
         </div>
         <div class="meet-bar-wrap">
           <div class="meet-bar-track">
@@ -227,7 +224,7 @@
     <!-- WORLD MAP PAGE -->
     <div id="page-world" class="page">
       <div class="page-scroll">
-        <div class="page-title">🗺️ WORLD</div>
+        <div class="page-title">WORLD</div>
         <div class="section-header"><span>CITIES</span></div>
         <div id="world-grid" class="world-grid"></div>
         <div class="section-header">
@@ -254,7 +251,7 @@
       <div class="page-scroll">
         <div class="overlay-header">
           <button class="back-btn" onclick="hideOverlay()">← Back</button>
-          <div class="page-title" style="margin:0">📊 STATS</div>
+          <div class="page-title" style="margin:0">STATS</div>
         </div>
         <div id="stats-content" class="stats-content"></div>
       </div>
@@ -265,7 +262,7 @@
       <div class="page-scroll">
         <div class="overlay-header">
           <button class="back-btn" onclick="hideOverlay()">← Back</button>
-          <div class="page-title" style="margin:0">📅 MONTHS</div>
+          <div class="page-title" style="margin:0">MONTHS</div>
         </div>
         <div class="months-tabs" id="months-tabs">
           <div class="empty-state">No months yet. Live a little.</div>
@@ -280,32 +277,32 @@
       <div class="page-scroll">
         <div class="overlay-header">
           <button class="back-btn" onclick="hideOverlay()">← Back</button>
-          <div class="page-title" style="margin:0">💾 SAVE / LOAD</div>
+          <div class="page-title" style="margin:0">SAVE / LOAD</div>
         </div>
         <div class="saveload-container">
           <div class="saveload-section">
-            <div class="saveload-section-icon">📤</div>
+            <div class="saveload-section-icon"></div>
             <div class="saveload-section-title">EXPORT SAVE</div>
             <div class="saveload-section-desc">Download your save as JSON.</div>
             <button class="saveload-btn export-btn" onclick="exportSaveData()">
-              <span class="saveload-btn-icon">💾</span><span>Download Save File</span>
+              <span class="saveload-btn-icon"></span><span>Download Save File</span>
             </button>
           </div>
           <div class="saveload-section">
-            <div class="saveload-section-icon">📥</div>
+            <div class="saveload-section-icon"></div>
             <div class="saveload-section-title">IMPORT SAVE</div>
             <div class="saveload-section-desc">Load a JSON save. Overwrites current data.</div>
             <label class="saveload-btn import-btn">
-              <span class="saveload-btn-icon">📂</span><span>Choose Save File</span>
+              <span class="saveload-btn-icon"></span><span>Choose Save File</span>
               <input type="file" accept=".json" onchange="importSaveData(event)" style="display:none" />
             </label>
           </div>
           <div class="saveload-divider"></div>
           <div class="saveload-danger">
-            <div class="saveload-danger-title">⚠️ DANGER ZONE</div>
+            <div class="saveload-danger-title">! DANGER ZONE</div>
             <div class="saveload-section-desc" style="color:var(--red);opacity:0.7">Permanently delete ALL data.</div>
             <button class="saveload-btn danger-btn" onclick="resetAllData()">
-              <span class="saveload-btn-icon">🗑️</span><span>Reset All Data</span>
+              <span class="saveload-btn-icon">x</span><span>Reset All Data</span>
             </button>
           </div>
         </div>
@@ -321,23 +318,23 @@
     <!-- Bottom Dock -->
     <nav class="bottom-dock">
       <button class="dock-btn" data-page="activities" onclick="navigateTo('activities')">
-        <span class="dock-icon">💼</span><span class="dock-label">Activities</span>
+        <span class="dock-icon">ACT</span><span class="dock-label">Activities</span>
       </button>
       <button class="dock-btn" data-page="meet" onclick="navigateTo('meet')">
-        <span class="dock-icon">💘</span><span class="dock-label">Meet</span>
+        <span class="dock-icon">MEET</span><span class="dock-label">Meet</span>
       </button>
       <button class="dock-btn home-btn active" data-page="home" onclick="navigateTo('home')">
-        <span class="dock-icon-home">🏠</span>
+        <span class="dock-icon-home">HOME</span>
       </button>
       <button class="dock-btn" data-page="girls" onclick="navigateTo('girls')">
-        <span class="dock-icon">👩</span><span class="dock-label">Girls</span>
+        <span class="dock-icon">GRL</span><span class="dock-label">Girls</span>
       </button>
       <button class="dock-btn" data-page="world" onclick="navigateTo('world')">
-        <span class="dock-icon">🗺️</span><span class="dock-label">World</span>
+        <span class="dock-icon">MAP</span><span class="dock-label">World</span>
       </button>
     </nav>
   </div>
 
-  <script src="app.js?v=2.0"></script>
+  <script src="app.js?v=2.1"></script>
 </body>
 </html>

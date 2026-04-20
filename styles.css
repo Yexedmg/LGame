@@ -697,3 +697,50 @@ body {
 
 /* Looks stat color */
 .qstat.looks .qstat-value { color: #f0abfc; }
+
+/* ===== v2.1 black theme override ===== */
+:root {
+  --bg-primary: #000;
+  --bg-secondary: #0a0a0a;
+  --bg-card: rgba(255,255,255,0.04);
+  --bg-card-hover: rgba(255,255,255,0.08);
+  --bg-modal: rgba(0,0,0,0.98);
+  --border-subtle: rgba(255,255,255,0.08);
+  --border-medium: rgba(255,255,255,0.14);
+  --border-accent: rgba(255,255,255,0.22);
+  --border-accent-strong: rgba(255,255,255,0.4);
+  --cyan: #ffffff;
+  --cyan-dim: rgba(255,255,255,0.08);
+  --cyan-glow: rgba(255,255,255,0.12);
+  --green: #9fe6b3;
+  --yellow: #e6d88a;
+  --red: #ff5a55;
+  --pink: #ff7a8a;
+  --purple: #c9b6ff;
+  --gold: #e6c873;
+  --orange: #e69a5a;
+  --text-primary: #f2f2f2;
+  --text-secondary: #a8a8a8;
+  --text-muted: #6a6a6a;
+  --text-dark: #3a3a3a;
+}
+body { background: #000; }
+.scanline-overlay { background:
+  radial-gradient(ellipse at 20% -5%, rgba(255,255,255,0.04) 0%, transparent 50%),
+  radial-gradient(ellipse at 80% 105%, rgba(255,255,255,0.03) 0%, transparent 50%); }
+.wordmark-date { color: var(--text-primary); }
+.hub-card, .category-block, .move-card, .city-card, .stat-hero, .act-tile, .lead-tile,
+.entity-card, .activity-card, .qstat, .slot-mini, .slot-one-card, .common-card {
+  background: #0c0c0c !important;
+  border-color: #1c1c1c !important;
+}
+.hub-card:hover, .city-card:hover, .act-tile:hover, .lead-tile:hover { background: #141414 !important; }
+.inv-row { background: #050505 !important; }
+.slot-zone { border-color: #1c1c1c !important; }
+.slot-zone.drop-active, .inv-row.drop-active { border-color: #fff !important; background: rgba(255,255,255,0.03) !important; }
+.city-card.current { border-color: #fff !important; box-shadow: 0 0 0 1px #fff inset; }
+.slot-count { color: #fff !important; background: rgba(255,255,255,0.08) !important; }
+.city-ring-fill { background: #fff !important; }
+.meet-bar-fill { background: linear-gradient(90deg, #444, #fff) !important; }
+/* dock: make icons show custom labels */
+.dock-icon, .dock-icon-home { font-family: var(--font-mono); font-size: 11px !important; font-weight:800; letter-spacing:1px; }
