@@ -90,7 +90,9 @@
     <div id="page-activities" class="page">
       <div class="page-scroll">
         <div class="page-title">ACTIVITIES</div>
-        <div class="section-header"><span>CATEGORIES (drag &amp; drop into slots)</span></div>
+        <div class="section-header"><span>CATEGORIES (drag &amp; drop into slots)</span>
+          <button class="small-btn" id="act-edit-toggle" onclick="toggleActEdit()">✎</button>
+        </div>
         <div id="activity-categories"></div>
 
         <div class="section-header"><span>PRESETS</span></div>
@@ -236,7 +238,9 @@
           <div class="empty-state">Build your vibe — fill components below.</div>
         </div>
 
-        <div class="section-header"><span>COMPONENTS</span></div>
+        <div class="section-header"><span>COMPONENTS</span>
+          <button class="small-btn" id="vibe-edit-toggle" onclick="toggleVibeEdit()">✎</button>
+        </div>
         <div id="vibe-components"></div>
       </div>
     </div>

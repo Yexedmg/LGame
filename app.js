@@ -1494,6 +1494,15 @@ function syncVibeStat() {
   D.player.stats.vibe = Math.round(percent);
 }
 
+let vibeEditMode = false;
+function toggleVibeEdit() {
+  vibeEditMode = !vibeEditMode;
+  const el = document.getElementById('vibe-components');
+  if (el) el.classList.toggle('editing', vibeEditMode);
+  const btn = document.getElementById('vibe-edit-toggle');
+  if (btn) btn.classList.toggle('active', vibeEditMode);
+}
+
 let currentVibeCompId = null;
 function openVibeComp(id) {
   if (id === 'leadgen') {
@@ -2187,10 +2196,29 @@ function onDropLeadInv(e, methodId) {
 }
 
 // ── Activity categories (drag/drop) ──
+let actEditMode = false;
+function toggleActEdit() {
+  actEditMode = !actEditMode;
+  const el = document.getElementById('activity-categories');
+  if (el) el.classList.toggle('editing', actEditMode);
+  const btn = document.getElementById('act-edit-toggle');
+  if (btn) btn.classList.toggle('active', actEditMode);
+}
+
 function renderActivitiesV2() {
   const el = document.getElementById('activity-categories');
   if (!el) return;
-  el.innerHTML = D.activityCategories.map(renderActivityCategory).join('');
+  let html = D.activityCategories.map(renderActivityCategory).join('');
+  html += `
+    <button class="method-row add-component-btn" onclick="openAddCategory()">
+      <div class="method-body">
+        <div class="method-name">+ Add Category</div>
+        <div class="method-meta">Create a new activity category</div>
+      </div>
+    </button>`;
+  el.innerHTML = html;
+  // Preserve editing state
+  if (actEditMode) el.classList.add('editing');
 }
 function renderActivityCategory(cat) {
   const slots = cat.slots.map((itemId, idx) => {
@@ -2215,6 +2243,7 @@ function renderActivityCategory(cat) {
           <button class="slot-pm" onclick="adjustCatMax('${cat.id}',-1)">−</button>
           <button class="slot-pm" onclick="adjustCatMax('${cat.id}',1)">+</button>
           <button class="small-btn" onclick="openAddActivityItem('${cat.id}')">+ Item</button>
+          <button class="comp-edit-btn cat-edit-btn" onclick="openEditCategory('${cat.id}')" title="Edit category">✎</button>
         </div>
       </div>
       <div class="slot-row">${slots}</div>
@@ -2225,6 +2254,63 @@ function renderActivityCategory(cat) {
            ondrop="onDropActivityInv(event,'${cat.id}')">${inv}</div>
     </div>`;
 }
+
+// ── Category CRUD ──
+function openAddCategory() {
+  openModal(`
+    <h3>New Category</h3>
+    <div class="form-row"><label>NAME</label><input id="ac-name" placeholder="e.g. Meditation"/></div>
+    <div class="form-row"><label>EMOJI</label><input id="ac-emoji" placeholder="e.g. [MED]" maxlength="8" style="width:100px"/></div>
+    <div class="form-row"><label>SLOTS</label><input id="ac-slots" type="number" min="1" max="10" value="2" style="width:60px"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddCategory()">Add</button>
+    </div>`);
+}
+
+function submitAddCategory() {
+  const name = (document.getElementById('ac-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  const emoji = document.getElementById('ac-emoji').value || '[···]';
+  const maxSlots = clamp(parseInt(document.getElementById('ac-slots').value) || 2, 1, 10);
+  D.activityCategories.push({
+    id: uid('cat'), name, emoji, maxSlots, slots: Array(maxSlots).fill(null), inventory: []
+  });
+  closeModal();
+  save(); renderActivitiesV2();
+  toast(`Added ${name}.`);
+}
+
+function openEditCategory(catId) {
+  const c = D.activityCategories.find(x => x.id === catId);
+  if (!c) return;
+  openModal(`
+    <h3>Edit ${escapeHtml(c.name)}</h3>
+    <div class="form-row"><label>NAME</label><input id="ac-name" value="${escapeHtml(c.name)}"/></div>
+    <div class="form-row"><label>EMOJI</label><input id="ac-emoji" value="${escapeHtml(c.emoji)}" maxlength="8" style="width:100px"/></div>
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteCategory('${catId}')">Delete</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditCategory('${catId}')">Save</button>
+    </div>`);
+}
+
+function submitEditCategory(catId) {
+  const c = D.activityCategories.find(x => x.id === catId);
+  if (!c) return;
+  c.name = document.getElementById('ac-name').value || c.name;
+  c.emoji = document.getElementById('ac-emoji').value || c.emoji;
+  closeModal();
+  save(); renderActivitiesV2();
+}
+
+function deleteCategory(catId) {
+  D.activityCategories = D.activityCategories.filter(x => x.id !== catId);
+  closeModal();
+  save(); renderActivitiesV2();
+  toast('Category removed.');
+}
+
 function activityTile(cat, it, inSlot) {
   return `
     <div class="act-tile" draggable="true"
