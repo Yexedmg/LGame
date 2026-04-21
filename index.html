@@ -1,16 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <meta name="description" content="LIFE — a life sim RPG with jobs, sports, friends, and the shiny-bar meet-girls mechanic" />
+  <meta name="description"
+    content="LIFE — a life sim RPG with jobs, sports, friends, and the shiny-bar meet-girls mechanic" />
   <meta name="theme-color" content="#12172B" />
   <title>LIFE — Life RPG</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=2.4" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=2.3" />
 </head>
+
 <body>
   <div id="app">
     <!-- Scanline overlay -->
@@ -28,7 +33,8 @@
               <span class="xp-level-label">LVL</span>
             </div>
             <div class="xp-info">
-              <div class="xp-title">LIFE<span class="accent">::</span><span id="wordmark-date" class="wordmark-date">2026-04-01</span></div>
+              <div class="xp-title">LIFE<span class="accent">::</span><span id="wordmark-date"
+                  class="wordmark-date">2026-04-01</span></div>
               <div class="xp-subtitle" id="home-day-label">Day 1 — taken: 0 / talking: 0</div>
             </div>
             <button class="menu-btn" onclick="showOverlay('saveload')">
@@ -172,7 +178,8 @@
 
         <div class="section-header"><span>SLOT 1 — THE ONE</span></div>
         <div id="slot-one" class="slot-one-wrap">
-          <div class="empty-state">No soulmate yet. Promote from Slot 2 once affinity ≥ 90 and looks-like-you ≥ 70.</div>
+          <div class="empty-state">No soulmate yet. Promote from Slot 2 once affinity ≥ 90 and looks-like-you ≥ 70.
+          </div>
         </div>
 
         <div class="section-header"><span>SLOT 2 — THE COMMONS</span></div>
@@ -200,11 +207,56 @@
       </div>
     </div>
 
+    <!-- THE ENTITY PAGE (the big picture — vibe + lead gen + social proof etc.) -->
+    <div id="page-vibe" class="page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="navigateTo('girls')">← Girls</button>
+          <div class="page-title" style="margin:0">THE ENTITY</div>
+        </div>
+
+        <div class="vibe-hero">
+          <div class="vibe-hero-icon">✦</div>
+          <div class="vibe-hero-label">THE BIG PICTURE</div>
+        </div>
+
+        <div class="meet-bar-wrap">
+          <div class="meet-bar-track vibe-bar-track">
+            <div class="meet-bar-fill vibe-bar-fill" id="vibe-bar-fill" style="width:0%"></div>
+            <div class="meet-bar-sheen"></div>
+          </div>
+          <div class="meet-bar-meta">
+            <span id="vibe-bar-pct">0% VIBE</span>
+            <span id="vibe-bar-sub">0/4 components active</span>
+          </div>
+        </div>
+
+        <div class="section-header"><span>BREAKDOWN</span></div>
+        <div id="vibe-breakdown" class="meet-breakdown">
+          <div class="empty-state">Build your vibe — fill components below.</div>
+        </div>
+
+        <div class="section-header"><span>COMPONENTS</span></div>
+        <div id="vibe-components"></div>
+      </div>
+    </div>
+
+    <!-- VIBE COMPONENT DETAIL PAGE -->
+    <div id="page-vibecomp" class="page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="navigateTo('vibe')">← Back</button>
+          <div class="page-title" id="vibecomp-title" style="margin:0">COMPONENT</div>
+        </div>
+        <div id="vibecomp-content"></div>
+      </div>
+    </div>
+
     <!-- LEAD GENERATION PAGE -->
     <div id="page-leadgen" class="page">
       <div class="page-scroll">
         <div class="overlay-header">
-          <button class="back-btn" onclick="navigateTo('girls')">← Girls</button>
+          <button class="back-btn" onclick="navigateTo('vibe')">← Back</button>
           <div class="page-title" style="margin:0">LEAD GENERATION</div>
         </div>
         <div class="meet-bar-wrap">
@@ -292,17 +344,6 @@
         </div>
         <div class="saveload-container">
           <div class="saveload-section">
-            <div class="saveload-section-title">GAME SETTINGS</div>
-            <div class="saveload-section-desc">Customize your interface and experience.</div>
-            <div class="settings-row">
-              <span>Streamer Overlay</span>
-              <label class="switch">
-                <input type="checkbox" id="streamer-mode-toggle" onchange="toggleStreamerMode(this.checked)">
-                <span class="slider"></span>
-              </label>
-            </div>
-          </div>
-          <div class="saveload-section">
             <div class="saveload-section-icon"></div>
             <div class="saveload-section-title">EXPORT SAVE</div>
             <div class="saveload-section-desc">Download your save as JSON.</div>
@@ -355,18 +396,9 @@
         <span class="dock-icon">MAP</span><span class="dock-label">World</span>
       </button>
     </nav>
-
-    <!-- STREAMER OVERLAY -->
-    <div id="streamer-overlay" class="streamer-overlay">
-      <div class="streamer-top-bar">
-        <div class="live-tag"><span class="blink">●</span> LIVE</div>
-        <div class="viewer-count" id="viewer-count">0</div>
-        <div class="stream-goal">GOAL: Meet someone today</div>
-      </div>
-      <div class="streamer-chat" id="streamer-chat"></div>
-    </div>
   </div>
 
-  <script src="app.js?v=2.4"></script>
+  <script src="app.js?v=2.3"></script>
 </body>
+
 </html>

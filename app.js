@@ -10,77 +10,90 @@ const RARITY_LABEL = {
   5: '5★ Legendary', 4: '4★ Epic', 3: '3★ Rare', 2: '2★ Common', 1: '1★ Basic',
 };
 
-const STAT_KEYS = ['money','boldness','fear','health','social','charm','sexAppeal','power','fight','looks'];
+const STAT_KEYS = ['money', 'boldness', 'fear', 'health', 'social', 'charm', 'sexAppeal', 'power', 'fight', 'looks', 'vibe'];
 const STAT_LABELS = {
   money: 'Money', boldness: 'Boldness', fear: 'Fear', health: 'Health',
-  social: 'Social', charm: 'Charm', sexAppeal: 'Sex Appeal', power: 'Power', fight: 'Fight', looks: 'Looks'
+  social: 'Social', charm: 'Charm', sexAppeal: 'Sex Appeal', power: 'Power', fight: 'Fight', looks: 'Looks', vibe: 'Vibe'
 };
 const STAT_CSS = {
   money: 'money', boldness: 'boldness', fear: 'fear', health: 'health',
-  social: 'social', charm: 'charm', sexAppeal: 'sex', power: 'power', fight: 'fight', looks: 'looks'
+  social: 'social', charm: 'charm', sexAppeal: 'sex', power: 'power', fight: 'fight', looks: 'looks', vibe: 'vibe'
 };
 const STAT_EMOJI = {
-  money:'$', boldness:'!', fear:'~', health:'+', social:'●',
-  charm:'◆', sexAppeal:'♦', power:'■', fight:'▲', looks:'○'
+  money: '$', boldness: '!', fear: '~', health: '+', social: '●',
+  charm: '◆', sexAppeal: '♦', power: '■', fight: '▲', looks: '○', vibe: '✦'
 };
 const STAT_DESC = {
-  money:'Currency. Earned from work, spent on dates, summons and lifestyle.',
-  boldness:'Raised by successful cold approaches and wins. Gates risky actions.',
-  fear:'Grows from failures and rejections. Offsets boldness.',
-  health:'Raised by sports, rest and grooming. Drained by overwork.',
-  social:'Raised by hangouts and parties. Feeds the Meet bar strongly.',
-  charm:'Charisma. Grows from social wins and successful dates.',
-  sexAppeal:'Grows from sports + charm combos. Major Meet driver.',
-  power:'Raw strength — built by strength sports.',
-  fight:'Combat skill — raised by combat activities (Judo, boxing).',
-  looks:'Grooming and style. Feeds the Meet bar like Sex Appeal.'
+  money: 'Currency. Earned from work, spent on dates, summons and lifestyle.',
+  boldness: 'Raised by successful cold approaches and wins. Gates risky actions.',
+  fear: 'Grows from failures and rejections. Offsets boldness.',
+  health: 'Raised by sports, rest and grooming. Drained by overwork.',
+  social: 'Raised by hangouts and parties. Feeds the Meet bar strongly.',
+  charm: 'Charisma. Grows from social wins and successful dates.',
+  sexAppeal: 'Grows from sports + charm combos. Major Meet driver.',
+  power: 'Raw strength — built by strength sports.',
+  fight: 'Combat skill — raised by combat activities (Judo, boxing).',
+  looks: 'Grooming and style. Feeds the Meet bar like Sex Appeal.',
+  vibe: 'The Entity — one thing composed of Vibe, Lead Generation, Social Proof, Style, and Energy. All parts equal. Tap to see the big picture.'
 };
 
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS_PER_MONTH = 30;
 const START_MONTH_INDEX = 3; // April
 const START_YEAR = 2026;
 
 const PRESET_ACTIVITIES = [
-  { id:'p-job', name:'Part-time Job (shift)', desc:'Clock in a shift at your job.',
-    effects:{ money:+25, health:-2 }, meetBonus:0, xp:8,
-    emoji:'[JOB]', kind:'job' },
-  { id:'p-gym', name:'Gym Session', desc:'Hit the weights.',
-    effects:{ health:+2, power:+2, sexAppeal:+1 }, meetBonus:1, xp:6,
-    emoji:'[GYM]', kind:'sport' },
-  { id:'p-run', name:'Go for a Run', desc:'Cardio morning.',
-    effects:{ health:+3, sexAppeal:+1 }, meetBonus:1, xp:5,
-    emoji:'[RUN]', kind:'sport' },
-  { id:'p-class', name:'Attend Classes', desc:'Show up, pay attention, meet classmates.',
-    effects:{ social:+1 }, meetBonus:3, xp:8,
-    emoji:'[CLS]', kind:'school' },
-  { id:'p-party', name:'Go to a Party', desc:'Socialize at a house / club party.',
-    effects:{ social:+3, charm:+2, health:-1, money:-10 }, meetBonus:2, xp:10,
-    emoji:'[PTY]', kind:'social' },
-  { id:'p-rest', name:'Rest Day', desc:'Recover health and chill.',
-    effects:{ health:+3, fear:-1 }, meetBonus:0, xp:2,
-    emoji:'[RST]', kind:'rest' },
+  {
+    id: 'p-job', name: 'Part-time Job (shift)', desc: 'Clock in a shift at your job.',
+    effects: { money: +25, health: -2 }, meetBonus: 0, xp: 8,
+    emoji: '[JOB]', kind: 'job'
+  },
+  {
+    id: 'p-gym', name: 'Gym Session', desc: 'Hit the weights.',
+    effects: { health: +2, power: +2, sexAppeal: +1 }, meetBonus: 1, xp: 6,
+    emoji: '[GYM]', kind: 'sport'
+  },
+  {
+    id: 'p-run', name: 'Go for a Run', desc: 'Cardio morning.',
+    effects: { health: +3, sexAppeal: +1 }, meetBonus: 1, xp: 5,
+    emoji: '[RUN]', kind: 'sport'
+  },
+  {
+    id: 'p-class', name: 'Attend Classes', desc: 'Show up, pay attention, meet classmates.',
+    effects: { social: +1 }, meetBonus: 3, xp: 8,
+    emoji: '[CLS]', kind: 'school'
+  },
+  {
+    id: 'p-party', name: 'Go to a Party', desc: 'Socialize at a house / club party.',
+    effects: { social: +3, charm: +2, health: -1, money: -10 }, meetBonus: 2, xp: 10,
+    emoji: '[PTY]', kind: 'social'
+  },
+  {
+    id: 'p-rest', name: 'Rest Day', desc: 'Recover health and chill.',
+    effects: { health: +3, fear: -1 }, meetBonus: 0, xp: 2,
+    emoji: '[RST]', kind: 'rest'
+  },
 ];
 
 const SUMMON_COST_TABLE = [
-  { label:'Cheap bar', cost:30, minRarity:1, maxRarity:3 },
-  { label:'Nice lounge', cost:80, minRarity:2, maxRarity:4 },
-  { label:'VIP gala', cost:200, minRarity:3, maxRarity:5 },
+  { label: 'Cheap bar', cost: 30, minRarity: 1, maxRarity: 3 },
+  { label: 'Nice lounge', cost: 80, minRarity: 2, maxRarity: 4 },
+  { label: 'VIP gala', cost: 200, minRarity: 3, maxRarity: 5 },
 ];
 
 const FEMALE_NAMES = [
-  'Ava','Mia','Luna','Zoe','Iris','Nora','Sofia','Lily','Emma','Isla','Aya','Rei',
-  'Maya','Nia','Sasha','Yara','Lena','Ines','Kira','Juno','Hana','Leah','Vera',
-  'Rosa','Noa','Ella','Elin','Selin','Selma','Mina','Clara','Amara','Alia'
+  'Ava', 'Mia', 'Luna', 'Zoe', 'Iris', 'Nora', 'Sofia', 'Lily', 'Emma', 'Isla', 'Aya', 'Rei',
+  'Maya', 'Nia', 'Sasha', 'Yara', 'Lena', 'Ines', 'Kira', 'Juno', 'Hana', 'Leah', 'Vera',
+  'Rosa', 'Noa', 'Ella', 'Elin', 'Selin', 'Selma', 'Mina', 'Clara', 'Amara', 'Alia'
 ];
 const MALE_NAMES = [
-  'Mike','Jay','Theo','Luca','Finn','Kai','Ren','Nico','Sam','Milo',
-  'Noah','Liam','Ezra','Rafa','Dario','Nate','Owen','Leo','Max','Ben'
+  'Mike', 'Jay', 'Theo', 'Luca', 'Finn', 'Kai', 'Ren', 'Nico', 'Sam', 'Milo',
+  'Noah', 'Liam', 'Ezra', 'Rafa', 'Dario', 'Nate', 'Owen', 'Leo', 'Max', 'Ben'
 ];
 
 const GIRL_ORIGINS = [
-  'Coffee shop','Campus hallway','Gym','Library','Bar','Club','Park','Bus stop',
-  'Bookstore','Cold approach on street','Friend\'s party','Class project','Elevator'
+  'Coffee shop', 'Campus hallway', 'Gym', 'Library', 'Bar', 'Club', 'Park', 'Bus stop',
+  'Bookstore', 'Cold approach on street', 'Friend\'s party', 'Class project', 'Elevator'
 ];
 
 // ── State ──
@@ -88,7 +101,7 @@ function defaultData() {
   return {
     player: {
       level: 1, xp: 0,
-      stats: { money: 0, boldness: 1, fear: 1, health: 5, social: 1, charm: 1, sexAppeal: 1, power: 1, fight: 1, looks: 1 },
+      stats: { money: 0, boldness: 1, fear: 1, health: 5, social: 1, charm: 1, sexAppeal: 1, power: 1, fight: 1, looks: 1, vibe: 0 },
       streaks: { coldApproach: 0 },
     },
     girls: [],
@@ -100,6 +113,8 @@ function defaultData() {
     activityCategories: defaultActivityCategories(),
     // Lead generation — parallel system feeding its own bar
     leadgen: defaultLeadgen(),
+    // Vibe components — the big picture (Lead Gen is one part)
+    vibeComponents: defaultVibeComponents(),
     // World map + cities
     world: defaultWorld(),
     // Planned self-moves
@@ -113,49 +128,87 @@ function defaultData() {
 
 function defaultActivityCategories() {
   return [
-    { id:'cat-sports', name:'Sports', emoji:'[SPT]', maxSlots:3, slots:[null,null,null], inventory:[] },
-    { id:'cat-job', name:'Part-time Job', emoji:'[JOB]', maxSlots:1, slots:[null], inventory:[] },
-    { id:'cat-school', name:'School / Classes', emoji:'[CLS]', maxSlots:2, slots:[null,null], inventory:[] },
-    { id:'cat-combat', name:'Combat', emoji:'[CMB]', maxSlots:2, slots:[null,null], inventory:[] },
-    { id:'cat-social', name:'Social', emoji:'[SOC]', maxSlots:2, slots:[null,null], inventory:[] },
-    { id:'cat-grooming', name:'Grooming', emoji:'[GRM]', maxSlots:1, slots:[null], inventory:[] },
-    { id:'cat-custom', name:'Other', emoji:'[···]', maxSlots:3, slots:[null,null,null], inventory:[] },
+    { id: 'cat-sports', name: 'Sports', emoji: '[SPT]', maxSlots: 3, slots: [null, null, null], inventory: [] },
+    { id: 'cat-job', name: 'Part-time Job', emoji: '[JOB]', maxSlots: 1, slots: [null], inventory: [] },
+    { id: 'cat-school', name: 'School / Classes', emoji: '[CLS]', maxSlots: 2, slots: [null, null], inventory: [] },
+    { id: 'cat-combat', name: 'Combat', emoji: '[CMB]', maxSlots: 2, slots: [null, null], inventory: [] },
+    { id: 'cat-social', name: 'Social', emoji: '[SOC]', maxSlots: 2, slots: [null, null], inventory: [] },
+    { id: 'cat-grooming', name: 'Grooming', emoji: '[GRM]', maxSlots: 1, slots: [null], inventory: [] },
+    { id: 'cat-custom', name: 'Other', emoji: '[···]', maxSlots: 3, slots: [null, null, null], inventory: [] },
   ];
 }
 
 function defaultLeadgen() {
   return {
     methods: [
-      { id:'lm-job', name:'Part-time Job', emoji:'[JOB]', maxSlots:1, slots:[null],
-        inventory:[
-          { id:'li-ah', name:'Albert Heijn vakkenvuller', difficulty:'easy', roi:'medium' },
-        ] },
-      { id:'lm-cold', name:'Cold Approach', emoji:'[CLD]', maxSlots:2, slots:[null,null], inventory:[] },
-      { id:'lm-event', name:'Event Hosting', emoji:'[EVT]', maxSlots:1, slots:[null], inventory:[] },
-      { id:'lm-online', name:'Online Presence', emoji:'[NET]', maxSlots:2, slots:[null,null], inventory:[] },
+      {
+        id: 'lm-job', name: 'Part-time Job', emoji: '[JOB]', maxSlots: 1, maxGain: 15, slots: [null],
+        inventory: [
+          { id: 'li-ah', name: 'Albert Heijn vakkenvuller', difficulty: 'easy', roi: 'medium' },
+        ]
+      },
+      { id: 'lm-cold', name: 'Cold Approach', emoji: '[CLD]', maxSlots: 2, maxGain: 20, slots: [null, null], inventory: [] },
+      { id: 'lm-event', name: 'Event Hosting', emoji: '[EVT]', maxSlots: 1, maxGain: 12, slots: [null], inventory: [] },
+      { id: 'lm-online', name: 'Online Presence', emoji: '[NET]', maxSlots: 2, maxGain: 10, slots: [null, null], inventory: [] },
     ],
   };
+}
+
+function defaultVibeComponents() {
+  return [
+    {
+      id: 'vc-vibe', name: 'Vibe', emoji: '✦', maxSlots: 2, maxGain: 25, slots: [null, null],
+      desc: 'Your personal magnetism — the energy you put out, how you carry yourself, the feeling people get around you.',
+      inventory: []
+    },
+    {
+      id: 'vc-socialproof', name: 'Social Proof', emoji: '●', maxSlots: 2, maxGain: 25, slots: [null, null],
+      desc: 'How others perceive your social value — friend circles, being seen at events, social media credibility.',
+      inventory: []
+    },
+    {
+      id: 'vc-style', name: 'Style', emoji: '◆', maxSlots: 2, maxGain: 25, slots: [null, null],
+      desc: 'Fashion, grooming, fragrance — how you present yourself visually.',
+      inventory: []
+    },
+    {
+      id: 'vc-energy', name: 'Energy', emoji: '▲', maxSlots: 2, maxGain: 25, slots: [null, null],
+      desc: 'Confidence, body language, eye contact, presence — the energy you radiate.',
+      inventory: []
+    },
+  ];
 }
 
 function defaultWorld() {
   return {
     currentCityId: 'city-amsterdam',
     cities: [
-      { id:'city-amsterdam', name:'Amsterdam', discovered:true, completion:0 },
-      { id:'city-rotterdam', name:'Rotterdam', discovered:false, completion:0 },
-      { id:'city-utrecht', name:'Utrecht', discovered:false, completion:0 },
+      { id: 'city-amsterdam', name: 'Amsterdam', discovered: true, completion: 0 },
+      { id: 'city-rotterdam', name: 'Rotterdam', discovered: false, completion: 0 },
+      { id: 'city-utrecht', name: 'Utrecht', discovered: false, completion: 0 },
     ],
   };
 }
 
 // Gain % lookup: difficulty × ROI → gainPct contribution
 const LEAD_GAIN_MATRIX = {
-  easy:   { low:2, medium:4, high:6 },
-  medium: { low:3, medium:5, high:8 },
-  hard:   { low:4, medium:7, high:12 },
+  easy:   { low: 1, 'medium-low': 2, medium: 4, high: 6,  'very-high': 8  },
+  medium: { low: 2, 'medium-low': 3, medium: 5, high: 8,  'very-high': 10 },
+  hard:   { low: 3, 'medium-low': 5, medium: 7, high: 10, 'very-high': 12 },
 };
-const DIFFICULTY_LABEL = { easy:'Easy', medium:'Medium', hard:'Hard' };
-const ROI_LABEL = { low:'Low ROI', medium:'Med ROI', high:'High ROI' };
+const DIFFICULTY_LABEL = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+const ROI_LABEL = { low: 'Low', 'medium-low': 'Med-Low', medium: 'Medium', high: 'High', 'very-high': 'Very High' };
+
+// ROI determines the item color tier (user spec: red=super, yellow=high, blue=medium, lightgreen=med-low, grey=low)
+const ROI_TIER_MAP = {
+  'very-high': { cls: 'tier-legendary', label: 'Legendary' },
+  high:        { cls: 'tier-epic',      label: 'Epic' },
+  medium:      { cls: 'tier-rare',      label: 'Rare' },
+  'medium-low':{ cls: 'tier-uncommon',  label: 'Uncommon' },
+  low:         { cls: 'tier-common',    label: 'Common' },
+};
+function roiTierClass(roi) { return (ROI_TIER_MAP[roi] || ROI_TIER_MAP.low).cls; }
+function roiTierLabel(roi) { return (ROI_TIER_MAP[roi] || ROI_TIER_MAP.low).label; }
 
 let D = defaultData();
 let currentPage = 'home';
@@ -166,7 +219,7 @@ let currentMonthKey = null;
 const SAVE_KEY = 'life-rpg-data';
 
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(D)); } catch(e) {}
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(D)); } catch (e) { }
 }
 function load() {
   try {
@@ -174,7 +227,25 @@ function load() {
     if (!raw) return;
     const parsed = JSON.parse(raw);
     D = deepMerge(defaultData(), parsed);
-  } catch(e) { console.warn('load failed', e); }
+    // Migration: add maxGain to lead methods without it
+    if (D.leadgen?.methods) {
+      D.leadgen.methods.forEach(m => { if (!m.maxGain) m.maxGain = 15; });
+    }
+    // Migration: add vibeComponents if missing
+    if (!D.vibeComponents || !D.vibeComponents.length) {
+      D.vibeComponents = defaultVibeComponents();
+    }
+    // Migration: add vc-vibe component if missing from existing vibeComponents
+    if (D.vibeComponents && !D.vibeComponents.find(c => c.id === 'vc-vibe')) {
+      D.vibeComponents.unshift({
+        id: 'vc-vibe', name: 'Vibe', emoji: '✦', maxSlots: 2, maxGain: 25, slots: [null, null],
+        desc: 'Your personal magnetism — the energy you put out, how you carry yourself, the feeling people get around you.',
+        inventory: []
+      });
+    }
+    // Migration: add vibe stat if missing
+    if (D.player.stats.vibe === undefined) D.player.stats.vibe = 0;
+  } catch (e) { console.warn('load failed', e); }
 }
 function deepMerge(base, override) {
   if (Array.isArray(override)) return override.slice();
@@ -191,7 +262,7 @@ function deepMerge(base, override) {
 }
 
 // ── Helpers ──
-function uid(prefix='id') { return prefix + '-' + Math.random().toString(36).slice(2, 9); }
+function uid(prefix = 'id') { return prefix + '-' + Math.random().toString(36).slice(2, 9); }
 function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
 function starsHtml(r) { return '★'.repeat(r) + '☆'.repeat(5 - r); }
 function rarityClass(r) { return 'rar-' + r; }
@@ -231,13 +302,6 @@ function addLog(msg, tag) {
 
   if (!D.months[m.key]) D.months[m.key] = { name: m.name, year: m.year, events: [], summary: null };
   D.months[m.key].events.push(entry);
-
-  if (D.settings.streamerMode) {
-    if (tag === 'meet') addFauxChatMessage(`NEW GIRL! ${msg.split('(')[1]?.split(')')[0] || ''} hype!`);
-    if (tag === 'meet-miss') addFauxChatMessage(pickRandom(["Oof...", "L", "Rip", "F in chat"]));
-    if (tag === 'xp') addFauxChatMessage("Gains! LFG");
-    if (tag === 'relationship') addFauxChatMessage("W RIZZZZZ");
-  }
 
   save();
 }
@@ -669,7 +733,7 @@ function finalizeMonth(info) {
     dates: events.filter(e => e.tag === 'date').length,
     promotions: events.filter(e => e.tag === 'relationship' && /girlfriend|The One/.test(e.msg)).length,
     moneyEarned: 0,
-    xpGained: events.filter(e => e.tag === 'xp').reduce((a,b) => a + (parseInt((b.msg.match(/\+(\d+) XP/) || [0,0])[1]) || 0), 0),
+    xpGained: events.filter(e => e.tag === 'xp').reduce((a, b) => a + (parseInt((b.msg.match(/\+(\d+) XP/) || [0, 0])[1]) || 0), 0),
     finalDay: D.day - 1,
     finalLevel: D.player.level,
     finalMoney: D.player.stats.money,
@@ -683,6 +747,7 @@ function finalizeMonth(info) {
 
 // ── Rendering ──
 function render() {
+  syncVibeStat();
   updateXPDisplay();
   updateHeaderSubtitle();
   renderHeaderDate();
@@ -693,6 +758,9 @@ function render() {
   if (currentPage === 'life') renderLife();
   if (currentPage === 'girls') renderGirls();
   if (currentPage === 'leadgen') renderLeadgen();
+  if (currentPage === 'leadmethod') renderLeadMethodDetail();
+  if (currentPage === 'vibe') renderVibePage();
+  if (currentPage === 'vibecomp') renderVibeCompDetail();
   if (currentPage === 'world') renderWorld();
   if (currentPage === 'stat') renderStatPage();
 }
@@ -721,7 +789,7 @@ function renderHome() {
   const grid = document.getElementById('home-stats-grid');
   grid.innerHTML = STAT_KEYS.map(k => `
     <button class="qstat qstat-btn ${STAT_CSS[k]}" onclick="openStatPage('${k}')">
-      <div class="qstat-label">${STAT_EMOJI[k]||''} ${STAT_LABELS[k]}${k==='money'?' ($)':''}</div>
+      <div class="qstat-label">${STAT_EMOJI[k] || ''} ${STAT_LABELS[k]}${k === 'money' ? ' ($)' : ''}</div>
       <div class="qstat-value">${Math.round(D.player.stats[k])}</div>
     </button>
   `).join('');
@@ -731,7 +799,7 @@ function renderHome() {
   const one = D.relationships.theOne ? girlById(D.relationships.theOne) : null;
   const commons = D.relationships.commons.map(girlById).filter(Boolean);
   if (!one && commons.length === 0) {
-    sp.innerHTML = '<div class="empty-state">No one yet. Go out and meet someone.</div>';
+    sp.innerHTML = '<div class="empty-state">Your roster is empty.</div>';
   } else {
     let html = '';
     if (one) html += `<div class="slot-mini the-one"><div class="label">THE ONE</div><div class="name">${one.name}</div><div class="label">${starsHtml(one.rarity)} • ${one.affinity}%</div></div>`;
@@ -748,7 +816,7 @@ function renderHome() {
     feed.innerHTML = '<div class="empty-state">No activity yet.</div>';
   } else {
     feed.innerHTML = recent.map(e => `
-      <div class="activity-item ${e.tag==='monthly'?'monthly':''}">
+      <div class="activity-item ${e.tag === 'monthly' ? 'monthly' : ''}">
         <span>${escapeHtml(e.msg)}</span>
         <span class="t">D${e.day}</span>
       </div>
@@ -770,8 +838,8 @@ function renderActivities() {
 }
 
 function activityCard(a, isCustom) {
-  const effectsStr = Object.entries(a.effects || {}).map(([k,v]) =>
-    `${v>=0?'+':''}${v} ${STAT_LABELS[k] || k}`
+  const effectsStr = Object.entries(a.effects || {}).map(([k, v]) =>
+    `${v >= 0 ? '+' : ''}${v} ${STAT_LABELS[k] || k}`
   ).join(' · ');
   const meet = a.meetBonus ? `  •  Meet +${a.meetBonus}` : '';
   return `
@@ -803,14 +871,14 @@ function renderMeet() {
     ['Cold streak', D.player.streaks.coldApproach || 0],
     ['Money', '$' + D.player.stats.money],
   ];
-  document.getElementById('meet-chips').innerHTML = chips.map(([k,v]) =>
+  document.getElementById('meet-chips').innerHTML = chips.map(([k, v]) =>
     `<span class="chip">${k}: <strong>${v}</strong></span>`
   ).join('');
 
   // Breakdown
   const bd = document.getElementById('meet-breakdown');
   bd.innerHTML = parts.map(p =>
-    `<div class="brow"><span class="label">${escapeHtml(p.label)}</span><span class="val ${p.val<0?'neg':''}">${p.val>=0?'+':''}${p.val.toFixed(1)}</span></div>`
+    `<div class="brow"><span class="label">${escapeHtml(p.label)}</span><span class="val ${p.val < 0 ? 'neg' : ''}">${p.val >= 0 ? '+' : ''}${p.val.toFixed(1)}</span></div>`
   ).join('');
 
   // History (last 6 meets)
@@ -836,7 +904,7 @@ function renderRoster() {
   const girls = D.girls
     .filter(g => !q || g.name.toLowerCase().includes(q) || g.origin.toLowerCase().includes(q))
     .slice()
-    .sort((a,b) => b.rarity - a.rarity || b.affinity - a.affinity);
+    .sort((a, b) => b.rarity - a.rarity || b.affinity - a.affinity);
   girlsEl.innerHTML = girls.length
     ? girls.map(girlCard).join('')
     : '<div class="empty-state">No girls match.</div>';
@@ -845,7 +913,7 @@ function renderRoster() {
   const friends = D.friends
     .filter(f => !q || f.name.toLowerCase().includes(q))
     .slice()
-    .sort((a,b) => b.rarity - a.rarity);
+    .sort((a, b) => b.rarity - a.rarity);
   friendsEl.innerHTML = friends.length
     ? friends.map(friendCard).join('')
     : '<div class="empty-state">No friends match.</div>';
@@ -854,10 +922,10 @@ function renderRoster() {
 function girlCard(g) {
   const sidelined = g.status === 'Sidelined';
   const badge = {
-    Talking:'', Dating:'DATING', Common:'COMMON', TheOne:'★ THE ONE', Sidelined:'SIDELINED'
+    Talking: '', Dating: 'DATING', Common: 'COMMON', TheOne: '★ THE ONE', Sidelined: 'SIDELINED'
   }[g.status] || '';
   return `
-    <div class="entity-card ${sidelined?'sidelined':''}" onclick="openGirlDetails('${g.id}')">
+    <div class="entity-card ${sidelined ? 'sidelined' : ''}" onclick="openGirlDetails('${g.id}')">
       <div class="entity-avatar ${rarityClass(g.rarity)}">${initial(g.name)}</div>
       <div class="entity-body">
         <div class="entity-name">${escapeHtml(g.name)} ${badge ? `<span class="entity-badge">${badge}</span>` : ''}</div>
@@ -1062,7 +1130,7 @@ function renderLife() {
 
 // ── Months overlay ──
 function renderMonths() {
-  const keys = Object.keys(D.months).sort((a,b) => {
+  const keys = Object.keys(D.months).sort((a, b) => {
     const [ay, am] = a.split('-').map(Number);
     const [by, bm] = b.split('-').map(Number);
     return (ay * 12 + am) - (by * 12 + bm);
@@ -1078,7 +1146,7 @@ function renderMonths() {
 
   tabsEl.innerHTML = keys.map(k => {
     const m = D.months[k];
-    return `<button class="month-tab ${k===currentMonthKey?'active':''}" onclick="selectMonth('${k}')">${m.name} ${m.year}</button>`;
+    return `<button class="month-tab ${k === currentMonthKey ? 'active' : ''}" onclick="selectMonth('${k}')">${m.name} ${m.year}</button>`;
   }).join('');
 
   const m = D.months[currentMonthKey];
@@ -1115,7 +1183,7 @@ function computeLiveSummary(m) {
     misses: events.filter(e => e.tag === 'meet-miss').length,
     dates: events.filter(e => e.tag === 'date').length,
     promotions: events.filter(e => e.tag === 'relationship' && /girlfriend|The One/.test(e.msg)).length,
-    xpGained: events.filter(e => e.tag === 'xp').reduce((a,b) => a + (parseInt((b.msg.match(/\+(\d+) XP/) || [0,0])[1]) || 0), 0),
+    xpGained: events.filter(e => e.tag === 'xp').reduce((a, b) => a + (parseInt((b.msg.match(/\+(\d+) XP/) || [0, 0])[1]) || 0), 0),
   };
 }
 
@@ -1124,7 +1192,7 @@ function selectMonth(key) { currentMonthKey = key; renderMonths(); }
 // ── Stats overlay ──
 function renderStats() {
   const el = document.getElementById('stats-content');
-  const rarityCounts = [1,2,3,4,5].map(r => D.girls.filter(g => g.rarity === r).length);
+  const rarityCounts = [1, 2, 3, 4, 5].map(r => D.girls.filter(g => g.rarity === r).length);
   const max = Math.max(1, ...rarityCounts);
   el.innerHTML = `
     <div class="stats-grid">
@@ -1135,15 +1203,15 @@ function renderStats() {
     </div>
     <div class="section-header"><span>ROSTER RARITY</span></div>
     <div class="rarity-bar-container">
-      ${[5,4,3,2,1].map(r => {
-        const count = rarityCounts[r-1];
-        const pct = count / max * 100;
-        return `<div class="rarity-bar">
+      ${[5, 4, 3, 2, 1].map(r => {
+    const count = rarityCounts[r - 1];
+    const pct = count / max * 100;
+    return `<div class="rarity-bar">
           <span class="lbl">${r}★</span>
           <span class="trk"><span class="fil ${rarityClass(r)}" style="width:${pct}%;display:block;height:100%;"></span></span>
           <span class="num">${count}</span>
         </div>`;
-      }).join('')}
+  }).join('')}
     </div>
     <div class="section-header"><span>TOTALS</span></div>
     <div class="stats-grid">
@@ -1188,7 +1256,7 @@ function importSaveData(evt) {
       save();
       render();
       toast('Save imported.');
-    } catch(err) { toast('Import failed.'); }
+    } catch (err) { toast('Import failed.'); }
   };
   reader.readAsText(file);
 }
@@ -1204,7 +1272,7 @@ function resetAllData() {
 
 // ── Utility ──
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 // ── Header date ──
@@ -1213,12 +1281,13 @@ function renderHeaderDate() {
   if (!el) return;
   const info = currentMonthInfo();
   const dayInMonth = ((D.day - 1) % DAYS_PER_MONTH) + 1;
-  el.textContent = `${info.year}-${String(MONTH_NAMES.indexOf(info.name)+1).padStart(2,'0')}-${String(dayInMonth).padStart(2,'0')}`;
+  el.textContent = `${info.year}-${String(MONTH_NAMES.indexOf(info.name) + 1).padStart(2, '0')}-${String(dayInMonth).padStart(2, '0')}`;
 }
 
 // ── Stat page ──
 let currentStatKey = null;
 function openStatPage(key) {
+  if (key === 'vibe') { navigateTo('vibe'); return; }
   currentStatKey = key;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-stat').classList.add('active');
@@ -1234,14 +1303,14 @@ function renderStatPage() {
   const related = D.activityCategories.flatMap(c => c.inventory.filter(it => it.statEffects && it.statEffects[k]));
   el.innerHTML = `
     <div class="stat-hero ${STAT_CSS[k]}">
-      <div class="stat-hero-emoji">${STAT_EMOJI[k]||'◆'}</div>
+      <div class="stat-hero-emoji">${STAT_EMOJI[k] || '◆'}</div>
       <div class="stat-hero-body">
-        <div class="stat-hero-name">${STAT_LABELS[k]}${k==='money'?' ($)':''}</div>
+        <div class="stat-hero-name">${STAT_LABELS[k]}${k === 'money' ? ' ($)' : ''}</div>
         <div class="stat-hero-val">${val}</div>
-        <div class="stat-hero-desc">${STAT_DESC[k]||''}</div>
+        <div class="stat-hero-desc">${STAT_DESC[k] || ''}</div>
       </div>
     </div>
-    ${k==='social' ? `
+    ${k === 'social' ? `
       <div class="section-header"><span>FRIENDS (boost this stat)</span></div>
       <div class="inv-content active">
         ${D.friends.length ? D.friends.map(friendCard).join('') : '<div class="empty-state">No friends yet.</div>'}
@@ -1249,52 +1318,56 @@ function renderStatPage() {
     <div class="section-header"><span>ACTIVITIES THAT AFFECT ${STAT_LABELS[k].toUpperCase()}</span></div>
     <div class="activities-list">
       ${relatedActs.length ? relatedActs.map(a => activityCard(a)).join('')
-        : '<div class="empty-state">No activity currently impacts this stat.</div>'}
+      : '<div class="empty-state">No activity currently impacts this stat.</div>'}
     </div>
     ${related.length ? `
       <div class="section-header"><span>INVENTORY ITEMS</span></div>
       <div class="activities-list">
-        ${related.map(it => `<div class="activity-card"><div class="name">${it.emoji||'★'} ${escapeHtml(it.name)}</div><div class="meta">${statEffectsStr(it.statEffects)}</div></div>`).join('')}
+        ${related.map(it => `<div class="activity-card"><div class="name">${it.emoji || '★'} ${escapeHtml(it.name)}</div><div class="meta">${statEffectsStr(it.statEffects)}</div></div>`).join('')}
       </div>` : ''}
   `;
 }
 
 function statEffectsStr(effs) {
   if (!effs) return '';
-  return Object.entries(effs).map(([k,v]) => `${v>=0?'+':''}${v} ${STAT_LABELS[k]||k}`).join(' · ');
+  return Object.entries(effs).map(([k, v]) => `${v >= 0 ? '+' : ''}${v} ${STAT_LABELS[k] || k}`).join(' · ');
 }
 
 // ── Girls hub ──
 function renderGirls() {
   const girlsCount = D.girls.filter(g => g.status !== 'Sidelined').length;
   const taken = (D.relationships.theOne ? 1 : 0) + D.relationships.commons.length;
-  const leadPct = computeLeadBar().percent.toFixed(0);
+  const vibePct = computeVibe().percent.toFixed(0);
   const el = document.getElementById('girls-hub');
   if (!el) return;
   el.innerHTML = `
+    <button class="hub-card hub-card-vibe" onclick="navigateTo('vibe')">
+      <div class="hub-icon">✦</div>
+      <div class="hub-body"><div class="hub-title">The Entity</div><div class="hub-desc">${vibePct}% — the big picture</div></div>
+      <div class="hub-arrow">→</div>
+    </button>
     <button class="hub-card" onclick="navigateTo('roster')">
       <div class="hub-icon"></div>
       <div class="hub-body"><div class="hub-title">Roster</div><div class="hub-desc">${girlsCount} girls · ${D.friends.length} friends</div></div>
     </button>
     <button class="hub-card" onclick="navigateTo('life')">
       <div class="hub-icon"></div>
-      <div class="hub-body"><div class="hub-title">Life (Slots)</div><div class="hub-desc">${taken} girlfriend${taken===1?'':'s'}</div></div>
+      <div class="hub-body"><div class="hub-title">Life (Slots)</div><div class="hub-desc">${taken} girlfriend${taken === 1 ? '' : 's'}</div></div>
     </button>
     <button class="hub-card" onclick="navigateTo('meet')">
       <div class="hub-icon"></div>
       <div class="hub-body"><div class="hub-title">Meet</div><div class="hub-desc">${computeMeetBar().percent.toFixed(0)}% chance bar</div></div>
     </button>
-    <button class="hub-card" onclick="navigateTo('leadgen')">
-      <div class="hub-icon"></div>
-      <div class="hub-body"><div class="hub-title">Lead Generation</div><div class="hub-desc">Total gain ${leadPct}%</div></div>
-    </button>
   `;
 }
 
 // ── Lead Generation ──
-function leadItemGain(item) {
+function leadItemGain(item, method) {
   if (!item) return 0;
-  return (LEAD_GAIN_MATRIX[item.difficulty]?.[item.roi]) || 0;
+  const raw = (LEAD_GAIN_MATRIX[item.difficulty]?.[item.roi]) || 0;
+  // Cap at method's maxGain if provided
+  if (method && method.maxGain) return Math.min(raw, method.maxGain);
+  return raw;
 }
 function computeLeadBar() {
   const slotted = [];
@@ -1302,32 +1375,133 @@ function computeLeadBar() {
     m.slots.forEach(itemId => {
       if (!itemId) return;
       const item = m.inventory.find(x => x.id === itemId);
-      if (item) slotted.push({ method:m, item });
+      if (item) slotted.push({ method: m, item });
     });
   });
   if (slotted.length === 0) return { percent: 0, parts: [], slotted };
-  const gains = slotted.map(s => leadItemGain(s.item));
-  const avg = gains.reduce((a,b)=>a+b,0) / gains.length;
+  const gains = slotted.map(s => leadItemGain(s.item, s.method));
+  const avg = gains.reduce((a, b) => a + b, 0) / gains.length;
   const parts = slotted.map(s => ({
     label: `${s.method.name}: ${s.item.name}`,
-    val: leadItemGain(s.item),
+    val: leadItemGain(s.item, s.method),
   }));
   return { percent: clamp(avg, 0, 100), parts, slotted };
 }
 // ── Tier coloring for lead items / methods ──
+// (Legacy gain-based tiers kept for backward compat, but items use ROI directly)
 const GAIN_TIERS = [
-  { min:10, cls:'tier-legendary', label:'Legendary' },
-  { min: 7, cls:'tier-epic',      label:'Epic'      },
-  { min: 5, cls:'tier-rare',      label:'Rare'      },
-  { min: 3, cls:'tier-uncommon',  label:'Uncommon'  },
-  { min: 0, cls:'tier-common',    label:'Common'    },
+  { min: 10, cls: 'tier-legendary', label: 'Legendary' },
+  { min: 7, cls: 'tier-epic', label: 'Epic' },
+  { min: 5, cls: 'tier-rare', label: 'Rare' },
+  { min: 3, cls: 'tier-uncommon', label: 'Uncommon' },
+  { min: 0, cls: 'tier-common', label: 'Common' },
 ];
 function gainTierClass(pct) { for (const t of GAIN_TIERS) if (pct >= t.min) return t.cls; return 'tier-common'; }
 function gainTierLabel(pct) { for (const t of GAIN_TIERS) if (pct >= t.min) return t.label; return 'Common'; }
+
+// Method avg ROI tier (for the head page cards) — uses dominant ROI of slotted items
+function methodAvgRoiTier(m) {
+  const roiOrder = ['low', 'medium-low', 'medium', 'high', 'very-high'];
+  const items = m.slots.map(id => id ? m.inventory.find(x => x.id === id) : null).filter(Boolean);
+  if (items.length === 0) return 'low';
+  const avgIdx = items.map(it => roiOrder.indexOf(it.roi)).reduce((a, b) => a + b, 0) / items.length;
+  return roiOrder[Math.round(avgIdx)] || 'low';
+}
 function methodAvgGain(m) {
   const items = m.slots.map(id => id ? m.inventory.find(x => x.id === id) : null).filter(Boolean);
   if (items.length === 0) return 0;
-  return items.map(leadItemGain).reduce((a,b)=>a+b,0) / items.length;
+  return items.map(it => leadItemGain(it, m)).reduce((a, b) => a + b, 0) / items.length;
+}
+
+// ── Vibe system — the big picture entity ──
+// Vibe component gain computation (same pattern as lead items)
+// For vc-vibe specifically, slotted activities also contribute
+function vibeComponentGain(comp) {
+  const itemGains = comp.slots
+    .map(id => id ? comp.inventory.find(x => x.id === id) : null)
+    .filter(Boolean)
+    .map(it => {
+      const raw = (LEAD_GAIN_MATRIX[it.difficulty]?.[it.roi]) || 0;
+      return comp.maxGain ? Math.min(raw, comp.maxGain) : raw;
+    });
+
+  // For vc-vibe: slotted activities contribute too
+  let activityBonus = 0;
+  if (comp.id === 'vc-vibe') {
+    activityBonus = getSlottedActivityBonus();
+  }
+
+  const totalItems = itemGains.length;
+  if (totalItems === 0 && activityBonus === 0) return 0;
+
+  const itemTotal = itemGains.reduce((a, b) => a + b, 0);
+  // Combine: item average + activity bonus (additive)
+  const itemAvg = totalItems > 0 ? itemTotal / totalItems : 0;
+  return clamp(itemAvg + activityBonus, 0, comp.maxGain || 100);
+}
+
+// Compute bonus from slotted activities
+function getSlottedActivityBonus() {
+  let bonus = 0;
+  D.activityCategories.forEach(cat => {
+    cat.slots.forEach(itemId => {
+      if (!itemId) return;
+      const item = cat.inventory.find(x => x.id === itemId);
+      if (!item) return;
+      // Each slotted activity contributes 1% base + 0.5% per meetBonus point
+      const meetB = item.meetBonus || 0;
+      const statCount = Object.keys(item.statEffects || {}).length;
+      bonus += 1 + meetB * 0.5 + statCount * 0.3;
+    });
+  });
+  return bonus;
+}
+
+// Get list of slotted activities for display
+function getSlottedActivities() {
+  const list = [];
+  D.activityCategories.forEach(cat => {
+    cat.slots.forEach(itemId => {
+      if (!itemId) return;
+      const item = cat.inventory.find(x => x.id === itemId);
+      if (!item) return;
+      const meetB = item.meetBonus || 0;
+      const statCount = Object.keys(item.statEffects || {}).length;
+      const contrib = 1 + meetB * 0.5 + statCount * 0.3;
+      list.push({ item, cat, contrib });
+    });
+  });
+  return list;
+}
+
+function computeVibe() {
+  const leadPct = computeLeadBar().percent;
+  const componentPcts = (D.vibeComponents || []).map(c => vibeComponentGain(c));
+  const allPcts = [leadPct, ...componentPcts];
+  const total = allPcts.reduce((a, b) => a + b, 0);
+  const avg = allPcts.length > 0 ? total / allPcts.length : 0;
+  // Build breakdown
+  const parts = [
+    { label: 'Lead Generation', val: leadPct },
+    ...(D.vibeComponents || []).map(c => ({ label: c.name, val: vibeComponentGain(c) })),
+  ];
+  return { percent: clamp(avg, 0, 100), parts, total };
+}
+
+// Keep vibe stat synced with computation
+function syncVibeStat() {
+  const { percent } = computeVibe();
+  D.player.stats.vibe = Math.round(percent);
+}
+
+let currentVibeCompId = null;
+function openVibeComp(id) {
+  if (id === 'leadgen') {
+    navigateTo('leadgen');
+  } else {
+    currentVibeCompId = id;
+    navigateTo('vibecomp');
+  }
 }
 
 // ── Lead Gen HEAD page (list of methods) ──
@@ -1342,19 +1516,20 @@ function renderLeadgen() {
   if (pctEl) pctEl.textContent = `${percent.toFixed(0)}% total gain`;
   const subEl = document.getElementById('lead-bar-sub');
   if (subEl) subEl.textContent = slotted.length
-    ? `${slotted.length} active lead${slotted.length===1?'':'s'} — avg of their gain %`
+    ? `${slotted.length} active lead${slotted.length === 1 ? '' : 's'} — avg of their gain %`
     : 'No active leads. Open a method to slot items.';
 
   const methodsEl = document.getElementById('lead-methods');
   methodsEl.innerHTML = D.leadgen.methods.map(m => {
     const avg = methodAvgGain(m);
-    const tier = avg > 0 ? gainTierClass(avg) : 'tier-common';
+    const avgRoi = methodAvgRoiTier(m);
+    const tier = m.slots.some(Boolean) ? roiTierClass(avgRoi) : 'tier-common';
     const used = m.slots.filter(Boolean).length;
     return `
       <button class="method-row ${tier}" onclick="openLeadMethod('${m.id}')">
         <div class="method-body">
           <div class="method-name">${escapeHtml(m.name)}</div>
-          <div class="method-meta">${used}/${m.maxSlots} slot${m.maxSlots===1?'':'s'} · ${avg>0?gainTierLabel(avg):'empty'}</div>
+          <div class="method-meta">${used}/${m.maxSlots} slot${m.maxSlots === 1 ? '' : 's'} · potential ${m.maxGain || '∞'}% · ${used > 0 ? roiTierLabel(avgRoi) : 'empty'}</div>
         </div>
         <div class="method-gain">+${avg.toFixed(0)}%</div>
       </button>`;
@@ -1369,17 +1544,18 @@ function renderLeadMethodDetail() {
   if (title) title.textContent = m.name.toUpperCase();
   const avg = methodAvgGain(m);
   const used = m.slots.filter(Boolean).length;
-  const tierCls = avg > 0 ? gainTierClass(avg) : '';
+  const avgRoi = methodAvgRoiTier(m);
+  const tierCls = used > 0 ? roiTierClass(avgRoi) : '';
 
   const slotsHtml = m.slots.map((itemId, idx) => {
     const item = itemId ? m.inventory.find(x => x.id === itemId) : null;
-    const tCls = item ? gainTierClass(leadItemGain(item)) : '';
+    const tCls = item ? roiTierClass(item.roi) : '';
     return `
-      <div class="slot-zone ${tCls}"
+      <div class="slot-zone ${tCls}${item ? ' slot-filled' : ''}"
            ondragover="onDragOver(event,this)"
            ondragleave="onDragLeave(event,this)"
            ondrop="onDropLead(event,'${m.id}',${idx})">
-        ${item ? leadItemTile(m, item, true) : `<span class="slot-empty">Slot ${idx+1}</span>`}
+        ${item ? leadItemTile(m, item, true) : `<span class="slot-empty">Slot ${idx + 1}</span>`}
       </div>`;
   }).join('');
 
@@ -1389,15 +1565,19 @@ function renderLeadMethodDetail() {
 
   document.getElementById('leadmethod-content').innerHTML = `
     <div class="method-summary ${tierCls}">
-      <div class="method-summary-row">
+      <div class="method-summary-row" style="grid-template-columns: repeat(4, 1fr);">
         <div class="ms-cell"><div class="k">Slots</div><div class="v">${used}/${m.maxSlots}</div></div>
         <div class="ms-cell"><div class="k">Avg gain</div><div class="v green">${avg.toFixed(1)}%</div></div>
-        <div class="ms-cell"><div class="k">Tier</div><div class="v">${avg>0?gainTierLabel(avg):'—'}</div></div>
+        <div class="ms-cell"><div class="k">Potential</div><div class="v">${m.maxGain || '∞'}%</div></div>
+        <div class="ms-cell"><div class="k">Tier</div><div class="v">${used > 0 ? roiTierLabel(avgRoi) : '—'}</div></div>
       </div>
       <div class="method-summary-actions">
         <span class="slot-count">${used}/${m.maxSlots}</span>
         <button class="slot-pm" onclick="adjustLeadMax('${m.id}',-1)">−</button>
         <button class="slot-pm" onclick="adjustLeadMax('${m.id}',1)">+</button>
+        <span style="margin-left:8px;font-family:var(--font-mono);font-size:9px;color:var(--text-muted)">POT%</span>
+        <button class="slot-pm" onclick="adjustMaxGain('${m.id}',-1)">−</button>
+        <button class="slot-pm" onclick="adjustMaxGain('${m.id}',1)">+</button>
         <button class="small-btn" onclick="openAddLeadItem('${m.id}')">+ Item</button>
       </div>
     </div>
@@ -1412,8 +1592,10 @@ function renderLeadMethodDetail() {
 }
 
 function leadItemTile(m, it, inSlot) {
-  const gain = leadItemGain(it);
-  const tier = gainTierClass(gain);
+  const gain = leadItemGain(it, m);
+  const rawGain = leadItemGain(it);
+  const isCapped = m.maxGain && rawGain > m.maxGain;
+  const tier = roiTierClass(it.roi);
   return `
     <div class="lead-tile ${tier}" draggable="true"
          ondragstart="onDragStartLead(event,'${m.id}','${it.id}')"
@@ -1424,11 +1606,11 @@ function leadItemTile(m, it, inSlot) {
         <span class="dot dot-${it.difficulty}"></span>${DIFFICULTY_LABEL[it.difficulty]}
         · <span class="dot roi-${it.roi}"></span>${ROI_LABEL[it.roi]}
       </div>
-      <div class="tile-gain">+${gain}%</div>
+      <div class="tile-gain">+${gain}%${isCapped ? ' <span style="font-size:8px;color:var(--text-muted)">(cap ' + m.maxGain + '%)</span>' : ''}</div>
       <div class="tile-actions">
         ${inSlot
-          ? `<button class="tile-btn" onclick="event.stopPropagation();clearLeadSlot('${m.id}','${it.id}')">Unslot</button>`
-          : `<button class="tile-btn" onclick="event.stopPropagation();tapSlotLead('${m.id}','${it.id}')">Slot →</button>`}
+      ? `<button class="tile-btn" onclick="event.stopPropagation();clearLeadSlot('${m.id}','${it.id}')">Unslot</button>`
+      : `<button class="tile-btn" onclick="event.stopPropagation();tapSlotLead('${m.id}','${it.id}')">Slot →</button>`}
         <button class="tile-btn" onclick="event.stopPropagation();openEditLeadItem('${m.id}','${it.id}')">Edit</button>
       </div>
     </div>`;
@@ -1440,8 +1622,8 @@ function tapSlotLead(methodId, itemId) {
   if (!m) return;
   if (m.maxSlots === 1) { placeLeadInSlot(methodId, itemId, 0); return; }
   const btns = m.slots.map((sid, idx) => {
-    const occ = sid ? m.inventory.find(x=>x.id===sid) : null;
-    return `<button class="pill-btn good" onclick="placeLeadInSlot('${methodId}','${itemId}',${idx})">Slot ${idx+1}${occ?` (replace ${escapeHtml(occ.name)})`:''}</button>`;
+    const occ = sid ? m.inventory.find(x => x.id === sid) : null;
+    return `<button class="pill-btn good" onclick="placeLeadInSlot('${methodId}','${itemId}',${idx})">Slot ${idx + 1}${occ ? ` (replace ${escapeHtml(occ.name)})` : ''}</button>`;
   }).join('');
   openModal(`
     <h3>Place in slot</h3>
@@ -1472,7 +1654,13 @@ function adjustLeadMax(methodId, delta) {
     while (m.slots.length < next) m.slots.push(null);
   }
   m.maxSlots = next;
-  save(); renderLeadgen();
+  save(); redrawLeadgen();
+}
+function adjustMaxGain(methodId, delta) {
+  const m = D.leadgen.methods.find(x => x.id === methodId);
+  if (!m) return;
+  m.maxGain = clamp((m.maxGain || 10) + delta, 1, 30);
+  save(); redrawLeadgen();
 }
 function openAddLeadItem(methodId) {
   openModal(`
@@ -1486,9 +1674,11 @@ function openAddLeadItem(methodId) {
       </select></div>
     <div class="form-row"><label>SOCIAL ROI</label>
       <select id="li-roi">
-        <option value="low">Low</option>
-        <option value="medium" selected>Medium</option>
-        <option value="high">High</option>
+        <option value="low">Low (grey)</option>
+        <option value="medium-low">Med-Low (green)</option>
+        <option value="medium" selected>Medium (blue)</option>
+        <option value="high">High (yellow)</option>
+        <option value="very-high">Very High (red)</option>
       </select></div>
     <div class="row">
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
@@ -1506,7 +1696,7 @@ function submitAddLeadItem(methodId) {
     roi: document.getElementById('li-roi').value,
   });
   closeModal();
-  save(); renderLeadgen();
+  save(); redrawLeadgen();
   toast(`Added ${name}.`);
 }
 function openEditLeadItem(methodId, itemId) {
@@ -1518,13 +1708,13 @@ function openEditLeadItem(methodId, itemId) {
     <div class="form-row"><label>NAME</label><input id="li-name" value="${escapeHtml(it.name)}"/></div>
     <div class="form-row"><label>DIFFICULTY</label>
       <select id="li-diff">
-        ${['easy','medium','hard'].map(d =>
-          `<option value="${d}" ${d===it.difficulty?'selected':''}>${DIFFICULTY_LABEL[d]}</option>`).join('')}
+        ${['easy', 'medium', 'hard'].map(d =>
+    `<option value="${d}" ${d === it.difficulty ? 'selected' : ''}>${DIFFICULTY_LABEL[d]}</option>`).join('')}
       </select></div>
     <div class="form-row"><label>SOCIAL ROI</label>
       <select id="li-roi">
-        ${['low','medium','high'].map(d =>
-          `<option value="${d}" ${d===it.roi?'selected':''}>${ROI_LABEL[d]}</option>`).join('')}
+        ${['low', 'medium-low', 'medium', 'high', 'very-high'].map(d =>
+      `<option value="${d}" ${d === it.roi ? 'selected' : ''}>${ROI_LABEL[d]}</option>`).join('')}
       </select></div>
     <div class="row">
       <button class="pill-btn danger" onclick="deleteLeadItem('${methodId}','${itemId}')">Delete</button>
@@ -1540,7 +1730,7 @@ function submitEditLeadItem(methodId, itemId) {
   it.difficulty = document.getElementById('li-diff').value;
   it.roi = document.getElementById('li-roi').value;
   closeModal();
-  save(); renderLeadgen();
+  save(); redrawLeadgen();
 }
 function deleteLeadItem(methodId, itemId) {
   const m = D.leadgen.methods.find(x => x.id === methodId);
@@ -1548,30 +1738,428 @@ function deleteLeadItem(methodId, itemId) {
   m.inventory = m.inventory.filter(x => x.id !== itemId);
   m.slots = m.slots.map(s => s === itemId ? null : s);
   closeModal();
-  save(); renderLeadgen();
+  save(); redrawLeadgen();
 }
 function clearLeadSlot(methodId, itemId) {
   const m = D.leadgen.methods.find(x => x.id === methodId);
   if (!m) return;
   m.slots = m.slots.map(s => s === itemId ? null : s);
-  save(); renderLeadgen();
+  save(); redrawLeadgen();
+}
+
+// ── Vibe Page (the big picture) ──
+function renderVibePage() {
+  const { percent, parts, total } = computeVibe();
+  const bar = document.getElementById('vibe-bar-fill');
+  if (bar) bar.style.width = Math.min(percent, 100) + '%';
+  const pctEl = document.getElementById('vibe-bar-pct');
+  if (pctEl) pctEl.textContent = `${percent.toFixed(0)}%`;
+  const subEl = document.getElementById('vibe-bar-sub');
+  if (subEl) subEl.textContent = parts.filter(p => p.val > 0).length + '/' + parts.length + ' components active';
+
+  // Breakdown
+  const breakdownEl = document.getElementById('vibe-breakdown');
+  if (breakdownEl) {
+    breakdownEl.innerHTML = parts.map(p =>
+      `<div class="brow"><span class="label">${escapeHtml(p.label)}</span><span class="val ${p.val > 0 ? '' : 'neg'}">${p.val > 0 ? '+' : ''}${p.val.toFixed(1)}%</span></div>`
+    ).join('');
+  }
+
+  // Component cards
+  const compEl = document.getElementById('vibe-components');
+  if (compEl) {
+    const leadPct = computeLeadBar().percent;
+    const leadSlotted = computeLeadBar().slotted.length;
+    const leadTotal = D.leadgen.methods.reduce((s, m) => s + m.maxSlots, 0);
+    let html = `
+      <button class="method-row ${leadPct > 0 ? gainTierClass(leadPct) : 'tier-common'}" onclick="openVibeComp('leadgen')">
+        <div class="method-body">
+          <div class="method-name">Lead Generation</div>
+          <div class="method-meta">${leadSlotted}/${leadTotal} total slots · ${D.leadgen.methods.length} methods</div>
+        </div>
+        <div class="method-gain">+${leadPct.toFixed(0)}%</div>
+      </button>`;
+
+    (D.vibeComponents || []).forEach(c => {
+      const g = vibeComponentGain(c);
+      const used = c.slots.filter(Boolean).length;
+      const avgRoi = vibeCompAvgRoi(c);
+      const tier = used > 0 ? roiTierClass(avgRoi) : 'tier-common';
+      html += `
+        <div class="method-row-wrap">
+          <button class="method-row ${tier}" onclick="openVibeComp('${c.id}')">
+            <div class="method-body">
+              <div class="method-name">${c.emoji} ${escapeHtml(c.name)}</div>
+              <div class="method-meta">${used}/${c.maxSlots} slots · potential ${c.maxGain}% · ${used > 0 ? roiTierLabel(avgRoi) : 'empty'}</div>
+            </div>
+            <div class="method-gain">+${g.toFixed(0)}%</div>
+          </button>
+          <button class="comp-edit-btn" onclick="event.stopPropagation();openEditComponent('${c.id}')" title="Edit component">✎</button>
+        </div>`;
+    });
+
+    html += `
+      <button class="method-row add-component-btn" onclick="openAddComponent()">
+        <div class="method-body">
+          <div class="method-name">+ Add Component</div>
+          <div class="method-meta">Create a new part of the entity</div>
+        </div>
+      </button>`;
+
+    compEl.innerHTML = html;
+  }
+}
+
+function vibeCompAvgRoi(c) {
+  const roiOrder = ['low', 'medium-low', 'medium', 'high', 'very-high'];
+  const items = c.slots.map(id => id ? c.inventory.find(x => x.id === id) : null).filter(Boolean);
+  if (items.length === 0) return 'low';
+  const avgIdx = items.map(it => roiOrder.indexOf(it.roi)).reduce((a, b) => a + b, 0) / items.length;
+  return roiOrder[Math.round(avgIdx)] || 'low';
+}
+
+// ── Component CRUD ──
+function openAddComponent() {
+  openModal(`
+    <h3>New Component</h3>
+    <div class="form-row"><label>NAME</label><input id="vc-name" placeholder="e.g. Mindset"/></div>
+    <div class="form-row"><label>EMOJI</label><input id="vc-emoji" placeholder="e.g. ◇" maxlength="4" style="width:60px"/></div>
+    <div class="form-row"><label>DESCRIPTION</label><input id="vc-desc" placeholder="What this represents…"/></div>
+    <div class="form-row"><label>SLOTS</label><input id="vc-slots" type="number" min="1" max="10" value="2" style="width:60px"/></div>
+    <div class="form-row"><label>MAX GAIN %</label><input id="vc-maxgain" type="number" min="1" max="50" value="25" style="width:60px"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddComponent()">Add</button>
+    </div>`);
+}
+
+function submitAddComponent() {
+  const name = (document.getElementById('vc-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  const emoji = document.getElementById('vc-emoji').value || '◇';
+  const desc = document.getElementById('vc-desc').value || '';
+  const maxSlots = clamp(parseInt(document.getElementById('vc-slots').value) || 2, 1, 10);
+  const maxGain = clamp(parseInt(document.getElementById('vc-maxgain').value) || 25, 1, 50);
+  const slots = Array(maxSlots).fill(null);
+  D.vibeComponents.push({
+    id: uid('vc'), name, emoji, desc, maxSlots, maxGain, slots, inventory: []
+  });
+  closeModal();
+  save();
+  renderVibePage();
+  toast(`Added ${name}.`);
+}
+
+function openEditComponent(compId) {
+  const c = D.vibeComponents.find(x => x.id === compId);
+  if (!c) return;
+  openModal(`
+    <h3>Edit ${escapeHtml(c.name)}</h3>
+    <div class="form-row"><label>NAME</label><input id="vc-name" value="${escapeHtml(c.name)}"/></div>
+    <div class="form-row"><label>EMOJI</label><input id="vc-emoji" value="${escapeHtml(c.emoji)}" maxlength="4" style="width:60px"/></div>
+    <div class="form-row"><label>DESCRIPTION</label><input id="vc-desc" value="${escapeHtml(c.desc || '')}"/></div>
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteComponent('${compId}')">Delete</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditComponent('${compId}')">Save</button>
+    </div>`);
+}
+
+function submitEditComponent(compId) {
+  const c = D.vibeComponents.find(x => x.id === compId);
+  if (!c) return;
+  c.name = document.getElementById('vc-name').value || c.name;
+  c.emoji = document.getElementById('vc-emoji').value || c.emoji;
+  c.desc = document.getElementById('vc-desc').value || '';
+  closeModal();
+  save();
+  renderVibePage();
+}
+
+function deleteComponent(compId) {
+  D.vibeComponents = D.vibeComponents.filter(x => x.id !== compId);
+  closeModal();
+  save();
+  renderVibePage();
+  toast('Component removed.');
+}
+
+// ── Vibe Component Detail Page ──
+function renderVibeCompDetail() {
+  const c = (D.vibeComponents || []).find(x => x.id === currentVibeCompId);
+  if (!c) { navigateTo('vibe'); return; }
+  const title = document.getElementById('vibecomp-title');
+  if (title) title.textContent = c.name.toUpperCase();
+  const gain = vibeComponentGain(c);
+  const used = c.slots.filter(Boolean).length;
+  const avgRoi = vibeCompAvgRoi(c);
+  const tierCls = used > 0 ? roiTierClass(avgRoi) : '';
+
+  const slotsHtml = c.slots.map((itemId, idx) => {
+    const item = itemId ? c.inventory.find(x => x.id === itemId) : null;
+    const tCls = item ? roiTierClass(item.roi) : '';
+    return `
+      <div class="slot-zone ${tCls}${item ? ' slot-filled' : ''}"
+           ondragover="onDragOver(event,this)"
+           ondragleave="onDragLeave(event,this)"
+           ondrop="onDropVibe(event,'${c.id}',${idx})">
+        ${item ? vibeItemTile(c, item, true) : `<span class="slot-empty">Slot ${idx + 1}</span>`}
+      </div>`;
+  }).join('');
+
+  const inventoryHtml = c.inventory.length
+    ? c.inventory.map(it => vibeItemTile(c, it, false)).join('')
+    : '<div class="empty-state">No items yet. Tap "+ Item" to add one.</div>';
+
+  document.getElementById('vibecomp-content').innerHTML = `
+    ${c.desc ? `<div class="method-desc">${escapeHtml(c.desc)}</div>` : ''}
+    <div class="method-summary ${tierCls}">
+      <div class="method-summary-row" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="ms-cell"><div class="k">Slots</div><div class="v">${used}/${c.maxSlots}</div></div>
+        <div class="ms-cell"><div class="k">Avg gain</div><div class="v green">${gain.toFixed(1)}%</div></div>
+        <div class="ms-cell"><div class="k">Potential</div><div class="v">${c.maxGain || '∞'}%</div></div>
+        <div class="ms-cell"><div class="k">Tier</div><div class="v">${used > 0 ? roiTierLabel(avgRoi) : '—'}</div></div>
+      </div>
+      <div class="method-summary-actions">
+        <span class="slot-count">${used}/${c.maxSlots}</span>
+        <button class="slot-pm" onclick="adjustVibeMax('${c.id}',-1)">−</button>
+        <button class="slot-pm" onclick="adjustVibeMax('${c.id}',1)">+</button>
+        <span style="margin-left:8px;font-family:var(--font-mono);font-size:9px;color:var(--text-muted)">POT%</span>
+        <button class="slot-pm" onclick="adjustVibeMaxGain('${c.id}',-1)">−</button>
+        <button class="slot-pm" onclick="adjustVibeMaxGain('${c.id}',1)">+</button>
+        <button class="small-btn" onclick="openAddVibeItem('${c.id}')">+ Item</button>
+      </div>
+    </div>
+    <div class="section-header"><span>CURRENT PARTY</span></div>
+    <div class="slot-grid" style="grid-template-columns: repeat(${c.maxSlots}, minmax(0, 1fr));">${slotsHtml}</div>
+    <div class="section-header"><span>INVENTORY</span></div>
+    <div class="inv-row"
+         ondragover="onDragOver(event,this)"
+         ondragleave="onDragLeave(event,this)"
+         ondrop="onDropVibeInv(event,'${c.id}')">${inventoryHtml}</div>
+    ${c.id === 'vc-vibe' ? renderActivityContributions() : ''}
+  `;
+}
+
+function renderActivityContributions() {
+  const slotted = getSlottedActivities();
+  const totalBonus = getSlottedActivityBonus();
+  const actRows = slotted.length
+    ? slotted.map(s =>
+      `<div class="brow activity-contrib">
+        <span class="label">${s.item.emoji || '★'} ${escapeHtml(s.item.name)} <span style="color:var(--text-muted);font-size:9px">(${escapeHtml(s.cat.name)})</span></span>
+        <span class="val">+${s.contrib.toFixed(1)}%</span>
+      </div>`
+    ).join('')
+    : '<div class="empty-state">No activities slotted. Fill slots on the Activities page to boost Vibe.</div>';
+
+  return `
+    <div class="section-header"><span>FROM ACTIVITIES</span>
+      <button class="small-btn" onclick="navigateTo('activities')">Go to Activities</button>
+    </div>
+    <div class="meet-breakdown">${actRows}</div>
+    ${totalBonus > 0 ? `<div class="activity-contrib-total">Total activity bonus: <strong>+${totalBonus.toFixed(1)}%</strong></div>` : ''}
+  `;
+}
+
+function vibeItemTile(c, it, inSlot) {
+  const raw = (LEAD_GAIN_MATRIX[it.difficulty]?.[it.roi]) || 0;
+  const gain = c.maxGain ? Math.min(raw, c.maxGain) : raw;
+  const isCapped = c.maxGain && raw > c.maxGain;
+  const tier = roiTierClass(it.roi);
+  return `
+    <div class="lead-tile ${tier}" draggable="true"
+         ondragstart="onDragStartVibe(event,'${c.id}','${it.id}')"
+         ondragend="onDragEnd(event)"
+         ondblclick="openEditVibeItem('${c.id}','${it.id}')">
+      <div class="tile-name">${escapeHtml(it.name)}</div>
+      <div class="tile-meta">
+        <span class="dot dot-${it.difficulty}"></span>${DIFFICULTY_LABEL[it.difficulty]}
+        · <span class="dot roi-${it.roi}"></span>${ROI_LABEL[it.roi]}
+      </div>
+      <div class="tile-gain">+${gain}%${isCapped ? ' <span style="font-size:8px;color:var(--text-muted)">(cap ' + c.maxGain + '%)</span>' : ''}</div>
+      <div class="tile-actions">
+        ${inSlot
+      ? `<button class="tile-btn" onclick="event.stopPropagation();clearVibeSlot('${c.id}','${it.id}')">Unslot</button>`
+      : `<button class="tile-btn" onclick="event.stopPropagation();tapSlotVibe('${c.id}','${it.id}')">Slot →</button>`}
+        <button class="tile-btn" onclick="event.stopPropagation();openEditVibeItem('${c.id}','${it.id}')">Edit</button>
+      </div>
+    </div>`;
+}
+
+// Vibe component slot/inventory CRUD
+function tapSlotVibe(compId, itemId) {
+  const c = D.vibeComponents.find(x => x.id === compId);
+  if (!c) return;
+  if (c.maxSlots === 1) { placeVibeInSlot(compId, itemId, 0); return; }
+  const btns = c.slots.map((sid, idx) => {
+    const occ = sid ? c.inventory.find(x => x.id === sid) : null;
+    return `<button class="pill-btn good" onclick="placeVibeInSlot('${compId}','${itemId}',${idx})">Slot ${idx + 1}${occ ? ` (replace ${escapeHtml(occ.name)})` : ''}</button>`;
+  }).join('');
+  openModal(`
+    <h3>Place in slot</h3>
+    <div style="display:flex;flex-direction:column;gap:6px">${btns}</div>
+    <div class="row"><button class="pill-btn" onclick="closeModal()">Cancel</button></div>`);
+}
+function placeVibeInSlot(compId, itemId, idx) {
+  const c = D.vibeComponents.find(x => x.id === compId);
+  if (!c) return;
+  c.slots = c.slots.map(s => s === itemId ? null : s);
+  c.slots[idx] = itemId;
+  closeModal();
+  save(); redrawVibe();
+}
+function redrawVibe() {
+  if (currentPage === 'vibecomp') renderVibeCompDetail();
+  else if (currentPage === 'vibe') renderVibePage();
+  else render();
+}
+function adjustVibeMax(compId, delta) {
+  const c = D.vibeComponents.find(x => x.id === compId);
+  if (!c) return;
+  const next = clamp(c.maxSlots + delta, 1, 10);
+  if (next === c.maxSlots) return;
+  if (next < c.slots.length) c.slots = c.slots.slice(0, next);
+  else while (c.slots.length < next) c.slots.push(null);
+  c.maxSlots = next;
+  save(); redrawVibe();
+}
+function adjustVibeMaxGain(compId, delta) {
+  const c = D.vibeComponents.find(x => x.id === compId);
+  if (!c) return;
+  c.maxGain = clamp((c.maxGain || 10) + delta, 1, 30);
+  save(); redrawVibe();
+}
+function openAddVibeItem(compId) {
+  openModal(`
+    <h3> Add Vibe Item</h3>
+    <div class="form-row"><label>NAME</label><input id="vi-name" placeholder="e.g. Fresh haircut weekly"/></div>
+    <div class="form-row"><label>DIFFICULTY</label>
+      <select id="vi-diff">
+        <option value="easy">• Easy</option>
+        <option value="medium" selected>• Medium</option>
+        <option value="hard">• Hard</option>
+      </select></div>
+    <div class="form-row"><label>IMPACT / ROI</label>
+      <select id="vi-roi">
+        <option value="low">Low (grey)</option>
+        <option value="medium-low">Med-Low (green)</option>
+        <option value="medium" selected>Medium (blue)</option>
+        <option value="high">High (yellow)</option>
+        <option value="very-high">Very High (red)</option>
+      </select></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddVibeItem('${compId}')">Add</button>
+    </div>`);
+}
+function submitAddVibeItem(compId) {
+  const c = D.vibeComponents.find(x => x.id === compId);
+  if (!c) return;
+  const name = (document.getElementById('vi-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  c.inventory.push({
+    id: uid('vi'), name,
+    difficulty: document.getElementById('vi-diff').value,
+    roi: document.getElementById('vi-roi').value,
+  });
+  closeModal();
+  save(); redrawVibe();
+  toast(`Added ${name}.`);
+}
+function openEditVibeItem(compId, itemId) {
+  const c = D.vibeComponents.find(x => x.id === compId);
+  const it = c?.inventory.find(x => x.id === itemId);
+  if (!it) return;
+  openModal(`
+    <h3> Edit ${escapeHtml(it.name)}</h3>
+    <div class="form-row"><label>NAME</label><input id="vi-name" value="${escapeHtml(it.name)}"/></div>
+    <div class="form-row"><label>DIFFICULTY</label>
+      <select id="vi-diff">
+        ${['easy', 'medium', 'hard'].map(d =>
+    `<option value="${d}" ${d === it.difficulty ? 'selected' : ''}>${DIFFICULTY_LABEL[d]}</option>`).join('')}
+      </select></div>
+    <div class="form-row"><label>IMPACT / ROI</label>
+      <select id="vi-roi">
+        ${['low', 'medium-low', 'medium', 'high', 'very-high'].map(d =>
+      `<option value="${d}" ${d === it.roi ? 'selected' : ''}>${ROI_LABEL[d]}</option>`).join('')}
+      </select></div>
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteVibeItem('${compId}','${itemId}')">Delete</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditVibeItem('${compId}','${itemId}')">Save</button>
+    </div>`);
+}
+function submitEditVibeItem(compId, itemId) {
+  const c = D.vibeComponents.find(x => x.id === compId);
+  const it = c?.inventory.find(x => x.id === itemId);
+  if (!it) return;
+  it.name = document.getElementById('vi-name').value || it.name;
+  it.difficulty = document.getElementById('vi-diff').value;
+  it.roi = document.getElementById('vi-roi').value;
+  closeModal();
+  save(); redrawVibe();
+}
+function deleteVibeItem(compId, itemId) {
+  const c = D.vibeComponents.find(x => x.id === compId);
+  if (!c) return;
+  c.inventory = c.inventory.filter(x => x.id !== itemId);
+  c.slots = c.slots.map(s => s === itemId ? null : s);
+  closeModal();
+  save(); redrawVibe();
+}
+function clearVibeSlot(compId, itemId) {
+  const c = D.vibeComponents.find(x => x.id === compId);
+  if (!c) return;
+  c.slots = c.slots.map(s => s === itemId ? null : s);
+  save(); redrawVibe();
+}
+
+// Vibe drag/drop
+let dragPayload = null; // { kind:'lead'|'activity'|'vibe', ... }
+function onDragStartVibe(e, compId, itemId) {
+  dragPayload = { kind: 'vibe', compId, itemId };
+  e.dataTransfer.effectAllowed = 'move';
+  e.target.classList.add('dragging');
+}
+function onDropVibe(e, compId, slotIdx) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drop-active');
+  if (!dragPayload || dragPayload.kind !== 'vibe') return;
+  if (dragPayload.compId !== compId) { toast('Item belongs to another component.'); return; }
+  const c = D.vibeComponents.find(x => x.id === compId);
+  if (!c) return;
+  c.slots = c.slots.map(s => s === dragPayload.itemId ? null : s);
+  c.slots[slotIdx] = dragPayload.itemId;
+  dragPayload = null;
+  save(); redrawVibe();
+}
+function onDropVibeInv(e, compId) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drop-active');
+  if (!dragPayload || dragPayload.kind !== 'vibe') return;
+  if (dragPayload.compId !== compId) return;
+  const c = D.vibeComponents.find(x => x.id === compId);
+  c.slots = c.slots.map(s => s === dragPayload.itemId ? null : s);
+  dragPayload = null;
+  save(); redrawVibe();
 }
 
 // ── Drag/drop state ──
-let dragPayload = null; // { kind:'lead'|'activity', methodId/catId, itemId }
+// dragPayload already declared above for vibe drag/drop
 function onDragStartLead(e, methodId, itemId) {
-  dragPayload = { kind:'lead', methodId, itemId };
+  dragPayload = { kind: 'lead', methodId, itemId };
   e.dataTransfer.effectAllowed = 'move';
   e.target.classList.add('dragging');
 }
 function onDragStartActivity(e, catId, itemId) {
-  dragPayload = { kind:'activity', catId, itemId };
+  dragPayload = { kind: 'activity', catId, itemId };
   e.dataTransfer.effectAllowed = 'move';
   e.target.classList.add('dragging');
 }
 function onDragOver(e, target) { e.preventDefault(); target.classList.add('drop-active'); }
 function onDragLeave(e, target) { target.classList.remove('drop-active'); }
-function onDragEnd(e) { e.target.classList.remove('dragging'); document.querySelectorAll('.drop-active').forEach(x=>x.classList.remove('drop-active')); }
+function onDragEnd(e) { e.target.classList.remove('dragging'); document.querySelectorAll('.drop-active').forEach(x => x.classList.remove('drop-active')); }
 function onDropLead(e, methodId, slotIdx) {
   e.preventDefault();
   e.currentTarget.classList.remove('drop-active');
@@ -1585,7 +2173,7 @@ function onDropLead(e, methodId, slotIdx) {
   dstM.slots = dstM.slots.map(s => s === dragPayload.itemId ? null : s);
   dstM.slots[slotIdx] = dragPayload.itemId;
   dragPayload = null;
-  save(); renderLeadgen();
+  save(); redrawLeadgen();
 }
 function onDropLeadInv(e, methodId) {
   e.preventDefault();
@@ -1595,7 +2183,7 @@ function onDropLeadInv(e, methodId) {
   const m = D.leadgen.methods.find(x => x.id === methodId);
   m.slots = m.slots.map(s => s === dragPayload.itemId ? null : s);
   dragPayload = null;
-  save(); renderLeadgen();
+  save(); redrawLeadgen();
 }
 
 // ── Activity categories (drag/drop) ──
@@ -1643,8 +2231,8 @@ function activityTile(cat, it, inSlot) {
          ondragstart="onDragStartActivity(event,'${cat.id}','${it.id}')"
          ondragend="onDragEnd(event)"
          ondblclick="openEditActivityItem('${cat.id}','${it.id}')">
-      <div class="tile-name">${it.emoji||'★'} ${escapeHtml(it.name)}</div>
-      <div class="tile-meta">${statEffectsStr(it.statEffects)}${it.meetBonus?` · Meet +${it.meetBonus}`:''}</div>
+      <div class="tile-name">${it.emoji || '★'} ${escapeHtml(it.name)}</div>
+      <div class="tile-meta">${statEffectsStr(it.statEffects)}${it.meetBonus ? ` · Meet +${it.meetBonus}` : ''}</div>
       <div class="row" style="margin-top:4px">
         <button class="pill-btn good" onclick="event.stopPropagation();doActivityItem('${cat.id}','${it.id}')">Do</button>
         ${inSlot ? `<button class="pill-btn" onclick="event.stopPropagation();clearActivitySlot('${cat.id}','${it.id}')">Unslot</button>` : ''}
@@ -1734,14 +2322,14 @@ function openEditActivityItem(catId, itemId) {
   const it = c?.inventory.find(x => x.id === itemId);
   if (!it) return;
   const effRows = STAT_KEYS.map(k =>
-    `<div class="eff-row"><label>${STAT_LABELS[k]}</label><input type="number" value="${it.statEffects?.[k]||0}" data-stat="${k}" class="eff-input"/></div>`
+    `<div class="eff-row"><label>${STAT_LABELS[k]}</label><input type="number" value="${it.statEffects?.[k] || 0}" data-stat="${k}" class="eff-input"/></div>`
   ).join('');
   openModal(`
     <h3> Edit ${escapeHtml(it.name)}</h3>
     <div class="form-row"><label>NAME</label><input id="ai-name" value="${escapeHtml(it.name)}"/></div>
-    <div class="form-row"><label>EMOJI</label><input id="ai-emoji" value="${it.emoji||''}" maxlength="2"/></div>
-    <div class="form-row"><label>MEET BAR BONUS</label><input id="ai-meet" type="number" min="0" max="15" value="${it.meetBonus||0}"/></div>
-    <div class="form-row"><label>XP PER DO</label><input id="ai-xp" type="number" min="1" max="50" value="${it.xp||5}"/></div>
+    <div class="form-row"><label>EMOJI</label><input id="ai-emoji" value="${it.emoji || ''}" maxlength="2"/></div>
+    <div class="form-row"><label>MEET BAR BONUS</label><input id="ai-meet" type="number" min="0" max="15" value="${it.meetBonus || 0}"/></div>
+    <div class="form-row"><label>XP PER DO</label><input id="ai-xp" type="number" min="1" max="50" value="${it.xp || 5}"/></div>
     <div class="form-row"><label>STAT EFFECTS</label><div class="effects-grid">${effRows}</div></div>
     <div class="row">
       <button class="pill-btn danger" onclick="deleteActivityItem('${catId}','${itemId}')">Delete</button>
@@ -1777,8 +2365,8 @@ function doActivityItem(catId, itemId) {
   addXP(it.xp || 4, it.name);
   // Track city completion
   const city = D.world.cities.find(x => x.id === D.world.currentCityId);
-  if (city && city.discovered) city.completion = Math.min(100, (city.completion||0) + 2);
-  addLog(`Did ${it.name} in ${city?.name||'somewhere'}.`, 'activity');
+  if (city && city.discovered) city.completion = Math.min(100, (city.completion || 0) + 2);
+  addLog(`Did ${it.name} in ${city?.name || 'somewhere'}.`, 'activity');
   tickDay();
 }
 
@@ -1787,11 +2375,11 @@ function renderWorld() {
   const el = document.getElementById('world-grid');
   if (!el) return;
   el.innerHTML = D.world.cities.map(c => `
-    <button class="city-card ${c.discovered?'':'undiscovered'} ${c.id===D.world.currentCityId?'current':''}"
+    <button class="city-card ${c.discovered ? '' : 'undiscovered'} ${c.id === D.world.currentCityId ? 'current' : ''}"
             onclick="selectCity('${c.id}')">
       <div class="city-name">${c.discovered ? escapeHtml(c.name) : '???'}</div>
-      <div class="city-ring"><div class="city-ring-fill" style="width:${c.completion||0}%"></div></div>
-      <div class="city-pct">${c.discovered ? (c.completion||0).toFixed(0)+'%' : 'locked'}</div>
+      <div class="city-ring"><div class="city-ring-fill" style="width:${c.completion || 0}%"></div></div>
+      <div class="city-pct">${c.discovered ? (c.completion || 0).toFixed(0) + '%' : 'locked'}</div>
     </button>
   `).join('') + `
     <button class="city-card discover-card" onclick="discoverCity()">
@@ -1818,13 +2406,13 @@ function discoverCity() {
     toast(`Discovered ${undiscovered.name}!`);
   } else {
     // Invent a new one
-    const names = ['The Hague','Groningen','Eindhoven','Leiden','Haarlem','Delft','Maastricht','Breda','Nijmegen','Tilburg'];
+    const names = ['The Hague', 'Groningen', 'Eindhoven', 'Leiden', 'Haarlem', 'Delft', 'Maastricht', 'Breda', 'Nijmegen', 'Tilburg'];
     const existing = new Set(D.world.cities.map(c => c.name));
     const pool = names.filter(n => !existing.has(n));
     if (pool.length === 0) { toast('Map is full.'); return; }
     D.player.stats.money -= 50;
     const name = pickRandom(pool);
-    D.world.cities.push({ id: uid('city'), name, discovered:true, completion:0 });
+    D.world.cities.push({ id: uid('city'), name, discovered: true, completion: 0 });
     addLog(`Discovered ${name}.`, 'world');
     toast(`Discovered ${name}!`);
   }
@@ -1843,7 +2431,7 @@ function renderNextMoves() {
     <div class="move-card">
       <div class="move-body">
         <div class="move-name">${escapeHtml(m.name)}</div>
-        <div class="move-meta">${statEffectsStr(m.statEffects)}${m.city?` ·  ${escapeHtml(cityName(m.city))}`:''}</div>
+        <div class="move-meta">${statEffectsStr(m.statEffects)}${m.city ? ` ·  ${escapeHtml(cityName(m.city))}` : ''}</div>
       </div>
       <div class="row">
         <button class="pill-btn good" onclick="executeMove('${m.id}')">Execute</button>
@@ -1857,7 +2445,7 @@ function cityName(id) { return D.world.cities.find(c => c.id === id)?.name || '?
 function openAddMove() {
   const statOpts = STAT_KEYS.map(k => `<option value="${k}">${STAT_EMOJI[k]} ${STAT_LABELS[k]}</option>`).join('');
   const cityOpts = '<option value="">— none —</option>' +
-    D.world.cities.filter(c=>c.discovered).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    D.world.cities.filter(c => c.discovered).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   openModal(`
     <h3> Plan a Next Move</h3>
     <div class="form-row"><label>NAME</label><input id="nm-name" placeholder="e.g. Join judo class"/></div>
@@ -1880,7 +2468,7 @@ function submitAddMove() {
   const statEffects = {};
   selected.forEach(k => statEffects[k] = mag);
   const city = document.getElementById('nm-city').value || null;
-  D.nextMoves.push({ id: uid('nm'), name, statEffects, city, done:false });
+  D.nextMoves.push({ id: uid('nm'), name, statEffects, city, done: false });
   closeModal();
   save(); renderNextMoves();
   toast(`Planned: ${name}`);
@@ -1888,10 +2476,10 @@ function submitAddMove() {
 function openEditMove(id) {
   const m = D.nextMoves.find(x => x.id === id);
   if (!m) return;
-  const statOpts = STAT_KEYS.map(k => `<option value="${k}" ${m.statEffects[k]?'selected':''}>${STAT_EMOJI[k]} ${STAT_LABELS[k]}</option>`).join('');
+  const statOpts = STAT_KEYS.map(k => `<option value="${k}" ${m.statEffects[k] ? 'selected' : ''}>${STAT_EMOJI[k]} ${STAT_LABELS[k]}</option>`).join('');
   const firstMag = Object.values(m.statEffects)[0] || 2;
   const cityOpts = '<option value="">— none —</option>' +
-    D.world.cities.filter(c=>c.discovered).map(c => `<option value="${c.id}" ${m.city===c.id?'selected':''}>${escapeHtml(c.name)}</option>`).join('');
+    D.world.cities.filter(c => c.discovered).map(c => `<option value="${c.id}" ${m.city === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
   openModal(`
     <h3> Edit Move</h3>
     <div class="form-row"><label>NAME</label><input id="nm-name" value="${escapeHtml(m.name)}"/></div>
@@ -1924,7 +2512,7 @@ function executeMove(id) {
   addLog(`Executed planned move: ${m.name}.`, 'activity');
   if (m.city) {
     const c = D.world.cities.find(x => x.id === m.city);
-    if (c) c.completion = Math.min(100, (c.completion||0) + 5);
+    if (c) c.completion = Math.min(100, (c.completion || 0) + 5);
   }
   D.nextMoves = D.nextMoves.filter(x => x.id !== id);
   tickDay();
@@ -1941,85 +2529,8 @@ function init() {
   // ensure current month exists
   const m = currentMonthInfo();
   if (!D.months[m.key]) D.months[m.key] = { name: m.name, year: m.year, events: [], summary: null };
-  
-  // Streamer Mode restore
-  if (D.settings.streamerMode) {
-    const toggle = document.getElementById('streamer-mode-toggle');
-    if (toggle) toggle.checked = true;
-    document.getElementById('streamer-overlay').classList.add('active');
-    startStreaming();
-  }
-
   save();
   navigateTo('home');
 }
 
 document.addEventListener('DOMContentLoaded', init);
-
-/* ── Streamer Mode Logic ── */
-function toggleStreamerMode(on) {
-  if (!D.settings) D.settings = {};
-  D.settings.streamerMode = on;
-  document.getElementById('streamer-overlay').classList.toggle('active', on);
-  if (on) {
-    startStreaming();
-    addFauxChatMessage("Hello chat! We are LIVE!");
-  } else {
-    stopStreaming();
-  }
-  save();
-}
-
-let streamInterval = null;
-function startStreaming() {
-  if (streamInterval) clearInterval(streamInterval);
-  updateViewers();
-  streamInterval = setInterval(() => {
-    if (!D.settings.streamerMode) { clearInterval(streamInterval); return; }
-    updateViewers();
-    if (Math.random() < 0.25) addFauxChatMessage();
-  }, 4000);
-}
-
-function stopStreaming() {
-  if (streamInterval) clearInterval(streamInterval);
-  streamInterval = null;
-}
-
-function updateViewers() {
-  const base = (D.player.stats.social || 1) * 12;
-  const statusBonus = ((D.relationships.theOne ? 1 : 0) + D.relationships.commons.length) * 50;
-  const jitter = Math.floor(Math.random() * 30) - 15;
-  const count = Math.max(0, base + statusBonus + jitter);
-  const el = document.getElementById('viewer-count');
-  if (el) el.textContent = count.toLocaleString();
-}
-
-const CHAT_USERS = [
-  { name: 'GamerGuy99', color: 'user-blue' },
-  { name: 'SimpLord', color: 'user-pink' },
-  { name: 'X_Shadow_X', color: 'user-gold' },
-  { name: 'AnimeFan', color: 'user-blue' },
-  { name: 'CodeWizard', color: 'user-gold' },
-  { name: 'LuckyShot', color: 'user-pink' },
-  { name: 'Doomer_66', color: 'user-blue' },
-  { name: 'TwitchPrime', color: 'user-gold' }
-];
-
-const CHAT_REACTIONS = [
-  "POG!", "LFG", "W", "L", "Wait, what?", "She's cute", "Huge gains", "That's crazy", "Kappa", "He's cooking", "KEKW", 
-  "Chat is this real?", "SHEEEEESH", "Check the stats", "No way", "Is he him?", "Main character energy"
-];
-
-function addFauxChatMessage(msg) {
-  const chat = document.getElementById('streamer-chat');
-  if (!chat) return;
-  const user = pickRandom(CHAT_USERS);
-  const text = msg || pickRandom(CHAT_REACTIONS);
-  const div = document.createElement('div');
-  div.className = 'chat-msg';
-  div.innerHTML = `<span class="chat-user ${user.color}">${user.name}:</span><span class="chat-text">${text}</span>`;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-  if (chat.childNodes.length > 8) chat.removeChild(chat.firstChild);
-}
