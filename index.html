@@ -49,6 +49,30 @@
           </div>
         </div>
 
+        <div class="section-header">
+          <span>BIRTHDAY</span>
+          <button class="small-btn" onclick="openBirthdayModal()">Set</button>
+        </div>
+        <div id="home-birthday" class="birthday-card">
+          <div class="empty-state">No birthday set. Tap "Set" to start the timer.</div>
+        </div>
+
+        <div class="section-header">
+          <span>POTENTIAL LEADS</span>
+          <button class="small-btn" onclick="navigateTo('leadgen')">Open</button>
+        </div>
+        <div id="home-leads" class="lead-stars-wrap"></div>
+
+        <div class="section-header"><span>OVERVIEW</span></div>
+        <div class="quick-actions">
+          <button class="action-card" onclick="showOverlay('totalstats')">
+            <span class="action-icon">STAT</span><span class="action-label">Total Stats</span>
+          </button>
+          <button class="action-card" onclick="showOverlay('abilities')">
+            <span class="action-icon">ABIL</span><span class="action-label">Abilities</span>
+          </button>
+        </div>
+
         <div class="section-header"><span>STATS</span></div>
         <div class="quick-stats-grid" id="home-stats-grid"></div>
 
@@ -64,9 +88,6 @@
         <div class="quick-actions">
           <button class="action-card" onclick="navigateTo('activities')">
             <span class="action-icon">ACT</span><span class="action-label">Activities</span>
-          </button>
-          <button class="action-card" onclick="navigateTo('meet')">
-            <span class="action-icon">MEET</span><span class="action-label">Meet</span>
           </button>
           <button class="action-card" onclick="navigateTo('roster')">
             <span class="action-icon">RSTR</span><span class="action-label">Roster</span>
@@ -108,47 +129,6 @@
       </div>
     </div>
 
-    <!-- MEET PAGE -->
-    <div id="page-meet" class="page">
-      <div class="page-scroll">
-        <div class="page-title">MEET</div>
-
-        <div class="meet-chips" id="meet-chips"></div>
-
-        <div class="meet-bar-wrap">
-          <div class="meet-bar-track">
-            <div class="meet-bar-fill" id="meet-bar-fill" style="width: 0%"></div>
-            <div class="meet-bar-sheen"></div>
-          </div>
-          <div class="meet-bar-meta">
-            <span id="meet-bar-pct">0%</span>
-            <span id="meet-bar-rarity">1★ expected</span>
-          </div>
-        </div>
-
-        <div class="meet-actions">
-          <button class="meet-go-btn" onclick="rollEncounter()">
-            <span class="meet-go-text">GO OUT</span>
-          </button>
-          <button class="meet-summon-btn" onclick="openSummonModal()">
-            <span class="meet-go-text">SUMMON</span>
-          </button>
-          <button class="meet-cold-btn" onclick="coldApproach()">
-            <span class="meet-go-text">COLD APPROACH</span>
-          </button>
-        </div>
-
-        <div class="section-header"><span>BREAKDOWN</span></div>
-        <div id="meet-breakdown" class="meet-breakdown">
-          <div class="empty-state">Raise stats, add friends, add activities — contributions will appear here.</div>
-        </div>
-
-        <div class="section-header"><span>RECENT MEETS</span></div>
-        <div id="meet-history" class="meet-history">
-          <div class="empty-state">No one met yet.</div>
-        </div>
-      </div>
-    </div>
 
     <!-- ROSTER PAGE -->
     <div id="page-roster" class="page">
@@ -273,6 +253,7 @@
             <span id="lead-bar-sub">No active leads.</span>
           </div>
         </div>
+        <div id="lead-global-stars" class="lead-stars-wrap"></div>
         <div id="lead-methods"></div>
       </div>
     </div>
@@ -292,13 +273,27 @@
     <div id="page-world" class="page">
       <div class="page-scroll">
         <div class="page-title">WORLD</div>
-        <div class="section-header"><span>CITIES</span></div>
+        <div class="section-header">
+          <span>CITIES</span>
+          <button class="small-btn" onclick="openAddCity()">+ City</button>
+        </div>
         <div id="world-grid" class="world-grid"></div>
         <div class="section-header">
           <span>NEXT MOVES</span>
           <button class="small-btn" onclick="openAddMove()">+ Plan</button>
         </div>
         <div id="next-moves-list" class="next-moves-list"></div>
+      </div>
+    </div>
+
+    <!-- CITY DETAIL PAGE -->
+    <div id="page-citydetail" class="page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="navigateTo('world')">← World</button>
+          <div class="page-title" id="citydetail-title" style="margin:0">CITY</div>
+        </div>
+        <div id="citydetail-content"></div>
       </div>
     </div>
 
@@ -310,6 +305,32 @@
           <div class="page-title" style="margin:0">STAT</div>
         </div>
         <div id="stat-page-content"></div>
+      </div>
+    </div>
+
+    <!-- ABILITIES OVERLAY -->
+    <div id="page-abilities" class="page overlay-page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="hideOverlay()">← Back</button>
+          <div class="page-title" style="margin:0">ABILITIES</div>
+        </div>
+        <div class="section-header">
+          <span id="abilities-count">ABILITIES (0)</span>
+          <button class="small-btn" onclick="openAddAbility()">+ Add</button>
+        </div>
+        <div id="abilities-list"></div>
+      </div>
+    </div>
+
+    <!-- TOTAL STATS OVERLAY -->
+    <div id="page-totalstats" class="page overlay-page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="hideOverlay()">← Back</button>
+          <div class="page-title" style="margin:0">TOTAL STATS</div>
+        </div>
+        <div id="totalstats-content"></div>
       </div>
     </div>
 
@@ -386,9 +407,6 @@
     <nav class="bottom-dock">
       <button class="dock-btn" data-page="activities" onclick="navigateTo('activities')">
         <span class="dock-icon">ACT</span><span class="dock-label">Activities</span>
-      </button>
-      <button class="dock-btn" data-page="meet" onclick="navigateTo('meet')">
-        <span class="dock-icon">MEET</span><span class="dock-label">Meet</span>
       </button>
       <button class="dock-btn home-btn active" data-page="home" onclick="navigateTo('home')">
         <span class="dock-icon-home">HOME</span>

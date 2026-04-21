@@ -123,6 +123,7 @@ function defaultData() {
     months: {},         // "2026-3" -> { events: [], summary: {...} } (index 3 = April)
     day: 1,
     settings: {},
+    abilities: [],      // [{id, name, desc, unlocked, assignments:[{type:'activity'|'leadmethod', methodId, itemId}]}]
   };
 }
 
@@ -180,14 +181,23 @@ function defaultVibeComponents() {
 }
 
 function defaultWorld() {
+  const mainBorId = 'bor-rot-center';
   return {
-    currentCityId: 'city-amsterdam',
+    currentCityId: 'city-rotterdam',
+    currentBoroughId: mainBorId,
+    mainBoroughId: mainBorId,
     cities: [
-      { id: 'city-amsterdam', name: 'Amsterdam', discovered: true, completion: 0 },
-      { id: 'city-rotterdam', name: 'Rotterdam', discovered: false, completion: 0 },
-      { id: 'city-utrecht', name: 'Utrecht', discovered: false, completion: 0 },
+      {
+        id: 'city-rotterdam', name: 'Rotterdam',
+        boroughs: [
+          { id: mainBorId, name: 'City Center', activityCategories: [], leadgen: { methods: [] }, places: [] },
+        ]
+      },
     ],
   };
+}
+function defaultBorough(name) {
+  return { id: uid('bor'), name: name || 'New Borough', activityCategories: [], leadgen: { methods: [] }, places: [] };
 }
 
 // Gain % lookup: difficulty × ROI → gainPct contribution
@@ -229,7 +239,10 @@ function load() {
     D = deepMerge(defaultData(), parsed);
     // Migration: add maxGain to lead methods without it
     if (D.leadgen?.methods) {
-      D.leadgen.methods.forEach(m => { if (!m.maxGain) m.maxGain = 15; });
+      leadMethods().forEach(m => {
+        if (!m.maxGain) m.maxGain = 15;
+        (m.inventory || []).forEach(it => { if (it.leads == null) it.leads = 0; });
+      });
     }
     // Migration: add vibeComponents if missing
     if (!D.vibeComponents || !D.vibeComponents.length) {
@@ -245,7 +258,112 @@ function load() {
     }
     // Migration: add vibe stat if missing
     if (D.player.stats.vibe === undefined) D.player.stats.vibe = 0;
+    // Migration: ensure activity items have a kind (maintenance|expansion)
+    (D.activityCategories || []).forEach(cat => {
+      (cat.inventory || []).forEach(it => {
+        if (!it.kind || (it.kind !== 'maintenance' && it.kind !== 'expansion')) {
+          const eff = it.statEffects || {};
+          const gains = Object.values(eff).some(v => v > 0);
+          it.kind = gains ? 'expansion' : 'maintenance';
+        }
+      });
+    });
+    // Migration: abilities
+    if (!Array.isArray(D.abilities)) D.abilities = [];
+    // Migration: world/cities/boroughs
+    migrateWorld();
   } catch (e) { console.warn('load failed', e); }
+}
+
+function migrateWorld() {
+  if (!D.world) D.world = defaultWorld();
+  // Old shape: cities had discovered/completion, no boroughs.
+  // New shape: only Rotterdam by default, every city has boroughs[].
+  const cities = D.world.cities || [];
+  // Remove legacy cities that weren't Rotterdam if they had no boroughs + weren't discovered.
+  // Safer: keep user-discovered cities, just migrate them.
+  const kept = [];
+  cities.forEach(c => {
+    // Drop any legacy "???" or undiscovered stub cities.
+    if (c && c.discovered === false && !c.boroughs) return;
+    kept.push(c);
+  });
+  // Ensure Rotterdam exists.
+  if (!kept.find(c => c.id === 'city-rotterdam' || (c.name || '').toLowerCase() === 'rotterdam')) {
+    kept.unshift({ id: 'city-rotterdam', name: 'Rotterdam', boroughs: [] });
+  }
+  // Normalize each city: add boroughs[] if missing; drop legacy fields.
+  kept.forEach(c => {
+    delete c.discovered;
+    delete c.completion;
+    if (!Array.isArray(c.boroughs)) c.boroughs = [];
+    c.boroughs.forEach(b => {
+      if (!b.activityCategories) b.activityCategories = [];
+      if (!b.leadgen) b.leadgen = { methods: [] };
+      if (!b.leadgen.methods) b.leadgen.methods = [];
+      if (!Array.isArray(b.places)) b.places = [];
+    });
+  });
+  D.world.cities = kept;
+  // Ensure Rotterdam has a default City Center borough if empty.
+  const rot = D.world.cities.find(c => c.id === 'city-rotterdam') || D.world.cities[0];
+  if (rot && rot.boroughs.length === 0) {
+    rot.boroughs.push({ id: 'bor-rot-center', name: 'City Center', activityCategories: [], leadgen: { methods: [] }, places: [] });
+  }
+  // mainBoroughId defaults to Rotterdam's first borough (legacy users get global stuff in that borough view).
+  if (!D.world.mainBoroughId) D.world.mainBoroughId = rot ? rot.boroughs[0].id : null;
+  // currentCityId / currentBoroughId: pick Rotterdam's main borough if current is invalid.
+  if (!D.world.cities.find(c => c.id === D.world.currentCityId)) {
+    D.world.currentCityId = rot ? rot.id : (D.world.cities[0] && D.world.cities[0].id);
+  }
+  const curCity = D.world.cities.find(c => c.id === D.world.currentCityId);
+  if (!curCity || !curCity.boroughs.find(b => b.id === D.world.currentBoroughId)) {
+    D.world.currentBoroughId = curCity && curCity.boroughs[0] ? curCity.boroughs[0].id : null;
+  }
+}
+
+// ── Borough / city helpers ──
+function currentCity() { return (D.world.cities || []).find(c => c.id === D.world.currentCityId) || null; }
+function currentBorough() {
+  const c = currentCity();
+  if (!c) return null;
+  return (c.boroughs || []).find(b => b.id === D.world.currentBoroughId) || null;
+}
+function isMainBorough(b) { return b && D.world && b.id === D.world.mainBoroughId; }
+// Active (scoped-to-current-borough) activity categories. Returns D.activityCategories if the
+// current borough is the "main" borough (so the user's shared/global stash shows up there).
+function actCats() {
+  const b = currentBorough();
+  if (!b || isMainBorough(b)) return D.activityCategories;
+  if (!b.activityCategories) b.activityCategories = [];
+  return b.activityCategories;
+}
+function setActCats(next) {
+  const b = currentBorough();
+  if (!b || isMainBorough(b)) D.activityCategories = next;
+  else b.activityCategories = next;
+}
+function leadMethods() {
+  const b = currentBorough();
+  if (!b || isMainBorough(b)) return D.leadgen.methods;
+  if (!b.leadgen) b.leadgen = { methods: [] };
+  if (!b.leadgen.methods) b.leadgen.methods = [];
+  return b.leadgen.methods;
+}
+// Unlocked-things count for a given borough (used for the number under each card).
+function boroughUnlockCount(b) {
+  if (!b) return 0;
+  const acts = (b.id === D.world.mainBoroughId ? D.activityCategories : b.activityCategories) || [];
+  const leads = ((b.id === D.world.mainBoroughId ? D.leadgen.methods : (b.leadgen && b.leadgen.methods)) || []);
+  let n = 0;
+  acts.forEach(cat => n += (cat.inventory || []).length);
+  leads.forEach(m => n += (m.inventory || []).length);
+  n += (b.places || []).length;
+  return n;
+}
+function cityUnlockCount(c) {
+  if (!c) return 0;
+  return (c.boroughs || []).reduce((s, b) => s + boroughUnlockCount(b), 0);
 }
 function deepMerge(base, override) {
   if (Array.isArray(override)) return override.slice();
@@ -334,6 +452,8 @@ function showOverlay(page) {
   document.getElementById('page-' + page).classList.add('active');
   if (page === 'months') renderMonths();
   if (page === 'stats') renderStats();
+  if (page === 'abilities') renderAbilities();
+  if (page === 'totalstats') renderTotalStats();
 }
 function hideOverlay() {
   document.querySelectorAll('.overlay-page').forEach(p => p.classList.remove('active'));
@@ -753,7 +873,6 @@ function render() {
   renderHeaderDate();
   if (currentPage === 'home') renderHome();
   if (currentPage === 'activities') { renderActivities(); renderActivitiesV2(); }
-  if (currentPage === 'meet') renderMeet();
   if (currentPage === 'roster') renderRoster();
   if (currentPage === 'life') renderLife();
   if (currentPage === 'girls') renderGirls();
@@ -762,6 +881,7 @@ function render() {
   if (currentPage === 'vibe') renderVibePage();
   if (currentPage === 'vibecomp') renderVibeCompDetail();
   if (currentPage === 'world') renderWorld();
+  if (currentPage === 'citydetail') renderCityDetail();
   if (currentPage === 'stat') renderStatPage();
 }
 
@@ -785,6 +905,8 @@ function updateHeaderSubtitle() {
 }
 
 function renderHome() {
+  renderBirthday();
+  renderHomeLeads();
   // Stats grid
   const grid = document.getElementById('home-stats-grid');
   grid.innerHTML = STAT_KEYS.map(k => `
@@ -1300,7 +1422,7 @@ function renderStatPage() {
   const val = Math.round(D.player.stats[k] || 0);
   const relatedActs = PRESET_ACTIVITIES.filter(a => a.effects && a.effects[k])
     .concat(D.customActivities.filter(a => a.effects && a.effects[k]));
-  const related = D.activityCategories.flatMap(c => c.inventory.filter(it => it.statEffects && it.statEffects[k]));
+  const related = actCats().flatMap(c => c.inventory.filter(it => it.statEffects && it.statEffects[k]));
   el.innerHTML = `
     <div class="stat-hero ${STAT_CSS[k]}">
       <div class="stat-hero-emoji">${STAT_EMOJI[k] || '◆'}</div>
@@ -1371,7 +1493,7 @@ function leadItemGain(item, method) {
 }
 function computeLeadBar() {
   const slotted = [];
-  D.leadgen.methods.forEach(m => {
+  leadMethods().forEach(m => {
     m.slots.forEach(itemId => {
       if (!itemId) return;
       const item = m.inventory.find(x => x.id === itemId);
@@ -1494,6 +1616,12 @@ function syncVibeStat() {
   D.player.stats.vibe = Math.round(percent);
 }
 
+let vibeCompEditMode = false;
+function toggleVibeCompEdit() {
+  vibeCompEditMode = !vibeCompEditMode;
+  if (currentPage === 'vibecomp') renderVibeCompDetail();
+}
+
 let vibeEditMode = false;
 function toggleVibeEdit() {
   vibeEditMode = !vibeEditMode;
@@ -1528,26 +1656,101 @@ function renderLeadgen() {
     ? `${slotted.length} active lead${slotted.length === 1 ? '' : 's'} — avg of their gain %`
     : 'No active leads. Open a method to slot items.';
 
+  const globalEl = document.getElementById('lead-global-stars');
+  if (globalEl) globalEl.innerHTML = leadStarsCard('POTENTIAL LEADS', totalLeadCount());
+
   const methodsEl = document.getElementById('lead-methods');
-  methodsEl.innerHTML = D.leadgen.methods.map(m => {
+  methodsEl.innerHTML = leadMethods().map(m => {
     const avg = methodAvgGain(m);
     const avgRoi = methodAvgRoiTier(m);
     const tier = m.slots.some(Boolean) ? roiTierClass(avgRoi) : 'tier-common';
     const used = m.slots.filter(Boolean).length;
+    const leads = methodLeadCount(m);
     return `
       <button class="method-row ${tier}" onclick="openLeadMethod('${m.id}')">
         <div class="method-body">
           <div class="method-name">${escapeHtml(m.name)}</div>
           <div class="method-meta">${used}/${m.maxSlots} slot${m.maxSlots === 1 ? '' : 's'} · potential ${m.maxGain || '∞'}% · ${used > 0 ? roiTierLabel(avgRoi) : 'empty'}</div>
+          <div class="method-meta"><span class="lead-count-badge">${leads} leads</span></div>
+          ${leadStarsHtml(leads, { inline: true })}
         </div>
         <div class="method-gain">+${avg.toFixed(0)}%</div>
       </button>`;
   }).join('');
 }
 
+// ── Lead counts & stars ──
+const LEADS_PER_STAR = 20;
+const LEAD_MAX_STARS = 18;
+
+function methodLeadCount(m) {
+  return (m.inventory || []).reduce((s, it) => s + (Number(it.leads) || 0), 0);
+}
+function totalLeadCount() {
+  return (leadMethods() || []).reduce((s, m) => s + methodLeadCount(m), 0);
+}
+function leadStarSvg(filled, size) {
+  const fill = filled ? '#ffcd4a' : 'none';
+  const stroke = filled ? 'none' : 'rgba(255,255,255,0.45)';
+  const dash = filled ? '' : 'stroke-dasharray="2 2"';
+  const glow = filled ? 'filter="drop-shadow(0 0 3px rgba(255,205,74,0.6))"' : '';
+  return `<svg class="ls ${filled ? 'ls-filled' : 'ls-empty'}" viewBox="0 0 24 24" width="${size}" height="${size}" ${glow}><path d="M12 2 L14.94 8.46 L22 9.27 L17 14.14 L18.18 21.02 L12 17.77 L5.82 21.02 L7 14.14 L2 9.27 L9.06 8.46 Z" fill="${fill}" stroke="${stroke}" stroke-width="1.4" stroke-linejoin="round" ${dash}/></svg>`;
+}
+function leadStarsHtml(count, opts = {}) {
+  const perStar = opts.perStar || LEADS_PER_STAR;
+  const max = opts.max || LEAD_MAX_STARS;
+  const inline = opts.inline ? ' lead-stars-inline' : '';
+  const filled = Math.min(max, Math.floor(count / perStar));
+  const empty = max - filled;
+  const size = opts.inline ? 12 : 18;
+  let html = `<div class="lead-stars${inline}">`;
+  for (let i = 0; i < filled; i++) html += leadStarSvg(true, size);
+  for (let i = 0; i < empty; i++) html += leadStarSvg(false, size);
+  html += '</div>';
+  return html;
+}
+function leadStarsCard(title, count, opts = {}) {
+  const perStar = opts.perStar || LEADS_PER_STAR;
+  const max = opts.max || LEAD_MAX_STARS;
+  const filled = Math.min(max, Math.floor(count / perStar));
+  const nextAt = (filled + 1) * perStar;
+  const tierLbl = filled >= max
+    ? 'MAX'
+    : `★${filled}/${max} · next at ${nextAt}`;
+  return `
+    <div class="lead-stars-head">
+      <span class="cnt">${count}<span class="sub">${escapeHtml(title)}</span></span>
+      <span class="tier">${tierLbl}</span>
+    </div>
+    ${leadStarsHtml(count, opts)}
+  `;
+}
+
+let leadsEditMode = false;
+function toggleLeadsEdit() {
+  leadsEditMode = !leadsEditMode;
+  redrawLeadgen();
+}
+
+function adjustLeadItemCount(methodId, itemId, delta) {
+  const m = leadMethods().find(x => x.id === methodId);
+  const it = m?.inventory.find(x => x.id === itemId);
+  if (!it) return;
+  it.leads = Math.max(0, (Number(it.leads) || 0) + delta);
+  save();
+  redrawLeadgen();
+  if (currentPage === 'home') renderHomeLeads();
+}
+
+function renderHomeLeads() {
+  const el = document.getElementById('home-leads');
+  if (!el) return;
+  el.innerHTML = leadStarsCard('POTENTIAL LEADS', totalLeadCount());
+}
+
 // ── Lead method DETAIL page ──
 function renderLeadMethodDetail() {
-  const m = D.leadgen.methods.find(x => x.id === currentLeadMethodId);
+  const m = leadMethods().find(x => x.id === currentLeadMethodId);
   if (!m) { navigateTo('leadgen'); return; }
   const title = document.getElementById('leadmethod-title');
   if (title) title.textContent = m.name.toUpperCase();
@@ -1572,7 +1775,11 @@ function renderLeadMethodDetail() {
     ? m.inventory.map(it => leadItemTile(m, it, false)).join('')
     : '<div class="empty-state">No items yet. Tap “+ Item” to add one.</div>';
 
+  const methodLeads = methodLeadCount(m);
   document.getElementById('leadmethod-content').innerHTML = `
+    <div class="lead-stars-wrap" style="margin-bottom:10px">
+      ${leadStarsCard(m.name.toUpperCase() + ' LEADS', methodLeads)}
+    </div>
     <div class="method-summary ${tierCls}">
       <div class="method-summary-row" style="grid-template-columns: repeat(4, 1fr);">
         <div class="ms-cell"><div class="k">Slots</div><div class="v">${used}/${m.maxSlots}</div></div>
@@ -1580,6 +1787,7 @@ function renderLeadMethodDetail() {
         <div class="ms-cell"><div class="k">Potential</div><div class="v">${m.maxGain || '∞'}%</div></div>
         <div class="ms-cell"><div class="k">Tier</div><div class="v">${used > 0 ? roiTierLabel(avgRoi) : '—'}</div></div>
       </div>
+      ${leadsEditMode ? `
       <div class="method-summary-actions">
         <span class="slot-count">${used}/${m.maxSlots}</span>
         <button class="slot-pm" onclick="adjustLeadMax('${m.id}',-1)">−</button>
@@ -1588,11 +1796,16 @@ function renderLeadMethodDetail() {
         <button class="slot-pm" onclick="adjustMaxGain('${m.id}',-1)">−</button>
         <button class="slot-pm" onclick="adjustMaxGain('${m.id}',1)">+</button>
         <button class="small-btn" onclick="openAddLeadItem('${m.id}')">+ Item</button>
-      </div>
+      </div>` : ''}
     </div>
-    <div class="section-header"><span>CURRENT PARTY</span></div>
-    <div class="slot-grid" style="grid-template-columns: repeat(${m.maxSlots}, minmax(0, 1fr));">${slotsHtml}</div>
-    <div class="section-header"><span>INVENTORY</span></div>
+    <div class="section-header">
+      <span>CURRENT PARTY</span>
+      <button class="small-btn ${leadsEditMode ? 'active' : ''}" onclick="toggleLeadsEdit()">${leadsEditMode ? '✓ Done' : '✎ Edit'}</button>
+    </div>
+    <div class="slot-grid slot-grid-auto">${slotsHtml}</div>
+    <div class="section-header">
+      <span>INVENTORY</span>
+    </div>
     <div class="inv-row"
          ondragover="onDragOver(event,this)"
          ondragleave="onDragLeave(event,this)"
@@ -1605,6 +1818,11 @@ function leadItemTile(m, it, inSlot) {
   const rawGain = leadItemGain(it);
   const isCapped = m.maxGain && rawGain > m.maxGain;
   const tier = roiTierClass(it.roi);
+  const leads = Number(it.leads) || 0;
+  const abils = abilitiesForTarget('leadmethod', m.id, it.id);
+  const abilHtml = abils.length
+    ? `<div class="ability-chips">${abils.map(a => `<span class="ability-chip ${a.unlocked ? 'unlocked' : 'locked'}" title="${escapeHtml(a.desc || '')}">◈ ${escapeHtml(a.name)}</span>`).join('')}</div>`
+    : '';
   return `
     <div class="lead-tile ${tier}" draggable="true"
          ondragstart="onDragStartLead(event,'${m.id}','${it.id}')"
@@ -1616,6 +1834,18 @@ function leadItemTile(m, it, inSlot) {
         · <span class="dot roi-${it.roi}"></span>${ROI_LABEL[it.roi]}
       </div>
       <div class="tile-gain">+${gain}%${isCapped ? ' <span style="font-size:8px;color:var(--text-muted)">(cap ' + m.maxGain + '%)</span>' : ''}</div>
+      <div class="tile-leads">
+        <span class="lead-count-badge">${'★'.repeat(Math.min(LEAD_MAX_STARS, Math.floor(leads / LEADS_PER_STAR)))}${leads > 0 && Math.floor(leads / LEADS_PER_STAR) === 0 ? '☆' : ''} ${Math.floor(leads / LEADS_PER_STAR)}★ · ${leads} leads</span>
+        ${inSlot ? '' : leadStarsHtml(leads, { inline: true })}
+      </div>
+      ${inSlot ? '' : abilHtml}
+      ${!inSlot && leadsEditMode ? `
+      <div class="lead-count-controls" onclick="event.stopPropagation()">
+        <button class="lc-btn" onclick="event.stopPropagation();adjustLeadItemCount('${m.id}','${it.id}',-1)">−</button>
+        <span class="lc-val">${leads}</span>
+        <button class="lc-btn" onclick="event.stopPropagation();adjustLeadItemCount('${m.id}','${it.id}',1)">+</button>
+        <button class="lc-btn" style="width:auto;padding:0 6px;font-size:10px" onclick="event.stopPropagation();adjustLeadItemCount('${m.id}','${it.id}',10)">+10</button>
+      </div>` : ''}
       <div class="tile-actions">
         ${inSlot
       ? `<button class="tile-btn" onclick="event.stopPropagation();clearLeadSlot('${m.id}','${it.id}')">Unslot</button>`
@@ -1627,7 +1857,7 @@ function leadItemTile(m, it, inSlot) {
 
 // Mobile-friendly tap-to-slot
 function tapSlotLead(methodId, itemId) {
-  const m = D.leadgen.methods.find(x => x.id === methodId);
+  const m = leadMethods().find(x => x.id === methodId);
   if (!m) return;
   if (m.maxSlots === 1) { placeLeadInSlot(methodId, itemId, 0); return; }
   const btns = m.slots.map((sid, idx) => {
@@ -1640,7 +1870,7 @@ function tapSlotLead(methodId, itemId) {
     <div class="row"><button class="pill-btn" onclick="closeModal()">Cancel</button></div>`);
 }
 function placeLeadInSlot(methodId, itemId, idx) {
-  const m = D.leadgen.methods.find(x => x.id === methodId);
+  const m = leadMethods().find(x => x.id === methodId);
   if (!m) return;
   m.slots = m.slots.map(s => s === itemId ? null : s);
   m.slots[idx] = itemId;
@@ -1652,7 +1882,7 @@ function redrawLeadgen() {
   else renderLeadgen();
 }
 function adjustLeadMax(methodId, delta) {
-  const m = D.leadgen.methods.find(x => x.id === methodId);
+  const m = leadMethods().find(x => x.id === methodId);
   if (!m) return;
   const next = clamp(m.maxSlots + delta, 1, 10);
   if (next === m.maxSlots) return;
@@ -1666,7 +1896,7 @@ function adjustLeadMax(methodId, delta) {
   save(); redrawLeadgen();
 }
 function adjustMaxGain(methodId, delta) {
-  const m = D.leadgen.methods.find(x => x.id === methodId);
+  const m = leadMethods().find(x => x.id === methodId);
   if (!m) return;
   m.maxGain = clamp((m.maxGain || 10) + delta, 1, 30);
   save(); redrawLeadgen();
@@ -1689,13 +1919,14 @@ function openAddLeadItem(methodId) {
         <option value="high">High (yellow)</option>
         <option value="very-high">Very High (red)</option>
       </select></div>
+    <div class="form-row"><label>LEADS (count)</label><input id="li-leads" type="number" min="0" value="0"/></div>
     <div class="row">
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
       <button class="pill-btn good" onclick="submitAddLeadItem('${methodId}')">Add</button>
     </div>`);
 }
 function submitAddLeadItem(methodId) {
-  const m = D.leadgen.methods.find(x => x.id === methodId);
+  const m = leadMethods().find(x => x.id === methodId);
   if (!m) return;
   const name = (document.getElementById('li-name').value || '').trim();
   if (!name) { toast('Name required.'); return; }
@@ -1703,13 +1934,14 @@ function submitAddLeadItem(methodId) {
     id: uid('li'), name,
     difficulty: document.getElementById('li-diff').value,
     roi: document.getElementById('li-roi').value,
+    leads: Math.max(0, parseInt(document.getElementById('li-leads').value, 10) || 0),
   });
   closeModal();
   save(); redrawLeadgen();
   toast(`Added ${name}.`);
 }
 function openEditLeadItem(methodId, itemId) {
-  const m = D.leadgen.methods.find(x => x.id === methodId);
+  const m = leadMethods().find(x => x.id === methodId);
   const it = m?.inventory.find(x => x.id === itemId);
   if (!it) return;
   openModal(`
@@ -1725,6 +1957,7 @@ function openEditLeadItem(methodId, itemId) {
         ${['low', 'medium-low', 'medium', 'high', 'very-high'].map(d =>
       `<option value="${d}" ${d === it.roi ? 'selected' : ''}>${ROI_LABEL[d]}</option>`).join('')}
       </select></div>
+    <div class="form-row"><label>LEADS (count)</label><input id="li-leads" type="number" min="0" value="${Number(it.leads) || 0}"/></div>
     <div class="row">
       <button class="pill-btn danger" onclick="deleteLeadItem('${methodId}','${itemId}')">Delete</button>
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
@@ -1732,17 +1965,18 @@ function openEditLeadItem(methodId, itemId) {
     </div>`);
 }
 function submitEditLeadItem(methodId, itemId) {
-  const m = D.leadgen.methods.find(x => x.id === methodId);
+  const m = leadMethods().find(x => x.id === methodId);
   const it = m?.inventory.find(x => x.id === itemId);
   if (!it) return;
   it.name = document.getElementById('li-name').value || it.name;
   it.difficulty = document.getElementById('li-diff').value;
   it.roi = document.getElementById('li-roi').value;
+  it.leads = Math.max(0, parseInt(document.getElementById('li-leads').value, 10) || 0);
   closeModal();
   save(); redrawLeadgen();
 }
 function deleteLeadItem(methodId, itemId) {
-  const m = D.leadgen.methods.find(x => x.id === methodId);
+  const m = leadMethods().find(x => x.id === methodId);
   if (!m) return;
   m.inventory = m.inventory.filter(x => x.id !== itemId);
   m.slots = m.slots.map(s => s === itemId ? null : s);
@@ -1750,7 +1984,7 @@ function deleteLeadItem(methodId, itemId) {
   save(); redrawLeadgen();
 }
 function clearLeadSlot(methodId, itemId) {
-  const m = D.leadgen.methods.find(x => x.id === methodId);
+  const m = leadMethods().find(x => x.id === methodId);
   if (!m) return;
   m.slots = m.slots.map(s => s === itemId ? null : s);
   save(); redrawLeadgen();
@@ -1779,12 +2013,12 @@ function renderVibePage() {
   if (compEl) {
     const leadPct = computeLeadBar().percent;
     const leadSlotted = computeLeadBar().slotted.length;
-    const leadTotal = D.leadgen.methods.reduce((s, m) => s + m.maxSlots, 0);
+    const leadTotal = leadMethods().reduce((s, m) => s + m.maxSlots, 0);
     let html = `
       <button class="method-row ${leadPct > 0 ? gainTierClass(leadPct) : 'tier-common'}" onclick="openVibeComp('leadgen')">
         <div class="method-body">
           <div class="method-name">Lead Generation</div>
-          <div class="method-meta">${leadSlotted}/${leadTotal} total slots · ${D.leadgen.methods.length} methods</div>
+          <div class="method-meta">${leadSlotted}/${leadTotal} total slots · ${leadMethods().length} methods</div>
         </div>
         <div class="method-gain">+${leadPct.toFixed(0)}%</div>
       </button>`;
@@ -1929,6 +2163,7 @@ function renderVibeCompDetail() {
         <div class="ms-cell"><div class="k">Potential</div><div class="v">${c.maxGain || '∞'}%</div></div>
         <div class="ms-cell"><div class="k">Tier</div><div class="v">${used > 0 ? roiTierLabel(avgRoi) : '—'}</div></div>
       </div>
+      ${vibeCompEditMode ? `
       <div class="method-summary-actions">
         <span class="slot-count">${used}/${c.maxSlots}</span>
         <button class="slot-pm" onclick="adjustVibeMax('${c.id}',-1)">−</button>
@@ -1937,10 +2172,13 @@ function renderVibeCompDetail() {
         <button class="slot-pm" onclick="adjustVibeMaxGain('${c.id}',-1)">−</button>
         <button class="slot-pm" onclick="adjustVibeMaxGain('${c.id}',1)">+</button>
         <button class="small-btn" onclick="openAddVibeItem('${c.id}')">+ Item</button>
-      </div>
+      </div>` : ''}
     </div>
-    <div class="section-header"><span>CURRENT PARTY</span></div>
-    <div class="slot-grid" style="grid-template-columns: repeat(${c.maxSlots}, minmax(0, 1fr));">${slotsHtml}</div>
+    <div class="section-header">
+      <span>CURRENT PARTY</span>
+      <button class="small-btn ${vibeCompEditMode ? 'active' : ''}" onclick="toggleVibeCompEdit()">${vibeCompEditMode ? '✓ Done' : '✎ Edit'}</button>
+    </div>
+    <div class="slot-grid slot-grid-auto">${slotsHtml}</div>
     <div class="section-header"><span>INVENTORY</span></div>
     <div class="inv-row"
          ondragover="onDragOver(event,this)"
@@ -2173,8 +2411,8 @@ function onDropLead(e, methodId, slotIdx) {
   e.preventDefault();
   e.currentTarget.classList.remove('drop-active');
   if (!dragPayload || dragPayload.kind !== 'lead') return;
-  const srcM = D.leadgen.methods.find(x => x.id === dragPayload.methodId);
-  const dstM = D.leadgen.methods.find(x => x.id === methodId);
+  const srcM = leadMethods().find(x => x.id === dragPayload.methodId);
+  const dstM = leadMethods().find(x => x.id === methodId);
   if (!srcM || !dstM) return;
   // Item can only move within its owning method (different methods own different items).
   if (srcM !== dstM) { toast('Item belongs to another method.'); return; }
@@ -2189,7 +2427,7 @@ function onDropLeadInv(e, methodId) {
   e.currentTarget.classList.remove('drop-active');
   if (!dragPayload || dragPayload.kind !== 'lead') return;
   if (dragPayload.methodId !== methodId) return;
-  const m = D.leadgen.methods.find(x => x.id === methodId);
+  const m = leadMethods().find(x => x.id === methodId);
   m.slots = m.slots.map(s => s === dragPayload.itemId ? null : s);
   dragPayload = null;
   save(); redrawLeadgen();
@@ -2208,7 +2446,7 @@ function toggleActEdit() {
 function renderActivitiesV2() {
   const el = document.getElementById('activity-categories');
   if (!el) return;
-  let html = D.activityCategories.map(renderActivityCategory).join('');
+  let html = actCats().map(renderActivityCategory).join('');
   html += `
     <button class="method-row add-component-btn" onclick="openAddCategory()">
       <div class="method-body">
@@ -2282,7 +2520,7 @@ function submitAddCategory() {
 }
 
 function openEditCategory(catId) {
-  const c = D.activityCategories.find(x => x.id === catId);
+  const c = actCats().find(x => x.id === catId);
   if (!c) return;
   openModal(`
     <h3>Edit ${escapeHtml(c.name)}</h3>
@@ -2296,7 +2534,7 @@ function openEditCategory(catId) {
 }
 
 function submitEditCategory(catId) {
-  const c = D.activityCategories.find(x => x.id === catId);
+  const c = actCats().find(x => x.id === catId);
   if (!c) return;
   c.name = document.getElementById('ac-name').value || c.name;
   c.emoji = document.getElementById('ac-emoji').value || c.emoji;
@@ -2305,13 +2543,18 @@ function submitEditCategory(catId) {
 }
 
 function deleteCategory(catId) {
-  D.activityCategories = D.activityCategories.filter(x => x.id !== catId);
+  setActCats(actCats().filter(x => x.id !== catId));
   closeModal();
   save(); renderActivitiesV2();
   toast('Category removed.');
 }
 
 function activityTile(cat, it, inSlot) {
+  const kind = it.kind || 'maintenance';
+  const abils = abilitiesForTarget('activity', cat.id, it.id);
+  const abilHtml = abils.length
+    ? `<div class="ability-chips">${abils.map(a => `<span class="ability-chip ${a.unlocked ? 'unlocked' : 'locked'}" title="${escapeHtml(a.desc || '')}">◈ ${escapeHtml(a.name)}</span>`).join('')}</div>`
+    : '';
   return `
     <div class="act-tile" draggable="true"
          ondragstart="onDragStartActivity(event,'${cat.id}','${it.id}')"
@@ -2319,6 +2562,8 @@ function activityTile(cat, it, inSlot) {
          ondblclick="openEditActivityItem('${cat.id}','${it.id}')">
       <div class="tile-name">${it.emoji || '★'} ${escapeHtml(it.name)}</div>
       <div class="tile-meta">${statEffectsStr(it.statEffects)}${it.meetBonus ? ` · Meet +${it.meetBonus}` : ''}</div>
+      <div class="tile-tags"><span class="kind-tag kind-${kind}">${kind === 'expansion' ? '▲ EXPANSION' : '■ MAINTENANCE'}</span></div>
+      ${abilHtml}
       <div class="row" style="margin-top:4px">
         <button class="pill-btn good" onclick="event.stopPropagation();doActivityItem('${cat.id}','${it.id}')">Do</button>
         ${inSlot ? `<button class="pill-btn" onclick="event.stopPropagation();clearActivitySlot('${cat.id}','${it.id}')">Unslot</button>` : ''}
@@ -2326,7 +2571,7 @@ function activityTile(cat, it, inSlot) {
     </div>`;
 }
 function adjustCatMax(catId, delta) {
-  const c = D.activityCategories.find(x => x.id === catId);
+  const c = actCats().find(x => x.id === catId);
   if (!c) return;
   const next = clamp(c.maxSlots + delta, 1, 10);
   if (next === c.maxSlots) return;
@@ -2339,8 +2584,8 @@ function onDropActivity(e, catId, slotIdx) {
   e.preventDefault();
   e.currentTarget.classList.remove('drop-active');
   if (!dragPayload || dragPayload.kind !== 'activity') return;
-  const src = D.activityCategories.find(c => c.id === dragPayload.catId);
-  const dst = D.activityCategories.find(c => c.id === catId);
+  const src = actCats().find(c => c.id === dragPayload.catId);
+  const dst = actCats().find(c => c.id === catId);
   if (!src || !dst || src !== dst) { toast('Item belongs to another category.'); return; }
   dst.slots = dst.slots.map(s => s === dragPayload.itemId ? null : s);
   dst.slots[slotIdx] = dragPayload.itemId;
@@ -2352,13 +2597,13 @@ function onDropActivityInv(e, catId) {
   e.currentTarget.classList.remove('drop-active');
   if (!dragPayload || dragPayload.kind !== 'activity') return;
   if (dragPayload.catId !== catId) return;
-  const c = D.activityCategories.find(x => x.id === catId);
+  const c = actCats().find(x => x.id === catId);
   c.slots = c.slots.map(s => s === dragPayload.itemId ? null : s);
   dragPayload = null;
   save(); renderActivitiesV2();
 }
 function clearActivitySlot(catId, itemId) {
-  const c = D.activityCategories.find(x => x.id === catId);
+  const c = actCats().find(x => x.id === catId);
   if (!c) return;
   c.slots = c.slots.map(s => s === itemId ? null : s);
   save(); renderActivitiesV2();
@@ -2371,6 +2616,12 @@ function openAddActivityItem(catId) {
     <h3>★ Add Item</h3>
     <div class="form-row"><label>NAME</label><input id="ai-name" placeholder="e.g. Judo class"/></div>
     <div class="form-row"><label>EMOJI</label><input id="ai-emoji" placeholder="" maxlength="2"/></div>
+    <div class="form-row"><label>KIND</label>
+      <select id="ai-kind">
+        <option value="expansion" selected>▲ Expansion (grows you: stats, skills, leads)</option>
+        <option value="maintenance">■ Maintenance (upkeep: rest, grooming, gaming)</option>
+      </select>
+    </div>
     <div class="form-row"><label>MEET BAR BONUS</label><input id="ai-meet" type="number" min="0" max="15" value="0"/></div>
     <div class="form-row"><label>XP PER DO</label><input id="ai-xp" type="number" min="1" max="50" value="5"/></div>
     <div class="form-row"><label>STAT EFFECTS</label><div class="effects-grid">${effRows}</div></div>
@@ -2388,7 +2639,7 @@ function readEffectInputs() {
   return out;
 }
 function submitAddActivityItem(catId) {
-  const c = D.activityCategories.find(x => x.id === catId);
+  const c = actCats().find(x => x.id === catId);
   if (!c) return;
   const name = (document.getElementById('ai-name').value || '').trim();
   if (!name) { toast('Name required.'); return; }
@@ -2396,6 +2647,7 @@ function submitAddActivityItem(catId) {
     id: uid('ai'),
     name,
     emoji: document.getElementById('ai-emoji').value || '★',
+    kind: document.getElementById('ai-kind').value || 'expansion',
     meetBonus: Number(document.getElementById('ai-meet').value) || 0,
     xp: Number(document.getElementById('ai-xp').value) || 5,
     statEffects: readEffectInputs(),
@@ -2404,7 +2656,7 @@ function submitAddActivityItem(catId) {
   save(); renderActivitiesV2();
 }
 function openEditActivityItem(catId, itemId) {
-  const c = D.activityCategories.find(x => x.id === catId);
+  const c = actCats().find(x => x.id === catId);
   const it = c?.inventory.find(x => x.id === itemId);
   if (!it) return;
   const effRows = STAT_KEYS.map(k =>
@@ -2414,6 +2666,12 @@ function openEditActivityItem(catId, itemId) {
     <h3> Edit ${escapeHtml(it.name)}</h3>
     <div class="form-row"><label>NAME</label><input id="ai-name" value="${escapeHtml(it.name)}"/></div>
     <div class="form-row"><label>EMOJI</label><input id="ai-emoji" value="${it.emoji || ''}" maxlength="2"/></div>
+    <div class="form-row"><label>KIND</label>
+      <select id="ai-kind">
+        <option value="expansion" ${(it.kind || 'expansion') === 'expansion' ? 'selected' : ''}>▲ Expansion</option>
+        <option value="maintenance" ${it.kind === 'maintenance' ? 'selected' : ''}>■ Maintenance</option>
+      </select>
+    </div>
     <div class="form-row"><label>MEET BAR BONUS</label><input id="ai-meet" type="number" min="0" max="15" value="${it.meetBonus || 0}"/></div>
     <div class="form-row"><label>XP PER DO</label><input id="ai-xp" type="number" min="1" max="50" value="${it.xp || 5}"/></div>
     <div class="form-row"><label>STAT EFFECTS</label><div class="effects-grid">${effRows}</div></div>
@@ -2424,11 +2682,12 @@ function openEditActivityItem(catId, itemId) {
     </div>`);
 }
 function submitEditActivityItem(catId, itemId) {
-  const c = D.activityCategories.find(x => x.id === catId);
+  const c = actCats().find(x => x.id === catId);
   const it = c?.inventory.find(x => x.id === itemId);
   if (!it) return;
   it.name = document.getElementById('ai-name').value || it.name;
   it.emoji = document.getElementById('ai-emoji').value || it.emoji;
+  it.kind = document.getElementById('ai-kind').value || it.kind || 'expansion';
   it.meetBonus = Number(document.getElementById('ai-meet').value) || 0;
   it.xp = Number(document.getElementById('ai-xp').value) || 5;
   it.statEffects = readEffectInputs();
@@ -2436,7 +2695,7 @@ function submitEditActivityItem(catId, itemId) {
   save(); renderActivitiesV2();
 }
 function deleteActivityItem(catId, itemId) {
-  const c = D.activityCategories.find(x => x.id === catId);
+  const c = actCats().find(x => x.id === catId);
   if (!c) return;
   c.inventory = c.inventory.filter(x => x.id !== itemId);
   c.slots = c.slots.map(s => s === itemId ? null : s);
@@ -2444,65 +2703,363 @@ function deleteActivityItem(catId, itemId) {
   save(); renderActivitiesV2();
 }
 function doActivityItem(catId, itemId) {
-  const c = D.activityCategories.find(x => x.id === catId);
+  const c = actCats().find(x => x.id === catId);
   const it = c?.inventory.find(x => x.id === itemId);
   if (!it) return;
   applyEffects(it.statEffects || {});
   addXP(it.xp || 4, it.name);
-  // Track city completion
+  // Track city context
   const city = D.world.cities.find(x => x.id === D.world.currentCityId);
-  if (city && city.discovered) city.completion = Math.min(100, (city.completion || 0) + 2);
   addLog(`Did ${it.name} in ${city?.name || 'somewhere'}.`, 'activity');
   tickDay();
 }
 
 // ── World map ──
+let expandedCityId = null; // which city's boroughs are shown
+let currentCityDetailId = null; // which city is being viewed in detail
+
 function renderWorld() {
   const el = document.getElementById('world-grid');
   if (!el) return;
-  el.innerHTML = D.world.cities.map(c => `
-    <button class="city-card ${c.discovered ? '' : 'undiscovered'} ${c.id === D.world.currentCityId ? 'current' : ''}"
-            onclick="selectCity('${c.id}')">
-      <div class="city-name">${c.discovered ? escapeHtml(c.name) : '???'}</div>
-      <div class="city-ring"><div class="city-ring-fill" style="width:${c.completion || 0}%"></div></div>
-      <div class="city-pct">${c.discovered ? (c.completion || 0).toFixed(0) + '%' : 'locked'}</div>
-    </button>
-  `).join('') + `
-    <button class="city-card discover-card" onclick="discoverCity()">
-      <div class="city-name">+ Discover</div>
-      <div class="city-pct">$50</div>
-    </button>`;
+
+  el.innerHTML = D.world.cities.map(c => {
+    const isCurrent = c.id === D.world.currentCityId;
+    const count = cityUnlockCount(c);
+    const placeCount = c.boroughs.reduce((s, b) => s + (b.places || []).length, 0);
+
+    return `
+      <div class="city-wrapper">
+        <div class="city-card ${isCurrent ? 'current' : ''}"
+             onclick="openCityDetail('${c.id}')">
+          <div class="city-info">
+            <div class="city-name">${escapeHtml(c.name)}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${c.boroughs.length} borough${c.boroughs.length === 1 ? '' : 's'} · ${placeCount} place${placeCount === 1 ? '' : 's'}</div>
+          </div>
+          <div style="text-align:center">
+            <div class="unlock-count">${count}</div>
+            <div class="unlock-label">unlocked</div>
+          </div>
+          <div class="city-actions" onclick="event.stopPropagation()">
+            <button class="bor-act-btn" onclick="event.stopPropagation();renameCity('${c.id}')">✎</button>
+            <button class="bor-act-btn" onclick="event.stopPropagation();deleteCity('${c.id}')">×</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
   renderNextMoves();
 }
-function selectCity(id) {
-  const c = D.world.cities.find(x => x.id === id);
-  if (!c) return;
-  if (!c.discovered) { toast('Undiscovered. Use Discover to unlock.'); return; }
-  D.world.currentCityId = id;
-  save(); renderWorld();
-  toast(`Moved to ${c.name}.`);
+
+function openCityDetail(id) {
+  currentCityDetailId = id;
+  navigateTo('citydetail');
 }
-function discoverCity() {
-  if (D.player.stats.money < 50) { toast('Need $50 to discover.'); return; }
-  const undiscovered = D.world.cities.find(c => !c.discovered);
-  if (undiscovered) {
-    D.player.stats.money -= 50;
-    undiscovered.discovered = true;
-    addLog(`Discovered ${undiscovered.name}.`, 'world');
-    toast(`Discovered ${undiscovered.name}!`);
+
+function selectBorough(cityId, borId) {
+  D.world.currentCityId = cityId;
+  D.world.currentBoroughId = borId;
+  save(); renderWorld();
+  const c = D.world.cities.find(x => x.id === cityId);
+  const b = c?.boroughs.find(x => x.id === borId);
+  toast(`Now in ${b?.name || '?'}, ${c?.name || '?'}.`);
+}
+
+function toggleMainBorough(borId) {
+  if (D.world.mainBoroughId === borId) {
+    // Unsetting main — data stays in D.activityCategories / D.leadgen but won't show in any borough
+    D.world.mainBoroughId = null;
+    toast('Main borough cleared.');
   } else {
-    // Invent a new one
-    const names = ['The Hague', 'Groningen', 'Eindhoven', 'Leiden', 'Haarlem', 'Delft', 'Maastricht', 'Breda', 'Nijmegen', 'Tilburg'];
-    const existing = new Set(D.world.cities.map(c => c.name));
-    const pool = names.filter(n => !existing.has(n));
-    if (pool.length === 0) { toast('Map is full.'); return; }
-    D.player.stats.money -= 50;
-    const name = pickRandom(pool);
-    D.world.cities.push({ id: uid('city'), name, discovered: true, completion: 0 });
-    addLog(`Discovered ${name}.`, 'world');
-    toast(`Discovered ${name}!`);
+    D.world.mainBoroughId = borId;
+    toast('Set as main — your global activities & leads show here.');
   }
   save(); renderWorld();
+}
+
+// ── City management ──
+function openAddCity() {
+  openModal(`
+    <h3>Add City</h3>
+    <div class="form-row"><label>NAME</label><input id="ac-name" placeholder="e.g. Amsterdam"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddCity()">Add</button>
+    </div>`);
+}
+function submitAddCity() {
+  const name = (document.getElementById('ac-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  // Check duplicate
+  if (D.world.cities.find(c => c.name.toLowerCase() === name.toLowerCase())) {
+    toast('City already exists.'); return;
+  }
+  const cityId = uid('city');
+  const borId = uid('bor');
+  D.world.cities.push({
+    id: cityId, name,
+    boroughs: [{ id: borId, name: 'Center', activityCategories: [], leadgen: { methods: [] }, places: [] }]
+  });
+  addLog(`Added city ${name}.`, 'world');
+  closeModal();
+  expandedCityId = cityId;
+  save(); renderWorld();
+  toast(`Added ${name}.`);
+}
+
+function renameCity(id) {
+  const c = D.world.cities.find(x => x.id === id);
+  if (!c) return;
+  openModal(`
+    <h3>Rename City</h3>
+    <div class="form-row"><label>NAME</label><input id="rc-name" value="${escapeHtml(c.name)}"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitRenameCity('${id}')">Save</button>
+    </div>`);
+}
+function submitRenameCity(id) {
+  const c = D.world.cities.find(x => x.id === id);
+  if (!c) return;
+  const name = (document.getElementById('rc-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  c.name = name;
+  closeModal(); save(); renderWorld();
+}
+
+function deleteCity(id) {
+  if (D.world.cities.length <= 1) { toast("Can't delete last city."); return; }
+  const c = D.world.cities.find(x => x.id === id);
+  if (!c) return;
+  openModal(`
+    <h3>Delete ${escapeHtml(c.name)}?</h3>
+    <div class="desc" style="color:var(--text-secondary);font-size:12px;margin-bottom:10px">This will delete the city and all its boroughs. Data in non-main boroughs is lost.</div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn danger" onclick="confirmDeleteCity('${id}')">Delete</button>
+    </div>`);
+}
+function confirmDeleteCity(id) {
+  D.world.cities = D.world.cities.filter(x => x.id !== id);
+  // Fix selection if deleted city was current
+  if (D.world.currentCityId === id) {
+    const first = D.world.cities[0];
+    D.world.currentCityId = first ? first.id : null;
+    D.world.currentBoroughId = first?.boroughs[0]?.id || null;
+  }
+  if (expandedCityId === id) expandedCityId = null;
+  closeModal(); save(); renderWorld();
+  toast('City deleted.');
+}
+
+// ── Borough management ──
+function openAddBorough(cityId) {
+  openModal(`
+    <h3>Add Borough</h3>
+    <div class="form-row"><label>NAME</label><input id="ab-name" placeholder="e.g. Delfshaven"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddBorough('${cityId}')">Add</button>
+    </div>`);
+}
+function submitAddBorough(cityId) {
+  const c = D.world.cities.find(x => x.id === cityId);
+  if (!c) return;
+  const name = (document.getElementById('ab-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  c.boroughs.push(defaultBorough(name));
+  closeModal(); save(); renderWorld();
+  toast(`Added ${name}.`);
+}
+
+function renameBorough(cityId, borId) {
+  const c = D.world.cities.find(x => x.id === cityId);
+  const b = c?.boroughs.find(x => x.id === borId);
+  if (!b) return;
+  openModal(`
+    <h3>Rename Borough</h3>
+    <div class="form-row"><label>NAME</label><input id="rb-name" value="${escapeHtml(b.name)}"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitRenameBorough('${cityId}','${borId}')">Save</button>
+    </div>`);
+}
+function submitRenameBorough(cityId, borId) {
+  const c = D.world.cities.find(x => x.id === cityId);
+  const b = c?.boroughs.find(x => x.id === borId);
+  if (!b) return;
+  const name = (document.getElementById('rb-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  b.name = name;
+  closeModal(); save(); renderWorld();
+}
+
+function deleteBorough(cityId, borId) {
+  const c = D.world.cities.find(x => x.id === cityId);
+  if (!c) return;
+  if (c.boroughs.length <= 1) { toast("Can't delete last borough."); return; }
+  const b = c.boroughs.find(x => x.id === borId);
+  if (!b) return;
+  if (b.id === D.world.mainBoroughId) {
+    toast("Unset as main first."); return;
+  }
+  openModal(`
+    <h3>Delete ${escapeHtml(b.name)}?</h3>
+    <div class="desc" style="color:var(--text-secondary);font-size:12px;margin-bottom:10px">Borough data (activities, leads) for this non-main borough will be lost.</div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn danger" onclick="confirmDeleteBorough('${cityId}','${borId}')">Delete</button>
+    </div>`);
+}
+function confirmDeleteBorough(cityId, borId) {
+  const c = D.world.cities.find(x => x.id === cityId);
+  if (!c) return;
+  c.boroughs = c.boroughs.filter(x => x.id !== borId);
+  if (D.world.currentBoroughId === borId) {
+    D.world.currentBoroughId = c.boroughs[0]?.id || null;
+  }
+  closeModal(); save(); renderWorld();
+  toast('Borough deleted.');
+}
+
+function selectCity(id) {
+  // Legacy compat — open city detail
+  openCityDetail(id);
+}
+
+// ── City detail page ──
+function renderCityDetail() {
+  const c = D.world.cities.find(x => x.id === currentCityDetailId);
+  if (!c) { navigateTo('world'); return; }
+  const titleEl = document.getElementById('citydetail-title');
+  if (titleEl) titleEl.textContent = c.name.toUpperCase();
+  const el = document.getElementById('citydetail-content');
+  if (!el) return;
+
+  const isCurrent = c.id === D.world.currentCityId;
+
+  el.innerHTML = c.boroughs.map(b => {
+    const bCount = boroughUnlockCount(b);
+    const isActive = b.id === D.world.currentBoroughId && isCurrent;
+    const isMain = b.id === D.world.mainBoroughId;
+    const places = b.places || [];
+    const visited = places.filter(p => p.visited).length;
+
+    const placesHtml = places.length
+      ? places.map(p => `
+          <div class="place-item ${p.visited ? 'visited' : ''}">
+            <button class="place-visit-btn" onclick="togglePlaceVisited('${c.id}','${b.id}','${p.id}')" title="${p.visited ? 'Mark unvisited' : 'Mark visited'}">
+              ${p.visited ? '✓' : '○'}
+            </button>
+            <div class="place-info" onclick="openEditPlace('${c.id}','${b.id}','${p.id}')">
+              <div class="place-name">${escapeHtml(p.name)}</div>
+              ${p.type ? `<div class="place-type">${escapeHtml(p.type)}</div>` : ''}
+              ${p.notes ? `<div class="place-notes">${escapeHtml(p.notes)}</div>` : ''}
+            </div>
+            <button class="place-del-btn" onclick="deletePlace('${c.id}','${b.id}','${p.id}')">×</button>
+          </div>`).join('')
+      : '<div class="empty-state" style="margin:6px 0">No places yet. Add one!</div>';
+
+    return `
+      <div class="borough-section">
+        <div class="borough-section-head">
+          <div>
+            <span class="borough-section-name">${escapeHtml(b.name)}</span>
+            ${isMain ? '<span class="main-badge">MAIN</span>' : ''}
+            <span class="borough-section-count">${bCount} unlocked · ${visited}/${places.length} visited</span>
+          </div>
+          <div class="borough-section-actions">
+            <button class="bor-act-btn main-toggle ${isMain ? 'is-main' : ''}" onclick="toggleMainBorough('${b.id}');renderCityDetail()">${isMain ? '★' : '☆'}</button>
+            <button class="bor-act-btn" onclick="selectBorough('${c.id}','${b.id}')">📍</button>
+            <button class="bor-act-btn" onclick="renameBorough('${c.id}','${b.id}')">✎</button>
+            <button class="bor-act-btn" onclick="deleteBorough('${c.id}','${b.id}')">×</button>
+          </div>
+        </div>
+        <div class="place-list">${placesHtml}</div>
+        <button class="add-place-btn" onclick="openAddPlace('${c.id}','${b.id}')">+ Place</button>
+      </div>`;
+  }).join('') + `
+    <button class="add-borough-btn" style="width:100%;margin-top:10px" onclick="openAddBorough('${c.id}')">+ Borough</button>
+  `;
+}
+
+// ── Place management ──
+function openAddPlace(cityId, borId) {
+  openModal(`
+    <h3>Add Place</h3>
+    <div class="form-row"><label>NAME</label><input id="ap-name" placeholder="e.g. Ramen shop on Witte de With"/></div>
+    <div class="form-row"><label>TYPE (optional)</label><input id="ap-type" placeholder="e.g. Restaurant, Gym, Shop..."/></div>
+    <div class="form-row"><label>NOTES (optional)</label><textarea id="ap-notes" rows="2" placeholder="Looks good, want to try it"></textarea></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddPlace('${cityId}','${borId}')">Add</button>
+    </div>`);
+}
+function submitAddPlace(cityId, borId) {
+  const c = D.world.cities.find(x => x.id === cityId);
+  const b = c?.boroughs.find(x => x.id === borId);
+  if (!b) return;
+  const name = (document.getElementById('ap-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  const type = (document.getElementById('ap-type').value || '').trim();
+  const notes = (document.getElementById('ap-notes').value || '').trim();
+  if (!b.places) b.places = [];
+  b.places.push({ id: uid('pl'), name, type, notes, visited: false });
+  closeModal(); save(); renderCityDetail();
+  toast(`Added ${name}.`);
+}
+
+function openEditPlace(cityId, borId, placeId) {
+  const c = D.world.cities.find(x => x.id === cityId);
+  const b = c?.boroughs.find(x => x.id === borId);
+  const p = b?.places?.find(x => x.id === placeId);
+  if (!p) return;
+  openModal(`
+    <h3>Edit Place</h3>
+    <div class="form-row"><label>NAME</label><input id="ep-name" value="${escapeHtml(p.name)}"/></div>
+    <div class="form-row"><label>TYPE</label><input id="ep-type" value="${escapeHtml(p.type || '')}"/></div>
+    <div class="form-row"><label>NOTES</label><textarea id="ep-notes" rows="2">${escapeHtml(p.notes || '')}</textarea></div>
+    <div class="form-row">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="ep-visited" ${p.visited ? 'checked' : ''} style="width:18px;height:18px"/>
+        Visited
+      </label>
+    </div>
+    <div class="row">
+      <button class="pill-btn danger" onclick="deletePlace('${cityId}','${borId}','${placeId}')">Delete</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditPlace('${cityId}','${borId}','${placeId}')">Save</button>
+    </div>`);
+}
+function submitEditPlace(cityId, borId, placeId) {
+  const c = D.world.cities.find(x => x.id === cityId);
+  const b = c?.boroughs.find(x => x.id === borId);
+  const p = b?.places?.find(x => x.id === placeId);
+  if (!p) return;
+  p.name = (document.getElementById('ep-name').value || '').trim() || p.name;
+  p.type = (document.getElementById('ep-type').value || '').trim();
+  p.notes = (document.getElementById('ep-notes').value || '').trim();
+  p.visited = document.getElementById('ep-visited').checked;
+  closeModal(); save(); renderCityDetail();
+}
+
+function togglePlaceVisited(cityId, borId, placeId) {
+  const c = D.world.cities.find(x => x.id === cityId);
+  const b = c?.boroughs.find(x => x.id === borId);
+  const p = b?.places?.find(x => x.id === placeId);
+  if (!p) return;
+  p.visited = !p.visited;
+  save(); renderCityDetail();
+  toast(p.visited ? `Visited ${p.name}!` : `Unmarked ${p.name}.`);
+}
+
+function deletePlace(cityId, borId, placeId) {
+  const c = D.world.cities.find(x => x.id === cityId);
+  const b = c?.boroughs.find(x => x.id === borId);
+  if (!b) return;
+  const p = b.places?.find(x => x.id === placeId);
+  b.places = (b.places || []).filter(x => x.id !== placeId);
+  closeModal(); save(); renderCityDetail();
+  if (p) toast(`Removed ${p.name}.`);
 }
 
 // ── Next Moves ──
@@ -2531,7 +3088,7 @@ function cityName(id) { return D.world.cities.find(c => c.id === id)?.name || '?
 function openAddMove() {
   const statOpts = STAT_KEYS.map(k => `<option value="${k}">${STAT_EMOJI[k]} ${STAT_LABELS[k]}</option>`).join('');
   const cityOpts = '<option value="">— none —</option>' +
-    D.world.cities.filter(c => c.discovered).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    D.world.cities.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   openModal(`
     <h3> Plan a Next Move</h3>
     <div class="form-row"><label>NAME</label><input id="nm-name" placeholder="e.g. Join judo class"/></div>
@@ -2565,7 +3122,7 @@ function openEditMove(id) {
   const statOpts = STAT_KEYS.map(k => `<option value="${k}" ${m.statEffects[k] ? 'selected' : ''}>${STAT_EMOJI[k]} ${STAT_LABELS[k]}</option>`).join('');
   const firstMag = Object.values(m.statEffects)[0] || 2;
   const cityOpts = '<option value="">— none —</option>' +
-    D.world.cities.filter(c => c.discovered).map(c => `<option value="${c.id}" ${m.city === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
+    D.world.cities.map(c => `<option value="${c.id}" ${m.city === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
   openModal(`
     <h3> Edit Move</h3>
     <div class="form-row"><label>NAME</label><input id="nm-name" value="${escapeHtml(m.name)}"/></div>
@@ -2598,7 +3155,7 @@ function executeMove(id) {
   addLog(`Executed planned move: ${m.name}.`, 'activity');
   if (m.city) {
     const c = D.world.cities.find(x => x.id === m.city);
-    if (c) c.completion = Math.min(100, (c.completion || 0) + 5);
+    if (c) addLog(`Executed move in ${c.name}.`, 'world');
   }
   D.nextMoves = D.nextMoves.filter(x => x.id !== id);
   tickDay();
@@ -2609,6 +3166,331 @@ function deleteMove(id) {
   save(); renderNextMoves();
 }
 
+// ── Abilities ──
+function abilitiesForTarget(type, methodId, itemId) {
+  return (D.abilities || []).filter(a =>
+    (a.assignments || []).some(x => x.type === type && x.methodId === methodId && x.itemId === itemId)
+  );
+}
+
+function renderAbilities() {
+  const el = document.getElementById('abilities-list');
+  const cnt = document.getElementById('abilities-count');
+  const list = D.abilities || [];
+  if (cnt) cnt.textContent = `ABILITIES (${list.length})`;
+  if (!el) return;
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state">No abilities yet. Tap "+ Add" to define one.</div>';
+    return;
+  }
+  el.innerHTML = list.map(a => {
+    const assigns = (a.assignments || []).map(x => {
+      const label = assignmentLabel(x);
+      return `<span class="ability-chip ${a.unlocked ? 'unlocked' : 'locked'}">${escapeHtml(label)}<button class="ability-chip-x" onclick="unassignAbility('${a.id}','${x.type}','${x.methodId}','${x.itemId}')">×</button></span>`;
+    }).join('');
+    return `
+      <div class="ability-row ${a.unlocked ? 'unlocked' : 'locked'}">
+        <div class="ability-head">
+          <div class="ability-name">${a.unlocked ? '◆' : '◇'} ${escapeHtml(a.name)}</div>
+          <div class="ability-actions">
+            <button class="small-btn" onclick="toggleAbilityUnlock('${a.id}')">${a.unlocked ? 'Lock' : 'Unlock'}</button>
+            <button class="small-btn" onclick="openAssignAbility('${a.id}')">Assign</button>
+            <button class="small-btn" onclick="openEditAbility('${a.id}')">Edit</button>
+          </div>
+        </div>
+        ${a.desc ? `<div class="ability-desc">${escapeHtml(a.desc)}</div>` : ''}
+        <div class="ability-chips">${assigns || '<span class="ability-empty">Not assigned yet.</span>'}</div>
+      </div>`;
+  }).join('');
+}
+
+function assignmentLabel(x) {
+  if (x.type === 'activity') {
+    const cat = D.activityCategories.find(c => c.id === x.methodId);
+    const it = cat?.inventory.find(i => i.id === x.itemId);
+    return it ? `ACT · ${cat.name} / ${it.name}` : 'ACT · (missing)';
+  }
+  if (x.type === 'leadmethod') {
+    const m = D.leadgen.methods.find(c => c.id === x.methodId);
+    const it = m?.inventory.find(i => i.id === x.itemId);
+    return it ? `LEAD · ${m.name} / ${it.name}` : 'LEAD · (missing)';
+  }
+  return '(unknown)';
+}
+
+function openAddAbility() {
+  openModal(`
+    <h3>◆ Add Ability</h3>
+    <div class="form-row"><label>NAME</label><input id="ab-name" placeholder="e.g. Defend yourself in a fight"/></div>
+    <div class="form-row"><label>DESCRIPTION</label><textarea id="ab-desc" rows="3" placeholder="What it means to have this ability"></textarea></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddAbility()">Add</button>
+    </div>`);
+}
+function submitAddAbility() {
+  const name = (document.getElementById('ab-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  D.abilities = D.abilities || [];
+  D.abilities.push({
+    id: uid('ab'), name,
+    desc: (document.getElementById('ab-desc').value || '').trim(),
+    unlocked: false,
+    assignments: [],
+  });
+  save(); closeModal(); renderAbilities();
+  toast('Ability added.');
+}
+
+function openEditAbility(id) {
+  const a = D.abilities.find(x => x.id === id);
+  if (!a) return;
+  openModal(`
+    <h3>◆ Edit Ability</h3>
+    <div class="form-row"><label>NAME</label><input id="ab-name" value="${escapeHtml(a.name)}"/></div>
+    <div class="form-row"><label>DESCRIPTION</label><textarea id="ab-desc" rows="3">${escapeHtml(a.desc || '')}</textarea></div>
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteAbility('${id}')">Delete</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditAbility('${id}')">Save</button>
+    </div>`);
+}
+function submitEditAbility(id) {
+  const a = D.abilities.find(x => x.id === id);
+  if (!a) return;
+  a.name = document.getElementById('ab-name').value || a.name;
+  a.desc = document.getElementById('ab-desc').value || '';
+  save(); closeModal(); renderAbilities();
+}
+function deleteAbility(id) {
+  if (!confirm('Delete this ability?')) return;
+  D.abilities = (D.abilities || []).filter(x => x.id !== id);
+  save(); closeModal(); renderAbilities();
+}
+function toggleAbilityUnlock(id) {
+  const a = D.abilities.find(x => x.id === id);
+  if (!a) return;
+  a.unlocked = !a.unlocked;
+  save(); renderAbilities();
+  toast(a.unlocked ? `Unlocked: ${a.name}` : `Locked: ${a.name}`);
+}
+
+function openAssignAbility(id) {
+  const a = D.abilities.find(x => x.id === id);
+  if (!a) return;
+  const actRows = D.activityCategories.flatMap(cat =>
+    cat.inventory.map(it => {
+      const on = (a.assignments || []).some(x => x.type === 'activity' && x.methodId === cat.id && x.itemId === it.id);
+      return `<button class="assign-row ${on ? 'on' : ''}" onclick="toggleAssignAbility('${id}','activity','${cat.id}','${it.id}')">
+        <span class="ar-type">ACT</span> ${escapeHtml(cat.name)} <span class="ar-sep">/</span> ${escapeHtml(it.name)} ${on ? '✓' : ''}
+      </button>`;
+    })
+  ).join('');
+  const leadRows = D.leadgen.methods.flatMap(m =>
+    m.inventory.map(it => {
+      const on = (a.assignments || []).some(x => x.type === 'leadmethod' && x.methodId === m.id && x.itemId === it.id);
+      return `<button class="assign-row ${on ? 'on' : ''}" onclick="toggleAssignAbility('${id}','leadmethod','${m.id}','${it.id}')">
+        <span class="ar-type">LEAD</span> ${escapeHtml(m.name)} <span class="ar-sep">/</span> ${escapeHtml(it.name)} ${on ? '✓' : ''}
+      </button>`;
+    })
+  ).join('');
+  openModal(`
+    <h3>◆ Assign: ${escapeHtml(a.name)}</h3>
+    <div class="desc" style="color:var(--text-secondary);font-size:11px;margin-bottom:8px">Tap a target to attach/detach this ability. You gain this ability by doing things there.</div>
+    <div class="section-header" style="padding-top:0"><span>ACTIVITIES</span></div>
+    <div class="assign-list">${actRows || '<div class="empty-state">No activity items.</div>'}</div>
+    <div class="section-header"><span>LEAD GEN</span></div>
+    <div class="assign-list">${leadRows || '<div class="empty-state">No lead items.</div>'}</div>
+    <div class="row"><button class="pill-btn" onclick="closeModal()">Close</button></div>`);
+}
+function toggleAssignAbility(abId, type, methodId, itemId) {
+  const a = D.abilities.find(x => x.id === abId);
+  if (!a) return;
+  a.assignments = a.assignments || [];
+  const idx = a.assignments.findIndex(x => x.type === type && x.methodId === methodId && x.itemId === itemId);
+  if (idx >= 0) a.assignments.splice(idx, 1);
+  else a.assignments.push({ type, methodId, itemId });
+  save();
+  openAssignAbility(abId); // refresh modal
+}
+function unassignAbility(abId, type, methodId, itemId) {
+  const a = D.abilities.find(x => x.id === abId);
+  if (!a) return;
+  a.assignments = (a.assignments || []).filter(x => !(x.type === type && x.methodId === methodId && x.itemId === itemId));
+  save(); renderAbilities();
+}
+
+// ── Total Stats ──
+function computeActivityBalance() {
+  let maint = 0, exp = 0;
+  (D.activityCategories || []).forEach(cat => {
+    cat.slots.forEach(sid => {
+      if (!sid) return;
+      const it = cat.inventory.find(x => x.id === sid);
+      if (!it) return;
+      if (it.kind === 'maintenance') maint++;
+      else exp++;
+    });
+  });
+  // Lead methods always count as expansion slots
+  let leadExp = 0;
+  (leadMethods() || []).forEach(m => {
+    leadExp += m.slots.filter(Boolean).length;
+  });
+  return { maintenance: maint, expansion: exp, leadExpansion: leadExp };
+}
+
+function renderTotalStats() {
+  const el = document.getElementById('totalstats-content');
+  if (!el) return;
+  const bal = computeActivityBalance();
+  const totalExp = bal.expansion + bal.leadExpansion;
+  const total = bal.maintenance + totalExp;
+  const maintPct = total > 0 ? Math.round(bal.maintenance / total * 100) : 0;
+  const expPct = 100 - maintPct;
+  let verdict;
+  if (total === 0) verdict = 'No active activities slotted. Slot some items to see your balance.';
+  else if (expPct >= 70) verdict = 'Heavy on expansion — you are pushing growth hard. Don\'t burn out.';
+  else if (expPct >= 45) verdict = 'Healthy mix of expansion and maintenance.';
+  else if (expPct >= 25) verdict = 'Maintenance-heavy. Go expand — slot a lead or a skill-building activity.';
+  else verdict = 'Almost all maintenance. You are coasting. Add expansion activities.';
+
+  const unlockedAbils = (D.abilities || []).filter(a => a.unlocked).length;
+  const totalAbils = (D.abilities || []).length;
+
+  el.innerHTML = `
+    <div class="section-header"><span>ALL STATS</span></div>
+    <div class="quick-stats-grid">
+      ${STAT_KEYS.map(k => `
+        <div class="qstat ${STAT_CSS[k]}">
+          <div class="qstat-label">${STAT_EMOJI[k] || ''} ${STAT_LABELS[k]}</div>
+          <div class="qstat-value">${Math.round(D.player.stats[k])}</div>
+        </div>`).join('')}
+    </div>
+
+    <div class="section-header"><span>MAINTENANCE ⇄ EXPANSION</span></div>
+    <div class="balance-card">
+      <div class="balance-bar">
+        <div class="balance-maint" style="width:${maintPct}%" title="Maintenance">
+          <span class="balance-label">■ ${bal.maintenance}</span>
+        </div>
+        <div class="balance-exp" style="width:${expPct}%" title="Expansion">
+          <span class="balance-label">▲ ${totalExp}</span>
+        </div>
+      </div>
+      <div class="balance-legend">
+        <span><span class="dot dot-maint"></span>Maintenance ${maintPct}%</span>
+        <span><span class="dot dot-exp"></span>Expansion ${expPct}% <span class="sub">(${bal.expansion} act + ${bal.leadExpansion} lead)</span></span>
+      </div>
+      <div class="balance-verdict">${verdict}</div>
+    </div>
+
+    <div class="section-header"><span>ABILITIES</span>
+      <button class="small-btn" onclick="hideOverlay();showOverlay('abilities')">Open</button>
+    </div>
+    <div class="quick-stats-grid">
+      <div class="qstat"><div class="qstat-label">Unlocked</div><div class="qstat-value">${unlockedAbils}</div></div>
+      <div class="qstat"><div class="qstat-label">Total</div><div class="qstat-value">${totalAbils}</div></div>
+    </div>
+  `;
+}
+
+// ── Birthday timer ──
+function computeBirthdayElapsed(birthdayStr) {
+  const bd = new Date(birthdayStr + 'T00:00:00');
+  if (isNaN(bd.getTime())) return null;
+  const now = new Date();
+  if (bd > now) return null;
+  let years = now.getFullYear() - bd.getFullYear();
+  let months = now.getMonth() - bd.getMonth();
+  let days = now.getDate() - bd.getDate();
+  let hours = now.getHours() - bd.getHours();
+  let minutes = now.getMinutes() - bd.getMinutes();
+  let seconds = now.getSeconds() - bd.getSeconds();
+  if (seconds < 0) { seconds += 60; minutes--; }
+  if (minutes < 0) { minutes += 60; hours--; }
+  if (hours < 0) { hours += 24; days--; }
+  if (days < 0) {
+    const prevMonthDays = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+    days += prevMonthDays;
+    months--;
+  }
+  if (months < 0) { months += 12; years--; }
+  const totalMonths = years * 12 + months;
+  const weeks = Math.floor(days / 7);
+  days = days % 7;
+  return { months: totalMonths, weeks, days, hours, minutes, seconds };
+}
+
+function renderBirthday() {
+  const el = document.getElementById('home-birthday');
+  if (!el) return;
+  const bd = D.settings && D.settings.birthday;
+  if (!bd) {
+    el.classList.remove('set');
+    el.innerHTML = '<div class="empty-state">No birthday set. Tap "Set" to start the timer.</div>';
+    return;
+  }
+  const e = computeBirthdayElapsed(bd);
+  if (!e) {
+    el.classList.remove('set');
+    el.innerHTML = '<div class="empty-state">Birthday is in the future. Set a past date.</div>';
+    return;
+  }
+  el.classList.add('set');
+  el.innerHTML = `
+    <div class="birthday-date">Born ${escapeHtml(bd)} — counting up to today</div>
+    <div class="birthday-grid">
+      <div class="birthday-unit"><div class="v">${e.months}</div><div class="l">Mo</div></div>
+      <div class="birthday-unit"><div class="v">${e.weeks}</div><div class="l">Wk</div></div>
+      <div class="birthday-unit"><div class="v">${e.days}</div><div class="l">Dy</div></div>
+      <div class="birthday-unit"><div class="v">${String(e.hours).padStart(2, '0')}</div><div class="l">Hr</div></div>
+      <div class="birthday-unit"><div class="v">${String(e.minutes).padStart(2, '0')}</div><div class="l">Mn</div></div>
+      <div class="birthday-unit"><div class="v">${String(e.seconds).padStart(2, '0')}</div><div class="l">Sc</div></div>
+    </div>
+  `;
+}
+
+function openBirthdayModal() {
+  const current = (D.settings && D.settings.birthday) || '';
+  openModal(`
+    <h3>Set Birthday</h3>
+    <div class="desc" style="color:var(--text-secondary);font-size:12px;margin-bottom:10px">Pick the date you were born. The timer counts up from midnight of that day.</div>
+    <input type="date" id="birthday-input" value="${escapeHtml(current)}" max="${new Date().toISOString().split('T')[0]}" style="width:100%;padding:10px;font-family:var(--font-mono);font-size:14px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-accent);border-radius:8px;margin-bottom:12px" />
+    <div class="row">
+      ${current ? '<button class="pill-btn danger" onclick="clearBirthday()">Clear</button>' : ''}
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="saveBirthday()">Save</button>
+    </div>
+  `);
+}
+
+function saveBirthday() {
+  const val = document.getElementById('birthday-input').value;
+  if (!val) { toast('Pick a date.'); return; }
+  if (!D.settings) D.settings = {};
+  D.settings.birthday = val;
+  save();
+  closeModal();
+  renderBirthday();
+  toast('Birthday saved.');
+}
+
+function clearBirthday() {
+  if (D.settings) D.settings.birthday = null;
+  save();
+  closeModal();
+  renderBirthday();
+}
+
+let birthdayTimer = null;
+function startBirthdayTimer() {
+  if (birthdayTimer) return;
+  birthdayTimer = setInterval(() => {
+    if (currentPage === 'home') renderBirthday();
+  }, 1000);
+}
+
 // ── Init ──
 function init() {
   load();
@@ -2617,6 +3499,7 @@ function init() {
   if (!D.months[m.key]) D.months[m.key] = { name: m.name, year: m.year, events: [], summary: null };
   save();
   navigateTo('home');
+  startBirthdayTimer();
 }
 
 document.addEventListener('DOMContentLoaded', init);
