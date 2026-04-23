@@ -260,10 +260,10 @@ function load() {
     }
     // Migration: add vibe stat if missing
     if (D.player.stats.vibe === undefined) D.player.stats.vibe = 0;
-    // Migration: ensure activity items have a kind (maintenance|expansion)
+    // Migration: ensure activity items have a kind (maintenance|expansion|cost)
     (D.activityCategories || []).forEach(cat => {
       (cat.inventory || []).forEach(it => {
-        if (!it.kind || (it.kind !== 'maintenance' && it.kind !== 'expansion')) {
+        if (!it.kind || (it.kind !== 'maintenance' && it.kind !== 'expansion' && it.kind !== 'cost')) {
           const eff = it.statEffects || {};
           const gains = Object.values(eff).some(v => v > 0);
           it.kind = gains ? 'expansion' : 'maintenance';
@@ -2511,16 +2511,28 @@ function renderActivitySection(sec, cats) {
     : '<div class="empty-state">No categories in this section.</div>';
   const editBtn = sec.__pseudo ? '' :
     `<button class="small-btn" onclick="event.stopPropagation();openEditSection('${sec.id}')">Edit</button>`;
+  const dragAttr = sec.__pseudo ? '' :
+    `draggable="true" ondragstart="onDragStartSection(event,'${sec.id}')" ondragend="onDragEndSection(event)"`;
+  const dragHandle = sec.__pseudo ? '' :
+    `<span class="drag-handle" title="Drag to reorder">⠿</span>`;
   return `
-    <div class="activity-section">
-      <div class="act-section-head" onclick="toggleActivitySection('${sec.id}')">
+    <div class="activity-section" data-section-id="${sec.id}"
+         ondragover="onDragOverSection(event,this,'${sec.id}')"
+         ondragleave="onDragLeaveSection(event,this)"
+         ondrop="onDropOnSection(event,'${sec.id}')">
+      <div class="act-section-head" ${dragAttr} onclick="toggleActivitySection('${sec.id}')">
+        ${dragHandle}
         <div class="act-section-name">${escapeHtml(sec.name)}</div>
         <div class="act-section-controls">
           ${editBtn}
           <span class="section-chevron ${sec.collapsed ? 'collapsed' : ''}">⌄</span>
         </div>
       </div>
-      ${sec.collapsed ? '' : `<div class="act-section-body">${body}</div>`}
+      ${sec.collapsed ? '' : `<div class="act-section-body"
+        data-section-id="${sec.id}"
+        ondragover="onDragOverSectionBody(event,this,'${sec.id}')"
+        ondragleave="onDragLeaveSectionBody(event,this)"
+        ondrop="onDropCatInSectionBody(event,'${sec.id}')">${body}</div>`}
     </div>`;
 }
 
@@ -2599,9 +2611,15 @@ function renderActivityCategory(cat) {
     : '<div class="empty-state">No items. Add one.</div>';
   const used = cat.slots.filter(Boolean).length;
   return `
-    <div class="category-block">
+    <div class="category-block" data-cat-id="${cat.id}"
+         draggable="true"
+         ondragstart="onDragStartCategory(event,'${cat.id}')"
+         ondragend="onDragEndCategory(event)"
+         ondragover="onDragOverCategory(event,this,'${cat.id}')"
+         ondragleave="onDragLeaveCategory(event,this)"
+         ondrop="onDropOnCategory(event,'${cat.id}')">
       <div class="category-head">
-        <div class="category-title">${cat.emoji} ${escapeHtml(cat.name)} — <span class="slot-count">${used}/${cat.maxSlots}</span></div>
+        <div class="category-title"><span class="drag-handle" title="Drag to reorder">⠿</span>${cat.emoji} ${escapeHtml(cat.name)} — <span class="slot-count">${used}/${cat.maxSlots}</span></div>
         <div class="category-actions">
           <button class="slot-pm" onclick="adjustCatMax('${cat.id}',-1)">−</button>
           <button class="slot-pm" onclick="adjustCatMax('${cat.id}',1)">+</button>
@@ -2701,7 +2719,7 @@ function activityTile(cat, it, inSlot) {
          ondblclick="openEditActivityItem('${cat.id}','${it.id}')">
       <div class="tile-name">${it.emoji || '★'} ${escapeHtml(it.name)}</div>
       <div class="tile-meta">${statEffectsStr(it.statEffects)}${it.meetBonus ? ` · Meet +${it.meetBonus}` : ''}</div>
-      <div class="tile-tags"><span class="kind-tag kind-${kind}">${kind === 'expansion' ? '▲ EXPANSION' : '■ MAINTENANCE'}</span></div>
+      <div class="tile-tags"><span class="kind-tag kind-${kind}">${kind === 'expansion' ? '▲ EXPANSION' : kind === 'cost' ? '● COST' : '■ MAINTENANCE'}</span></div>
       ${abilHtml}
       <div class="row" style="margin-top:4px">
         <button class="pill-btn good" onclick="event.stopPropagation();doActivityItem('${cat.id}','${it.id}')">Do</button>
@@ -2725,9 +2743,21 @@ function onDropActivity(e, catId, slotIdx) {
   if (!dragPayload || dragPayload.kind !== 'activity') return;
   const src = actCats().find(c => c.id === dragPayload.catId);
   const dst = actCats().find(c => c.id === catId);
-  if (!src || !dst || src !== dst) { toast('Item belongs to another category.'); return; }
-  dst.slots = dst.slots.map(s => s === dragPayload.itemId ? null : s);
-  dst.slots[slotIdx] = dragPayload.itemId;
+  if (!src || !dst) return;
+  if (src === dst) {
+    // Same category — just move between slots
+    dst.slots = dst.slots.map(s => s === dragPayload.itemId ? null : s);
+    dst.slots[slotIdx] = dragPayload.itemId;
+  } else {
+    // Cross-category: move item from src to dst
+    const it = src.inventory.find(x => x.id === dragPayload.itemId);
+    if (!it) return;
+    src.inventory = src.inventory.filter(x => x.id !== dragPayload.itemId);
+    src.slots = src.slots.map(s => s === dragPayload.itemId ? null : s);
+    dst.inventory.push(it);
+    dst.slots = dst.slots.map(s => s === dragPayload.itemId ? null : s);
+    dst.slots[slotIdx] = dragPayload.itemId;
+  }
   dragPayload = null;
   save(); renderActivitiesV2();
 }
@@ -2735,9 +2765,20 @@ function onDropActivityInv(e, catId) {
   e.preventDefault();
   e.currentTarget.classList.remove('drop-active');
   if (!dragPayload || dragPayload.kind !== 'activity') return;
-  if (dragPayload.catId !== catId) return;
-  const c = actCats().find(x => x.id === catId);
-  c.slots = c.slots.map(s => s === dragPayload.itemId ? null : s);
+  const src = actCats().find(c => c.id === dragPayload.catId);
+  const dst = actCats().find(c => c.id === catId);
+  if (!src || !dst) return;
+  if (src === dst) {
+    // Same category — just unslot
+    dst.slots = dst.slots.map(s => s === dragPayload.itemId ? null : s);
+  } else {
+    // Cross-category: move item from src inventory to dst inventory
+    const it = src.inventory.find(x => x.id === dragPayload.itemId);
+    if (!it) return;
+    src.inventory = src.inventory.filter(x => x.id !== dragPayload.itemId);
+    src.slots = src.slots.map(s => s === dragPayload.itemId ? null : s);
+    dst.inventory.push(it);
+  }
   dragPayload = null;
   save(); renderActivitiesV2();
 }
@@ -2746,6 +2787,151 @@ function clearActivitySlot(catId, itemId) {
   if (!c) return;
   c.slots = c.slots.map(s => s === itemId ? null : s);
   save(); renderActivitiesV2();
+}
+
+// ── Category drag-and-drop (sort/move between sections) ──
+function onDragStartCategory(e, catId) {
+  // Only start if drag originated from drag handle
+  dragPayload = { kind: 'category', catId };
+  e.dataTransfer.effectAllowed = 'move';
+  // Set a minimal drag image
+  e.dataTransfer.setData('text/plain', catId);
+  requestAnimationFrame(() => {
+    const el = e.target.closest('.category-block');
+    if (el) el.classList.add('dragging-cat');
+  });
+}
+function onDragEndCategory(e) {
+  const el = e.target.closest('.category-block');
+  if (el) el.classList.remove('dragging-cat');
+  document.querySelectorAll('.drag-over-cat,.drag-over-body,.drag-over-section').forEach(x => {
+    x.classList.remove('drag-over-cat', 'drag-over-body', 'drag-over-section');
+  });
+}
+function onDragOverCategory(e, target, catId) {
+  if (!dragPayload) return;
+  if (dragPayload.kind === 'category' && dragPayload.catId !== catId) {
+    e.preventDefault();
+    target.classList.add('drag-over-cat');
+  }
+  // Activity drops are handled by slot/inv zones, so don't interfere
+}
+function onDragLeaveCategory(e, target) {
+  target.classList.remove('drag-over-cat');
+}
+function onDropOnCategory(e, targetCatId) {
+  e.currentTarget.classList.remove('drag-over-cat');
+  if (!dragPayload || dragPayload.kind !== 'category') return;
+  e.preventDefault();
+  e.stopPropagation();
+  const cats = actCats();
+  const srcIdx = cats.findIndex(c => c.id === dragPayload.catId);
+  const dstIdx = cats.findIndex(c => c.id === targetCatId);
+  if (srcIdx < 0 || dstIdx < 0 || srcIdx === dstIdx) return;
+  // Move source cat's sectionId to match destination cat's section
+  const dstCat = cats[dstIdx];
+  const srcCat = cats[srcIdx];
+  if (dstCat.sectionId) srcCat.sectionId = dstCat.sectionId;
+  else delete srcCat.sectionId;
+  // Reorder: remove src, insert before dst
+  cats.splice(srcIdx, 1);
+  const newDstIdx = cats.findIndex(c => c.id === targetCatId);
+  cats.splice(newDstIdx, 0, srcCat);
+  dragPayload = null;
+  save(); renderActivitiesV2();
+}
+
+// ── Drop category into a section body (to move it into that section) ──
+function onDragOverSectionBody(e, target, sectionId) {
+  if (!dragPayload) return;
+  if (dragPayload.kind === 'category') {
+    e.preventDefault();
+    target.classList.add('drag-over-body');
+  }
+}
+function onDragLeaveSectionBody(e, target) {
+  target.classList.remove('drag-over-body');
+}
+function onDropCatInSectionBody(e, sectionId) {
+  e.currentTarget.classList.remove('drag-over-body');
+  if (!dragPayload || dragPayload.kind !== 'category') return;
+  e.preventDefault();
+  e.stopPropagation();
+  const cats = actCats();
+  const cat = cats.find(c => c.id === dragPayload.catId);
+  if (!cat) return;
+  // Move category to this section
+  if (sectionId === '__ungrouped') {
+    delete cat.sectionId;
+  } else {
+    cat.sectionId = sectionId;
+  }
+  dragPayload = null;
+  save(); renderActivitiesV2();
+}
+
+// ── Section drag-and-drop (reorder sections) ──
+function onDragStartSection(e, sectionId) {
+  dragPayload = { kind: 'section', sectionId };
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', sectionId);
+  requestAnimationFrame(() => {
+    const el = e.target.closest('.activity-section');
+    if (el) el.classList.add('dragging-section');
+  });
+}
+function onDragEndSection(e) {
+  const el = e.target.closest('.activity-section');
+  if (el) el.classList.remove('dragging-section');
+  document.querySelectorAll('.drag-over-section').forEach(x => x.classList.remove('drag-over-section'));
+}
+function onDragOverSection(e, target, sectionId) {
+  if (!dragPayload) return;
+  if (dragPayload.kind === 'section' && dragPayload.sectionId !== sectionId) {
+    e.preventDefault();
+    target.classList.add('drag-over-section');
+  }
+  // Also allow category drops onto sections
+  if (dragPayload.kind === 'category') {
+    e.preventDefault();
+    target.classList.add('drag-over-section');
+  }
+}
+function onDragLeaveSection(e, target) {
+  target.classList.remove('drag-over-section');
+}
+function onDropOnSection(e, targetSectionId) {
+  e.currentTarget.classList.remove('drag-over-section');
+  if (!dragPayload) return;
+  // Section reordering
+  if (dragPayload.kind === 'section') {
+    e.preventDefault();
+    e.stopPropagation();
+    const sections = actSections();
+    const srcIdx = sections.findIndex(s => s.id === dragPayload.sectionId);
+    const dstIdx = sections.findIndex(s => s.id === targetSectionId);
+    if (srcIdx < 0 || dstIdx < 0 || srcIdx === dstIdx) return;
+    const [removed] = sections.splice(srcIdx, 1);
+    sections.splice(dstIdx, 0, removed);
+    dragPayload = null;
+    save(); renderActivitiesV2();
+    return;
+  }
+  // Category dropped onto a section wrapper
+  if (dragPayload.kind === 'category') {
+    e.preventDefault();
+    e.stopPropagation();
+    const cats = actCats();
+    const cat = cats.find(c => c.id === dragPayload.catId);
+    if (!cat) return;
+    if (targetSectionId === '__ungrouped') {
+      delete cat.sectionId;
+    } else {
+      cat.sectionId = targetSectionId;
+    }
+    dragPayload = null;
+    save(); renderActivitiesV2();
+  }
 }
 function openAddActivityItem(catId) {
   const effRows = STAT_KEYS.map(k =>
@@ -2759,6 +2945,7 @@ function openAddActivityItem(catId) {
       <select id="ai-kind">
         <option value="expansion" selected>▲ Expansion (grows you: stats, skills, leads)</option>
         <option value="maintenance">■ Maintenance (upkeep: rest, grooming, gaming)</option>
+        <option value="cost">● Cost (drains you: indulgences, energy sinks)</option>
       </select>
     </div>
     <div class="form-row"><label>MEET BAR BONUS</label><input id="ai-meet" type="number" min="0" max="15" value="0"/></div>
@@ -2809,6 +2996,7 @@ function openEditActivityItem(catId, itemId) {
       <select id="ai-kind">
         <option value="expansion" ${(it.kind || 'expansion') === 'expansion' ? 'selected' : ''}>▲ Expansion</option>
         <option value="maintenance" ${it.kind === 'maintenance' ? 'selected' : ''}>■ Maintenance</option>
+        <option value="cost" ${it.kind === 'cost' ? 'selected' : ''}>● Cost</option>
       </select>
     </div>
     <div class="form-row"><label>MEET BAR BONUS</label><input id="ai-meet" type="number" min="0" max="15" value="${it.meetBonus || 0}"/></div>
@@ -3490,13 +3678,14 @@ function unassignAbility(abId, type, methodId, itemId) {
 
 // ── Total Stats ──
 function computeActivityBalance() {
-  let maint = 0, exp = 0;
+  let maint = 0, exp = 0, cost = 0;
   (actCats() || []).forEach(cat => {
     cat.slots.forEach(sid => {
       if (!sid) return;
       const it = cat.inventory.find(x => x.id === sid);
       if (!it) return;
       if (it.kind === 'maintenance') maint++;
+      else if (it.kind === 'cost') cost++;
       else exp++;
     });
   });
@@ -3505,7 +3694,7 @@ function computeActivityBalance() {
   (leadMethods() || []).forEach(m => {
     leadExp += m.slots.filter(Boolean).length;
   });
-  return { maintenance: maint, expansion: exp, leadExpansion: leadExp };
+  return { maintenance: maint, expansion: exp, cost, leadExpansion: leadExp };
 }
 
 function renderTotalStats() {
@@ -3513,13 +3702,17 @@ function renderTotalStats() {
   if (!el) return;
   const bal = computeActivityBalance();
   const totalExp = bal.expansion + bal.leadExpansion;
-  const total = bal.maintenance + totalExp;
+  const total = bal.maintenance + totalExp + bal.cost;
   const maintPct = total > 0 ? Math.round(bal.maintenance / total * 100) : 0;
-  const expPct = 100 - maintPct;
+  const costPct = total > 0 ? Math.round(bal.cost / total * 100) : 0;
+  const expPct = total > 0 ? (100 - maintPct - costPct) : 0;
   let verdict;
   if (total === 0) verdict = 'No active activities slotted. Slot some items to see your balance.';
+  else if (costPct >= 50) verdict = 'You are draining yourself. Cut back on indulgences and costs.';
+  else if (costPct >= 30) verdict = 'Heavy on cost — indulgences are eating into your balance. Careful.';
   else if (expPct >= 70) verdict = 'Heavy on expansion — you are pushing growth hard. Don\'t burn out.';
-  else if (expPct >= 45) verdict = 'Healthy mix of expansion and maintenance.';
+  else if (expPct >= 45 && costPct <= 15) verdict = 'Healthy balance of expansion and maintenance.';
+  else if (expPct >= 45) verdict = 'Good expansion push, but watch the costs creeping in.';
   else if (expPct >= 25) verdict = 'Maintenance-heavy. Go expand — slot a lead or a skill-building activity.';
   else verdict = 'Almost all maintenance. You are coasting. Add expansion activities.';
 
@@ -3536,7 +3729,7 @@ function renderTotalStats() {
         </div>`).join('')}
     </div>
 
-    <div class="section-header"><span>MAINTENANCE ⇄ EXPANSION</span></div>
+    <div class="section-header"><span>MAINTENANCE ⇄ EXPANSION ⇄ COST</span></div>
     <div class="balance-card">
       <div class="balance-bar">
         <div class="balance-maint" style="width:${maintPct}%" title="Maintenance">
@@ -3545,10 +3738,14 @@ function renderTotalStats() {
         <div class="balance-exp" style="width:${expPct}%" title="Expansion">
           <span class="balance-label">▲ ${totalExp}</span>
         </div>
+        <div class="balance-cost" style="width:${costPct}%" title="Cost">
+          <span class="balance-label">● ${bal.cost}</span>
+        </div>
       </div>
       <div class="balance-legend">
-        <span><span class="dot dot-maint"></span>Maintenance ${maintPct}%</span>
-        <span><span class="dot dot-exp"></span>Expansion ${expPct}% <span class="sub">(${bal.expansion} act + ${bal.leadExpansion} lead)</span></span>
+        <span><span class="dot dot-maint"></span>Maint ${maintPct}%</span>
+        <span><span class="dot dot-exp"></span>Expand ${expPct}% <span class="sub">(${bal.expansion} act + ${bal.leadExpansion} lead)</span></span>
+        <span><span class="dot dot-cost"></span>Cost ${costPct}%</span>
       </div>
       <div class="balance-verdict">${verdict}</div>
     </div>
