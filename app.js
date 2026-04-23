@@ -124,6 +124,8 @@ function defaultData() {
     day: 1,
     settings: {},
     abilities: [],      // [{id, name, desc, unlocked, assignments:[{type:'activity'|'leadmethod', methodId, itemId}]}]
+    northstar: null,    // { text, updatedAt }
+    eras: [],           // [{ id, name, start: 'YYYY-MM-DD', end: 'YYYY-MM-DD', color, createdAt }]
   };
 }
 
@@ -270,6 +272,9 @@ function load() {
     });
     // Migration: abilities
     if (!Array.isArray(D.abilities)) D.abilities = [];
+    // Migration: northstar + eras
+    if (D.northstar === undefined) D.northstar = null;
+    if (!Array.isArray(D.eras)) D.eras = [];
     // Migration: world/cities/boroughs
     migrateWorld();
   } catch (e) { console.warn('load failed', e); }
@@ -454,6 +459,7 @@ function showOverlay(page) {
   if (page === 'stats') renderStats();
   if (page === 'abilities') renderAbilities();
   if (page === 'totalstats') renderTotalStats();
+  if (page === 'calendar') renderCalendar();
 }
 function hideOverlay() {
   document.querySelectorAll('.overlay-page').forEach(p => p.classList.remove('active'));
@@ -905,6 +911,8 @@ function updateHeaderSubtitle() {
 }
 
 function renderHome() {
+  renderNorthstar();
+  renderCurrentEraWidget();
   renderBirthday();
   renderHomeLeads();
   // Stats grid
@@ -1565,7 +1573,7 @@ function vibeComponentGain(comp) {
 // Compute bonus from slotted activities
 function getSlottedActivityBonus() {
   let bonus = 0;
-  D.activityCategories.forEach(cat => {
+  actCats().forEach(cat => {
     cat.slots.forEach(itemId => {
       if (!itemId) return;
       const item = cat.inventory.find(x => x.id === itemId);
@@ -1582,7 +1590,7 @@ function getSlottedActivityBonus() {
 // Get list of slotted activities for display
 function getSlottedActivities() {
   const list = [];
-  D.activityCategories.forEach(cat => {
+  actCats().forEach(cat => {
     cat.slots.forEach(itemId => {
       if (!itemId) return;
       const item = cat.inventory.find(x => x.id === itemId);
@@ -2511,7 +2519,7 @@ function submitAddCategory() {
   if (!name) { toast('Name required.'); return; }
   const emoji = document.getElementById('ac-emoji').value || '[···]';
   const maxSlots = clamp(parseInt(document.getElementById('ac-slots').value) || 2, 1, 10);
-  D.activityCategories.push({
+  actCats().push({
     id: uid('cat'), name, emoji, maxSlots, slots: Array(maxSlots).fill(null), inventory: []
   });
   closeModal();
@@ -3204,16 +3212,45 @@ function renderAbilities() {
   }).join('');
 }
 
+function allActivityCategoriesWithScope() {
+  const out = [];
+  (D.activityCategories || []).forEach(cat => out.push({ cat, scope: 'Main' }));
+  (D.world.cities || []).forEach(c => (c.boroughs || []).forEach(b => {
+    if (b.id === D.world.mainBoroughId) return;
+    (b.activityCategories || []).forEach(cat => out.push({ cat, scope: `${c.name} · ${b.name}` }));
+  }));
+  return out;
+}
+function allLeadMethodsWithScope() {
+  const out = [];
+  (D.leadgen?.methods || []).forEach(m => out.push({ m, scope: 'Main' }));
+  (D.world.cities || []).forEach(c => (c.boroughs || []).forEach(b => {
+    if (b.id === D.world.mainBoroughId) return;
+    ((b.leadgen && b.leadgen.methods) || []).forEach(m => out.push({ m, scope: `${c.name} · ${b.name}` }));
+  }));
+  return out;
+}
+function findCatAnywhere(catId) {
+  const all = allActivityCategoriesWithScope();
+  return all.find(x => x.cat.id === catId) || null;
+}
+function findLeadMethodAnywhere(methodId) {
+  const all = allLeadMethodsWithScope();
+  return all.find(x => x.m.id === methodId) || null;
+}
+
 function assignmentLabel(x) {
   if (x.type === 'activity') {
-    const cat = D.activityCategories.find(c => c.id === x.methodId);
-    const it = cat?.inventory.find(i => i.id === x.itemId);
-    return it ? `ACT · ${cat.name} / ${it.name}` : 'ACT · (missing)';
+    const hit = findCatAnywhere(x.methodId);
+    if (!hit) return 'ACT · (missing)';
+    const it = hit.cat.inventory.find(i => i.id === x.itemId);
+    return it ? `ACT · ${hit.cat.name} / ${it.name}` : 'ACT · (missing)';
   }
   if (x.type === 'leadmethod') {
-    const m = D.leadgen.methods.find(c => c.id === x.methodId);
-    const it = m?.inventory.find(i => i.id === x.itemId);
-    return it ? `LEAD · ${m.name} / ${it.name}` : 'LEAD · (missing)';
+    const hit = findLeadMethodAnywhere(x.methodId);
+    if (!hit) return 'LEAD · (missing)';
+    const it = hit.m.inventory.find(i => i.id === x.itemId);
+    return it ? `LEAD · ${hit.m.name} / ${it.name}` : 'LEAD · (missing)';
   }
   return '(unknown)';
 }
@@ -3278,19 +3315,19 @@ function toggleAbilityUnlock(id) {
 function openAssignAbility(id) {
   const a = D.abilities.find(x => x.id === id);
   if (!a) return;
-  const actRows = D.activityCategories.flatMap(cat =>
+  const actRows = allActivityCategoriesWithScope().flatMap(({ cat, scope }) =>
     cat.inventory.map(it => {
       const on = (a.assignments || []).some(x => x.type === 'activity' && x.methodId === cat.id && x.itemId === it.id);
       return `<button class="assign-row ${on ? 'on' : ''}" onclick="toggleAssignAbility('${id}','activity','${cat.id}','${it.id}')">
-        <span class="ar-type">ACT</span> ${escapeHtml(cat.name)} <span class="ar-sep">/</span> ${escapeHtml(it.name)} ${on ? '✓' : ''}
+        <span class="ar-type">ACT</span> ${escapeHtml(cat.name)} <span class="ar-sep">/</span> ${escapeHtml(it.name)} <span class="ar-scope">@ ${escapeHtml(scope)}</span> ${on ? '✓' : ''}
       </button>`;
     })
   ).join('');
-  const leadRows = D.leadgen.methods.flatMap(m =>
+  const leadRows = allLeadMethodsWithScope().flatMap(({ m, scope }) =>
     m.inventory.map(it => {
       const on = (a.assignments || []).some(x => x.type === 'leadmethod' && x.methodId === m.id && x.itemId === it.id);
       return `<button class="assign-row ${on ? 'on' : ''}" onclick="toggleAssignAbility('${id}','leadmethod','${m.id}','${it.id}')">
-        <span class="ar-type">LEAD</span> ${escapeHtml(m.name)} <span class="ar-sep">/</span> ${escapeHtml(it.name)} ${on ? '✓' : ''}
+        <span class="ar-type">LEAD</span> ${escapeHtml(m.name)} <span class="ar-sep">/</span> ${escapeHtml(it.name)} <span class="ar-scope">@ ${escapeHtml(scope)}</span> ${on ? '✓' : ''}
       </button>`;
     })
   ).join('');
@@ -3323,7 +3360,7 @@ function unassignAbility(abId, type, methodId, itemId) {
 // ── Total Stats ──
 function computeActivityBalance() {
   let maint = 0, exp = 0;
-  (D.activityCategories || []).forEach(cat => {
+  (actCats() || []).forEach(cat => {
     cat.slots.forEach(sid => {
       if (!sid) return;
       const it = cat.inventory.find(x => x.id === sid);
@@ -3492,6 +3529,362 @@ function startBirthdayTimer() {
 }
 
 // ── Init ──
+// ────────────────────────────────────────────────────────────────
+// NORTHSTAR
+// ────────────────────────────────────────────────────────────────
+function renderNorthstar() {
+  const el = document.getElementById('home-northstar');
+  if (!el) return;
+  const ns = D.northstar;
+  if (!ns || !ns.text) {
+    el.innerHTML = '<div class="empty-state">No northstar set. What are you heading toward?</div>';
+    return;
+  }
+  el.innerHTML = `
+    <div class="northstar-inner">
+      <div class="northstar-icon">✦</div>
+      <div class="northstar-text">${escapeHtml(ns.text)}</div>
+      <div class="northstar-actions">
+        <button class="small-btn" onclick="openNorthstarModal()">Edit</button>
+        <button class="small-btn" onclick="clearNorthstar()">Clear</button>
+      </div>
+    </div>`;
+}
+function openNorthstarModal() {
+  const current = (D.northstar && D.northstar.text) || '';
+  openModal(`
+    <h3>✦ Northstar</h3>
+    <div class="desc" style="color:var(--text-secondary);font-size:12px;margin-bottom:8px">One sentence. The direction everything else serves.</div>
+    <div class="form-row">
+      <label>NORTHSTAR</label>
+      <textarea id="ns-text" rows="3" placeholder="e.g. Build a life where I choose who I spend my time with.">${escapeHtml(current)}</textarea>
+    </div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitNorthstar()">Save</button>
+    </div>`);
+}
+function submitNorthstar() {
+  const text = (document.getElementById('ns-text').value || '').trim();
+  if (!text) { toast('Enter a northstar or Cancel.'); return; }
+  D.northstar = { text, updatedAt: Date.now() };
+  save(); closeModal(); renderNorthstar();
+  toast('Northstar set.');
+}
+function clearNorthstar() {
+  if (!confirm('Clear your northstar?')) return;
+  D.northstar = null;
+  save(); renderNorthstar();
+}
+
+// ────────────────────────────────────────────────────────────────
+// ERAS
+// ────────────────────────────────────────────────────────────────
+const ERA_PALETTE = [
+  '#ff6b6b', '#ffa94d', '#ffd43b', '#8ce99a', '#4dd4ac',
+  '#63e6be', '#74c0fc', '#9775fa', '#da77f2', '#f783ac',
+];
+function todayYMD() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function parseYMD(s) {
+  if (!s) return null;
+  const [y, m, d] = s.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+function dayDiff(a, b) {
+  // whole days between two Date objects (b - a), ignoring time
+  const ms = 24 * 60 * 60 * 1000;
+  const A = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
+  const B = new Date(b.getFullYear(), b.getMonth(), b.getDate()).getTime();
+  return Math.round((B - A) / ms);
+}
+function eraIsActive(e, now) {
+  const s = parseYMD(e.start), en = parseYMD(e.end);
+  if (!s || !en) return false;
+  return now >= s && now <= en;
+}
+function eraIsUpcoming(e, now) {
+  const s = parseYMD(e.start);
+  return s && now < s;
+}
+function getCurrentEra() {
+  const now = new Date();
+  const active = (D.eras || []).filter(e => eraIsActive(e, now));
+  if (active.length) {
+    // Earliest start among active
+    active.sort((a, b) => parseYMD(a.start) - parseYMD(b.start));
+    return active[0];
+  }
+  return null;
+}
+function renderCurrentEraWidget() {
+  const el = document.getElementById('home-current-era');
+  if (!el) return;
+  const e = getCurrentEra();
+  if (!e) {
+    // Show next upcoming if any
+    const now = new Date();
+    const upcoming = (D.eras || [])
+      .filter(x => eraIsUpcoming(x, now))
+      .sort((a, b) => parseYMD(a.start) - parseYMD(b.start))[0];
+    if (upcoming) {
+      const days = dayDiff(now, parseYMD(upcoming.start));
+      el.innerHTML = `
+        <div class="era-home-inner" style="--era-color:${upcoming.color || '#8ce99a'}">
+          <div class="era-home-dot"></div>
+          <div class="era-home-body">
+            <div class="era-home-label">UPCOMING · starts in ${days} day${days === 1 ? '' : 's'}</div>
+            <div class="era-home-name">${escapeHtml(upcoming.name)}</div>
+            <div class="era-home-range">${escapeHtml(upcoming.start)} → ${escapeHtml(upcoming.end)}</div>
+          </div>
+          <div class="era-home-actions">
+            <button class="small-btn" onclick="openEditEra('${upcoming.id}')">Edit</button>
+          </div>
+        </div>`;
+      return;
+    }
+    el.innerHTML = '<div class="empty-state">No era planned. Tap "+ Plan" to start one.</div>';
+    return;
+  }
+  const start = parseYMD(e.start), end = parseYMD(e.end), now = new Date();
+  const total = dayDiff(start, end) + 1;
+  const passed = Math.min(total, dayDiff(start, now) + 1);
+  const left = Math.max(0, total - passed);
+  const pct = total ? Math.min(100, (passed / total) * 100) : 0;
+  el.innerHTML = `
+    <div class="era-home-inner" style="--era-color:${e.color || '#74c0fc'}">
+      <div class="era-home-dot"></div>
+      <div class="era-home-body">
+        <div class="era-home-label">CURRENT PROJECT</div>
+        <div class="era-home-name">${escapeHtml(e.name)}</div>
+        <div class="era-home-range">${escapeHtml(e.start)} → ${escapeHtml(e.end)}</div>
+        <div class="era-progress"><div class="era-progress-fill" style="width:${pct}%"></div></div>
+        <div class="era-home-meta">${passed} day${passed === 1 ? '' : 's'} passed · ${left} day${left === 1 ? '' : 's'} left</div>
+      </div>
+      <div class="era-home-actions">
+        <button class="small-btn" onclick="openEditEra('${e.id}')">Edit</button>
+      </div>
+    </div>`;
+}
+
+function openAddEra() {
+  const start = todayYMD();
+  const end = todayYMD();
+  const swatches = ERA_PALETTE.map((c, i) =>
+    `<button type="button" class="color-swatch ${i === 0 ? 'selected' : ''}" style="background:${c}" data-color="${c}" onclick="pickEraColor(this)"></button>`
+  ).join('');
+  openModal(`
+    <h3>+ Plan Era</h3>
+    <div class="form-row"><label>NAME</label><input id="era-name" placeholder="e.g. Cold approach sprint"/></div>
+    <div class="form-row"><label>START</label><input id="era-start" type="date" value="${start}"/></div>
+    <div class="form-row"><label>END</label><input id="era-end" type="date" value="${end}"/></div>
+    <div class="form-row"><label>COLOR</label><div class="color-swatches" id="era-color-row">${swatches}</div></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddEra()">Add</button>
+    </div>`);
+}
+function pickEraColor(btn) {
+  const row = btn.parentElement;
+  row.querySelectorAll('.color-swatch').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+function submitAddEra() {
+  const name = (document.getElementById('era-name').value || '').trim();
+  const start = document.getElementById('era-start').value;
+  const end = document.getElementById('era-end').value;
+  if (!name) { toast('Name required.'); return; }
+  if (!start || !end) { toast('Dates required.'); return; }
+  if (parseYMD(end) < parseYMD(start)) { toast('End must be on/after start.'); return; }
+  const colorBtn = document.querySelector('#era-color-row .color-swatch.selected');
+  const color = colorBtn ? colorBtn.dataset.color : ERA_PALETTE[0];
+  D.eras = D.eras || [];
+  D.eras.push({ id: uid('era'), name, start, end, color, createdAt: Date.now() });
+  closeModal(); save(); renderCurrentEraWidget();
+  if (currentPage === 'home') renderHome();
+  const calPage = document.getElementById('page-calendar');
+  if (calPage && calPage.classList.contains('active')) renderCalendar();
+  toast(`Era planned: ${name}`);
+}
+function openEditEra(id) {
+  const e = (D.eras || []).find(x => x.id === id);
+  if (!e) return;
+  const swatches = ERA_PALETTE.map(c =>
+    `<button type="button" class="color-swatch ${c === e.color ? 'selected' : ''}" style="background:${c}" data-color="${c}" onclick="pickEraColor(this)"></button>`
+  ).join('');
+  openModal(`
+    <h3>Edit Era</h3>
+    <div class="form-row"><label>NAME</label><input id="era-name" value="${escapeHtml(e.name)}"/></div>
+    <div class="form-row"><label>START</label><input id="era-start" type="date" value="${e.start}"/></div>
+    <div class="form-row"><label>END</label><input id="era-end" type="date" value="${e.end}"/></div>
+    <div class="form-row"><label>COLOR</label><div class="color-swatches" id="era-color-row">${swatches}</div></div>
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteEra('${id}')">Delete</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditEra('${id}')">Save</button>
+    </div>`);
+}
+function submitEditEra(id) {
+  const e = (D.eras || []).find(x => x.id === id);
+  if (!e) return;
+  const name = (document.getElementById('era-name').value || '').trim();
+  const start = document.getElementById('era-start').value;
+  const end = document.getElementById('era-end').value;
+  if (!name) { toast('Name required.'); return; }
+  if (!start || !end) { toast('Dates required.'); return; }
+  if (parseYMD(end) < parseYMD(start)) { toast('End must be on/after start.'); return; }
+  const colorBtn = document.querySelector('#era-color-row .color-swatch.selected');
+  e.name = name; e.start = start; e.end = end;
+  if (colorBtn) e.color = colorBtn.dataset.color;
+  closeModal(); save(); renderCurrentEraWidget();
+  const calPage = document.getElementById('page-calendar');
+  if (calPage && calPage.classList.contains('active')) renderCalendar();
+  toast('Era updated.');
+}
+function deleteEra(id) {
+  if (!confirm('Delete this era?')) return;
+  D.eras = (D.eras || []).filter(x => x.id !== id);
+  save(); closeModal(); renderCurrentEraWidget();
+  const calPage = document.getElementById('page-calendar');
+  if (calPage && calPage.classList.contains('active')) renderCalendar();
+  toast('Era deleted.');
+}
+
+// ────────────────────────────────────────────────────────────────
+// CALENDAR
+// ────────────────────────────────────────────────────────────────
+let calendarYear = null;
+
+function eraCoveredYears() {
+  const years = new Set();
+  (D.eras || []).forEach(e => {
+    const s = parseYMD(e.start), en = parseYMD(e.end);
+    if (!s || !en) return;
+    for (let y = s.getFullYear(); y <= en.getFullYear(); y++) years.add(y);
+  });
+  // Always include the current real year, and the game year
+  years.add(new Date().getFullYear());
+  const gm = currentMonthInfo();
+  if (gm && gm.year) years.add(gm.year);
+  return Array.from(years).sort((a, b) => a - b);
+}
+
+function renderCalendar() {
+  // Year dropdown
+  const sel = document.getElementById('calendar-year-select');
+  const years = eraCoveredYears();
+  if (calendarYear == null || !years.includes(calendarYear)) {
+    calendarYear = new Date().getFullYear();
+    if (!years.includes(calendarYear)) calendarYear = years[years.length - 1];
+  }
+  if (sel) {
+    sel.innerHTML = years.map(y => `<option value="${y}" ${y === calendarYear ? 'selected' : ''}>${y}</option>`).join('');
+  }
+
+  // Eras list
+  const listEl = document.getElementById('calendar-eras-list');
+  if (listEl) {
+    const eras = (D.eras || []).slice().sort((a, b) => parseYMD(a.start) - parseYMD(b.start));
+    if (!eras.length) {
+      listEl.innerHTML = '<div class="empty-state">No eras yet. Tap "+ Plan" above.</div>';
+    } else {
+      const now = new Date();
+      listEl.innerHTML = eras.map(e => {
+        const s = parseYMD(e.start), en = parseYMD(e.end);
+        const total = dayDiff(s, en) + 1;
+        let status = 'planned';
+        if (eraIsActive(e, now)) status = 'current';
+        else if (now > en) status = 'past';
+        return `
+          <div class="era-row" style="--era-color:${e.color}">
+            <div class="era-row-swatch"></div>
+            <div class="era-row-body">
+              <div class="era-row-name">${escapeHtml(e.name)}</div>
+              <div class="era-row-meta">${escapeHtml(e.start)} → ${escapeHtml(e.end)} · ${total}d · ${status}</div>
+            </div>
+            <button class="small-btn" onclick="openEditEra('${e.id}')">Edit</button>
+          </div>`;
+      }).join('');
+    }
+  }
+
+  // Year grid
+  renderCalendarYearGrid();
+}
+
+function onCalendarYearChange() {
+  const sel = document.getElementById('calendar-year-select');
+  calendarYear = parseInt(sel.value, 10);
+  renderCalendarYearGrid();
+}
+
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function erasCoveringDate(date) {
+  return (D.eras || []).filter(e => {
+    const s = parseYMD(e.start), en = parseYMD(e.end);
+    if (!s || !en) return false;
+    return date >= new Date(s.getFullYear(), s.getMonth(), s.getDate())
+      && date <= new Date(en.getFullYear(), en.getMonth(), en.getDate());
+  });
+}
+
+function renderCalendarYearGrid() {
+  const el = document.getElementById('calendar-year-grid');
+  if (!el) return;
+  const year = calendarYear;
+  const today = new Date();
+  const todayIsThisYear = today.getFullYear() === year;
+
+  const monthsHtml = [];
+  for (let m = 0; m < 12; m++) {
+    const first = new Date(year, m, 1);
+    const daysInMonth = new Date(year, m + 1, 0).getDate();
+    // Monday-first: shift Sunday(0) -> 6
+    const firstDow = (first.getDay() + 6) % 7;
+
+    const cells = [];
+    for (let i = 0; i < firstDow; i++) cells.push('<div class="cal-cell empty"></div>');
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, m, d);
+      const covering = erasCoveringDate(date);
+      const primary = covering[0];
+      const isToday = todayIsThisYear && today.getMonth() === m && today.getDate() === d;
+      let style = '';
+      let classes = 'cal-cell';
+      if (primary) {
+        classes += ' in-era';
+        style = `--era-color:${primary.color}`;
+        // Detect edges for rounded corners
+        const prev = new Date(year, m, d - 1);
+        const next = new Date(year, m, d + 1);
+        const prevHas = erasCoveringDate(prev).some(x => x.id === primary.id);
+        const nextHas = erasCoveringDate(next).some(x => x.id === primary.id);
+        if (!prevHas) classes += ' era-start';
+        if (!nextHas) classes += ' era-end';
+        if (covering.length > 1) classes += ' era-multi';
+      }
+      if (isToday) classes += ' today';
+      const title = primary ? `${primary.name} (${primary.start} → ${primary.end})` : '';
+      cells.push(`<div class="${classes}" style="${style}" title="${escapeHtml(title)}">${d}</div>`);
+    }
+
+    monthsHtml.push(`
+      <div class="cal-month">
+        <div class="cal-month-head">${MONTH_SHORT[m]}</div>
+        <div class="cal-dow">
+          <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+        </div>
+        <div class="cal-grid">${cells.join('')}</div>
+      </div>
+    `);
+  }
+  el.innerHTML = monthsHtml.join('');
+}
+
 function init() {
   load();
   // ensure current month exists
@@ -3500,6 +3893,8 @@ function init() {
   save();
   navigateTo('home');
   startBirthdayTimer();
+  // Refresh current-era widget every minute so "days left" ticks over after midnight.
+  setInterval(() => { if (currentPage === 'home') renderCurrentEraWidget(); }, 60 * 1000);
 }
 
 document.addEventListener('DOMContentLoaded', init);

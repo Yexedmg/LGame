@@ -50,6 +50,22 @@
         </div>
 
         <div class="section-header">
+          <span>NORTHSTAR</span>
+          <button class="small-btn" onclick="openNorthstarModal()">Set</button>
+        </div>
+        <div id="home-northstar" class="northstar-card">
+          <div class="empty-state">No northstar set. What are you heading toward?</div>
+        </div>
+
+        <div class="section-header">
+          <span>CURRENT ERA</span>
+          <button class="small-btn" onclick="openAddEra()">+ Plan</button>
+        </div>
+        <div id="home-current-era" class="era-card-home">
+          <div class="empty-state">No era planned. Tap "+ Plan" to start one.</div>
+        </div>
+
+        <div class="section-header">
           <span>BIRTHDAY</span>
           <button class="small-btn" onclick="openBirthdayModal()">Set</button>
         </div>
@@ -70,6 +86,9 @@
           </button>
           <button class="action-card" onclick="showOverlay('abilities')">
             <span class="action-icon">ABIL</span><span class="action-label">Abilities</span>
+          </button>
+          <button class="action-card" onclick="showOverlay('calendar')">
+            <span class="action-icon">CAL</span><span class="action-label">Calendar</span>
           </button>
         </div>
 
@@ -331,6 +350,26 @@
           <div class="page-title" style="margin:0">TOTAL STATS</div>
         </div>
         <div id="totalstats-content"></div>
+      </div>
+    </div>
+
+    <!-- CALENDAR OVERLAY -->
+    <div id="page-calendar" class="page overlay-page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="hideOverlay()">← Back</button>
+          <div class="page-title" style="margin:0">CALENDAR</div>
+        </div>
+        <div class="section-header">
+          <span>ERAS</span>
+          <button class="small-btn" onclick="openAddEra()">+ Plan</button>
+        </div>
+        <div id="calendar-eras-list" class="calendar-eras-list"></div>
+        <div class="section-header">
+          <span>YEAR</span>
+          <select id="calendar-year-select" class="calendar-year-select" onchange="onCalendarYearChange()"></select>
+        </div>
+        <div id="calendar-year-grid" class="calendar-year-grid"></div>
       </div>
     </div>
 
