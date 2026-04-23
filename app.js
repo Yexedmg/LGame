@@ -348,6 +348,21 @@ function setActCats(next) {
   if (!b || isMainBorough(b)) D.activityCategories = next;
   else b.activityCategories = next;
 }
+// Sections group categories within the current scope. Stored parallel to activityCategories.
+function actSections() {
+  const b = currentBorough();
+  if (!b || isMainBorough(b)) {
+    if (!D.activitySections) D.activitySections = [];
+    return D.activitySections;
+  }
+  if (!b.activitySections) b.activitySections = [];
+  return b.activitySections;
+}
+function setActSections(next) {
+  const b = currentBorough();
+  if (!b || isMainBorough(b)) D.activitySections = next;
+  else b.activitySections = next;
+}
 function leadMethods() {
   const b = currentBorough();
   if (!b || isMainBorough(b)) return D.leadgen.methods;
@@ -2454,17 +2469,119 @@ function toggleActEdit() {
 function renderActivitiesV2() {
   const el = document.getElementById('activity-categories');
   if (!el) return;
-  let html = actCats().map(renderActivityCategory).join('');
+  const sections = actSections();
+  const cats = actCats();
+  let html = '';
+  if (sections.length === 0) {
+    // Flat rendering (legacy / pre-sections)
+    html = cats.map(renderActivityCategory).join('');
+  } else {
+    // Group by section, plus an "Ungrouped" bucket for any stray categories
+    sections.forEach(sec => {
+      const secCats = cats.filter(c => c.sectionId === sec.id);
+      html += renderActivitySection(sec, secCats);
+    });
+    const ungrouped = cats.filter(c => !c.sectionId || !sections.find(s => s.id === c.sectionId));
+    if (ungrouped.length) {
+      html += renderActivitySection({ id: '__ungrouped', name: 'Ungrouped', collapsed: false, __pseudo: true }, ungrouped);
+    }
+  }
   html += `
-    <button class="method-row add-component-btn" onclick="openAddCategory()">
-      <div class="method-body">
-        <div class="method-name">+ Add Category</div>
-        <div class="method-meta">Create a new activity category</div>
-      </div>
-    </button>`;
+    <div class="section-add-row">
+      <button class="method-row add-component-btn" onclick="openAddCategory()">
+        <div class="method-body">
+          <div class="method-name">+ Add Category</div>
+          <div class="method-meta">Create a new activity category</div>
+        </div>
+      </button>
+      <button class="method-row add-component-btn" onclick="openAddSection()">
+        <div class="method-body">
+          <div class="method-name">+ Add Section</div>
+          <div class="method-meta">Group categories under a section</div>
+        </div>
+      </button>
+    </div>`;
   el.innerHTML = html;
-  // Preserve editing state
   if (actEditMode) el.classList.add('editing');
+}
+
+function renderActivitySection(sec, cats) {
+  const body = cats.length
+    ? cats.map(renderActivityCategory).join('')
+    : '<div class="empty-state">No categories in this section.</div>';
+  const editBtn = sec.__pseudo ? '' :
+    `<button class="small-btn" onclick="event.stopPropagation();openEditSection('${sec.id}')">Edit</button>`;
+  return `
+    <div class="activity-section">
+      <div class="act-section-head" onclick="toggleActivitySection('${sec.id}')">
+        <div class="act-section-name">${escapeHtml(sec.name)}</div>
+        <div class="act-section-controls">
+          ${editBtn}
+          <span class="section-chevron ${sec.collapsed ? 'collapsed' : ''}">⌄</span>
+        </div>
+      </div>
+      ${sec.collapsed ? '' : `<div class="act-section-body">${body}</div>`}
+    </div>`;
+}
+
+function toggleActivitySection(id) {
+  if (id === '__ungrouped') return;
+  const s = actSections().find(x => x.id === id);
+  if (!s) return;
+  s.collapsed = !s.collapsed;
+  save(); renderActivitiesV2();
+}
+
+// ── Section CRUD ──
+function openAddSection() {
+  openModal(`
+    <h3>New Section</h3>
+    <div class="form-row"><label>NAME</label><input id="as-name" placeholder="e.g. Main, Side, Career"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddSection()">Add</button>
+    </div>`);
+}
+
+function submitAddSection() {
+  const name = (document.getElementById('as-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  actSections().push({ id: uid('sec'), name, collapsed: false });
+  closeModal();
+  save(); renderActivitiesV2();
+  toast(`Added section "${name}".`);
+}
+
+function openEditSection(id) {
+  const s = actSections().find(x => x.id === id);
+  if (!s) return;
+  openModal(`
+    <h3>Edit Section</h3>
+    <div class="form-row"><label>NAME</label><input id="as-name" value="${escapeHtml(s.name)}"/></div>
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteSection('${id}')">Delete</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditSection('${id}')">Save</button>
+    </div>`);
+}
+
+function submitEditSection(id) {
+  const s = actSections().find(x => x.id === id);
+  if (!s) return;
+  s.name = (document.getElementById('as-name').value || '').trim() || s.name;
+  closeModal();
+  save(); renderActivitiesV2();
+}
+
+function deleteSection(id) {
+  const s = actSections().find(x => x.id === id);
+  if (!s) return;
+  // Categories in this section become ungrouped (keep the data; just unset sectionId).
+  actCats().forEach(c => { if (c.sectionId === id) delete c.sectionId; });
+  setActSections(actSections().filter(x => x.id !== id));
+  closeModal();
+  save(); renderActivitiesV2();
+  toast(`Deleted "${s.name}".`);
 }
 function renderActivityCategory(cat) {
   const slots = cat.slots.map((itemId, idx) => {
@@ -2502,12 +2619,20 @@ function renderActivityCategory(cat) {
 }
 
 // ── Category CRUD ──
+function sectionSelectHtml(selectedId) {
+  const opts = ['<option value="">— none —</option>']
+    .concat(actSections().map(s =>
+      `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}>${escapeHtml(s.name)}</option>`));
+  return opts.join('');
+}
+
 function openAddCategory() {
   openModal(`
     <h3>New Category</h3>
     <div class="form-row"><label>NAME</label><input id="ac-name" placeholder="e.g. Meditation"/></div>
     <div class="form-row"><label>EMOJI</label><input id="ac-emoji" placeholder="e.g. [MED]" maxlength="8" style="width:100px"/></div>
     <div class="form-row"><label>SLOTS</label><input id="ac-slots" type="number" min="1" max="10" value="2" style="width:60px"/></div>
+    <div class="form-row"><label>SECTION</label><select id="ac-section">${sectionSelectHtml('')}</select></div>
     <div class="row">
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
       <button class="pill-btn good" onclick="submitAddCategory()">Add</button>
@@ -2519,9 +2644,12 @@ function submitAddCategory() {
   if (!name) { toast('Name required.'); return; }
   const emoji = document.getElementById('ac-emoji').value || '[···]';
   const maxSlots = clamp(parseInt(document.getElementById('ac-slots').value) || 2, 1, 10);
-  actCats().push({
+  const sectionId = document.getElementById('ac-section')?.value || '';
+  const next = {
     id: uid('cat'), name, emoji, maxSlots, slots: Array(maxSlots).fill(null), inventory: []
-  });
+  };
+  if (sectionId) next.sectionId = sectionId;
+  actCats().push(next);
   closeModal();
   save(); renderActivitiesV2();
   toast(`Added ${name}.`);
@@ -2534,6 +2662,7 @@ function openEditCategory(catId) {
     <h3>Edit ${escapeHtml(c.name)}</h3>
     <div class="form-row"><label>NAME</label><input id="ac-name" value="${escapeHtml(c.name)}"/></div>
     <div class="form-row"><label>EMOJI</label><input id="ac-emoji" value="${escapeHtml(c.emoji)}" maxlength="8" style="width:100px"/></div>
+    <div class="form-row"><label>SECTION</label><select id="ac-section">${sectionSelectHtml(c.sectionId || '')}</select></div>
     <div class="row">
       <button class="pill-btn danger" onclick="deleteCategory('${catId}')">Delete</button>
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
@@ -2546,6 +2675,8 @@ function submitEditCategory(catId) {
   if (!c) return;
   c.name = document.getElementById('ac-name').value || c.name;
   c.emoji = document.getElementById('ac-emoji').value || c.emoji;
+  const sectionId = document.getElementById('ac-section')?.value || '';
+  if (sectionId) c.sectionId = sectionId; else delete c.sectionId;
   closeModal();
   save(); renderActivitiesV2();
 }
