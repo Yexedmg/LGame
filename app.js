@@ -2798,7 +2798,7 @@ function activityTile(cat, it, inSlot) {
          ondblclick="openEditActivityItem('${cat.id}','${it.id}')">
       <div class="tile-name">${it.emoji || '★'} ${escapeHtml(it.name)}</div>
       <div class="tile-meta">${statEffectsStr(it.statEffects)}${it.meetBonus ? ` · Meet +${it.meetBonus}` : ''}</div>
-      <div class="tile-tags"><span class="kind-tag kind-${kind}">${kind === 'expansion' ? '▲ EXPANSION' : kind === 'cost' ? '● COST' : '■ MAINTENANCE'}</span>${it.leadgen ? '<span class="kind-tag kind-leadgen" title="Mirrored to Lifestyle in Lead Gen">⚑ LEAD</span>' : ''}</div>
+      <div class="tile-tags"><span class="kind-tag kind-${kind}">${kind === 'expansion' ? '▲ EXPANSION' : kind === 'cost' ? '● COST' : '■ MAINTENANCE'}</span><span class="kind-tag realm-${it.realm === 'synthetic' ? 'synthetic' : 'real'}" title="${it.realm === 'synthetic' ? 'Synthetic — digital/video-game activity' : 'Real — physical/offline activity'}">${it.realm === 'synthetic' ? '◇ SYNTH' : '⬢ REAL'}</span>${it.leadgen ? '<span class="kind-tag kind-leadgen" title="Mirrored to Lifestyle in Lead Gen">⚑ LEAD</span>' : ''}</div>
       ${abilHtml}
       <div class="row" style="margin-top:4px">
         <button class="pill-btn good" onclick="event.stopPropagation();doActivityItem('${cat.id}','${it.id}')">Do</button>
@@ -3028,6 +3028,12 @@ function openAddActivityItem(catId) {
         <option value="cost">● Cost (drains you: indulgences, energy sinks)</option>
       </select>
     </div>
+    <div class="form-row"><label>REALM</label>
+      <select id="ai-realm">
+        <option value="real" selected>⬢ Real (physical / offline — e.g. Judo, gym)</option>
+        <option value="synthetic">◇ Synthetic (digital — games, apps, screen-only)</option>
+      </select>
+    </div>
     <div class="form-row"><label>MEET BAR BONUS</label><input id="ai-meet" type="number" min="0" max="15" value="0"/></div>
     <div class="form-row"><label>XP PER DO</label><input id="ai-xp" type="number" min="1" max="50" value="5"/></div>
     <div class="form-row">
@@ -3057,6 +3063,7 @@ function submitAddActivityItem(catId) {
     name,
     emoji: document.getElementById('ai-emoji').value || '★',
     kind: document.getElementById('ai-kind').value || 'expansion',
+    realm: document.getElementById('ai-realm')?.value === 'synthetic' ? 'synthetic' : 'real',
     meetBonus: Number(document.getElementById('ai-meet').value) || 0,
     xp: Number(document.getElementById('ai-xp').value) || 5,
     leadgen: !!document.getElementById('ai-leadgen')?.checked,
@@ -3084,6 +3091,12 @@ function openEditActivityItem(catId, itemId) {
         <option value="cost" ${it.kind === 'cost' ? 'selected' : ''}>● Cost</option>
       </select>
     </div>
+    <div class="form-row"><label>REALM</label>
+      <select id="ai-realm">
+        <option value="real" ${(it.realm || 'real') === 'real' ? 'selected' : ''}>⬢ Real (physical / offline)</option>
+        <option value="synthetic" ${it.realm === 'synthetic' ? 'selected' : ''}>◇ Synthetic (digital / screen-only)</option>
+      </select>
+    </div>
     <div class="form-row"><label>MEET BAR BONUS</label><input id="ai-meet" type="number" min="0" max="15" value="${it.meetBonus || 0}"/></div>
     <div class="form-row"><label>XP PER DO</label><input id="ai-xp" type="number" min="1" max="50" value="${it.xp || 5}"/></div>
     <div class="form-row">
@@ -3103,6 +3116,7 @@ function submitEditActivityItem(catId, itemId) {
   it.name = document.getElementById('ai-name').value || it.name;
   it.emoji = document.getElementById('ai-emoji').value || it.emoji;
   it.kind = document.getElementById('ai-kind').value || it.kind || 'expansion';
+  it.realm = document.getElementById('ai-realm')?.value === 'synthetic' ? 'synthetic' : 'real';
   it.meetBonus = Number(document.getElementById('ai-meet').value) || 0;
   it.xp = Number(document.getElementById('ai-xp').value) || 5;
   it.leadgen = !!document.getElementById('ai-leadgen')?.checked;
