@@ -1859,9 +1859,11 @@ function renderLeadMethodDetail() {
       </div>`;
   }).join('');
 
-  const inventoryHtml = m.inventory.length
-    ? m.inventory.map(it => leadItemTile(m, it, false)).join('')
-    : '<div class="empty-state">No items yet. Tap “+ Item” to add one.</div>';
+  const slottedIds = new Set(m.slots.filter(Boolean));
+  const unslotted = m.inventory.filter(it => !slottedIds.has(it.id));
+  const inventoryHtml = unslotted.length
+    ? unslotted.map(it => leadItemTile(m, it, false)).join('')
+    : (m.inventory.length ? '<div class="empty-state">All items slotted.</div>' : '<div class="empty-state">No items yet. Tap “+ Item” to add one.</div>');
 
   const methodLeads = methodLeadCount(m);
   document.getElementById('leadmethod-content').innerHTML = `
@@ -2243,9 +2245,11 @@ function renderVibeCompDetail() {
       </div>`;
   }).join('');
 
-  const inventoryHtml = c.inventory.length
-    ? c.inventory.map(it => vibeItemTile(c, it, false)).join('')
-    : '<div class="empty-state">No items yet. Tap "+ Item" to add one.</div>';
+  const slottedIds = new Set(c.slots.filter(Boolean));
+  const unslotted = c.inventory.filter(it => !slottedIds.has(it.id));
+  const inventoryHtml = unslotted.length
+    ? unslotted.map(it => vibeItemTile(c, it, false)).join('')
+    : (c.inventory.length ? '<div class="empty-state">All items slotted.</div>' : '<div class="empty-state">No items yet. Tap "+ Item" to add one.</div>');
 
   document.getElementById('vibecomp-content').innerHTML = `
     ${c.desc ? `<div class="method-desc">${escapeHtml(c.desc)}</div>` : ''}
@@ -2679,9 +2683,11 @@ function renderActivityCategory(cat) {
         ${item ? activityTile(cat, item, true) : '<span class="slot-empty">empty</span>'}
       </div>`;
   }).join('');
-  const inv = cat.inventory.length
-    ? cat.inventory.map(it => activityTile(cat, it, false)).join('')
-    : '<div class="empty-state">No items. Add one.</div>';
+  const slottedIds = new Set(cat.slots.filter(Boolean));
+  const unslotted = cat.inventory.filter(it => !slottedIds.has(it.id));
+  const inv = unslotted.length
+    ? unslotted.map(it => activityTile(cat, it, false)).join('')
+    : (cat.inventory.length ? '<div class="empty-state">All items slotted.</div>' : '<div class="empty-state">No items. Add one.</div>');
   const used = cat.slots.filter(Boolean).length;
   return `
     <div class="category-block" data-cat-id="${cat.id}"
