@@ -4056,3 +4056,12 @@ body {
   color: #ffcd4a;
   font-weight: 700;
 }
+
+/* Touch drag-and-drop clone (mobile polyfill) */
+.touch-drag-clone {
+  background: var(--bg-secondary, #1B2244);
+  border: 1px solid var(--border-accent-strong, rgba(120, 170, 255, 0.45));
+  color: var(--text-primary, #ECF0FA);
+  font-family: var(--font-sans, sans-serif);
+  overflow: hidden;
+}

@@ -4323,3 +4323,166 @@ function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// ── Touch drag-and-drop polyfill for mobile ──
+(function () {
+  let touchDragEl = null;
+  let touchClone = null;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let isDragging = false;
+  let longPressTimer = null;
+  const DRAG_THRESHOLD = 8;
+
+  document.addEventListener('touchstart', function (e) {
+    const draggable = e.target.closest('[draggable="true"]');
+    if (!draggable) return;
+    // Don't interfere with buttons / inputs inside tiles
+    if (e.target.closest('button, input, select, textarea, a')) return;
+
+    touchDragEl = draggable;
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    isDragging = false;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function (e) {
+    if (!touchDragEl) return;
+    const touch = e.touches[0];
+
+    if (!isDragging) {
+      const dx = touch.clientX - touchStartX;
+      const dy = touch.clientY - touchStartY;
+      if (Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
+
+      // Start dragging — fire the ondragstart handler to set dragPayload
+      isDragging = true;
+      fireDragStart(touchDragEl);
+
+      // Create floating visual clone
+      touchClone = touchDragEl.cloneNode(true);
+      touchClone.className = 'touch-drag-clone';
+      const rect = touchDragEl.getBoundingClientRect();
+      touchClone.style.cssText =
+        'position:fixed;z-index:10000;pointer-events:none;opacity:0.88;' +
+        'width:' + rect.width + 'px;' +
+        'transform:scale(1.05);border-radius:12px;' +
+        'box-shadow:0 8px 32px rgba(0,0,0,0.5);' +
+        'left:' + (touch.clientX - rect.width / 2) + 'px;' +
+        'top:' + (touch.clientY - 30) + 'px;';
+      document.body.appendChild(touchClone);
+      touchDragEl.style.opacity = '0.25';
+    }
+
+    e.preventDefault(); // prevent scrolling while dragging
+
+    // Move clone to follow finger
+    if (touchClone) {
+      touchClone.style.left = (touch.clientX - touchClone.offsetWidth / 2) + 'px';
+      touchClone.style.top = (touch.clientY - 30) + 'px';
+    }
+
+    // Highlight the drop zone under the finger
+    highlightDropTarget(touch.clientX, touch.clientY);
+  }, { passive: false });
+
+  document.addEventListener('touchend', function (e) {
+    if (!touchDragEl) return;
+    if (!isDragging) {
+      // It was a tap, not a drag — let normal click handling proceed
+      touchDragEl = null;
+      return;
+    }
+
+    const touch = e.changedTouches[0];
+
+    // Remove clone
+    if (touchClone) {
+      touchClone.remove();
+      touchClone = null;
+    }
+
+    // Restore original element opacity
+    if (touchDragEl) touchDragEl.style.opacity = '';
+
+    // Find drop target under finger and fire its ondrop
+    const dropEl = findDropTarget(touch.clientX, touch.clientY);
+    if (dropEl) {
+      fireDropHandler(dropEl);
+    }
+
+    // Clean up all visual states
+    document.querySelectorAll('.drop-active').forEach(function (x) { x.classList.remove('drop-active'); });
+    if (touchDragEl) touchDragEl.classList.remove('dragging');
+    touchDragEl = null;
+    isDragging = false;
+  });
+
+  // Cancel drag on multi-touch or context menu
+  document.addEventListener('touchcancel', function () {
+    cancelTouchDrag();
+  });
+
+  function cancelTouchDrag() {
+    if (touchClone) { touchClone.remove(); touchClone = null; }
+    if (touchDragEl) { touchDragEl.style.opacity = ''; touchDragEl.classList.remove('dragging'); }
+    document.querySelectorAll('.drop-active').forEach(function (x) { x.classList.remove('drop-active'); });
+    touchDragEl = null;
+    isDragging = false;
+  }
+
+  // Execute the inline ondragstart attribute to set dragPayload
+  function fireDragStart(el) {
+    var attr = el.getAttribute('ondragstart');
+    if (!attr) return;
+    var mockEvent = {
+      stopPropagation: function () { },
+      preventDefault: function () { },
+      dataTransfer: { effectAllowed: '', setData: function () { }, setDragImage: function () { } },
+      target: el
+    };
+    try {
+      (new Function('event', attr)).call(el, mockEvent);
+    } catch (err) {
+      console.warn('Touch dragstart error:', err);
+    }
+  }
+
+  // Walk elementsFromPoint to find the nearest element with an ondrop attribute
+  function findDropTarget(x, y) {
+    // Hide clone so elementsFromPoint sees through it
+    if (touchClone) touchClone.style.display = 'none';
+    var els = document.elementsFromPoint(x, y);
+    if (touchClone) touchClone.style.display = '';
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      var dropEl = el.closest('[ondrop]');
+      if (dropEl) return dropEl;
+    }
+    return null;
+  }
+
+  // Highlight the drop zone currently under the finger
+  function highlightDropTarget(x, y) {
+    document.querySelectorAll('.drop-active').forEach(function (x) { x.classList.remove('drop-active'); });
+    var dropEl = findDropTarget(x, y);
+    if (dropEl) dropEl.classList.add('drop-active');
+  }
+
+  // Execute the inline ondrop attribute on the target element
+  function fireDropHandler(dropEl) {
+    var attr = dropEl.getAttribute('ondrop');
+    if (!attr) return;
+    var mockEvent = {
+      preventDefault: function () { },
+      stopPropagation: function () { },
+      currentTarget: dropEl
+    };
+    try {
+      (new Function('event', attr)).call(dropEl, mockEvent);
+    } catch (err) {
+      console.warn('Touch drop error:', err);
+    }
+  }
+})();
