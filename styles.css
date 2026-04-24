@@ -349,6 +349,17 @@ body {
   color: #ffcd4a;
   border: 1px solid rgba(255, 205, 74, 0.4);
 }
+/* Realm tags: Real vs Synthetic */
+.kind-tag.realm-real {
+  background: rgba(124, 200, 255, 0.10);
+  color: #7ccfff;
+  border: 1px solid rgba(124, 200, 255, 0.35);
+}
+.kind-tag.realm-synthetic {
+  background: rgba(200, 120, 255, 0.12);
+  color: #c895ff;
+  border: 1px solid rgba(200, 120, 255, 0.38);
+}
 
 /* Toggle-style checkbox row in modal forms */
 .toggle-row {
