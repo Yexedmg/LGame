@@ -2458,6 +2458,7 @@ function clearVibeSlot(compId, itemId) {
 // Vibe drag/drop
 let dragPayload = null; // { kind:'lead'|'activity'|'vibe', ... }
 function onDragStartVibe(e, compId, itemId) {
+  e.stopPropagation();
   dragPayload = { kind: 'vibe', compId, itemId };
   e.dataTransfer.effectAllowed = 'move';
   e.target.classList.add('dragging');
@@ -2488,11 +2489,13 @@ function onDropVibeInv(e, compId) {
 // ── Drag/drop state ──
 // dragPayload already declared above for vibe drag/drop
 function onDragStartLead(e, methodId, itemId) {
+  e.stopPropagation();
   dragPayload = { kind: 'lead', methodId, itemId };
   e.dataTransfer.effectAllowed = 'move';
   e.target.classList.add('dragging');
 }
 function onDragStartActivity(e, catId, itemId) {
+  e.stopPropagation(); // prevent category-block's dragstart from overwriting payload
   dragPayload = { kind: 'activity', catId, itemId };
   e.dataTransfer.effectAllowed = 'move';
   e.target.classList.add('dragging');
@@ -2861,7 +2864,8 @@ function clearActivitySlot(catId, itemId) {
 
 // ── Category drag-and-drop (sort/move between sections) ──
 function onDragStartCategory(e, catId) {
-  // Only start if drag originated from drag handle
+  // Only start category-drag if originated from drag handle, not from child items
+  if (!e.target.closest('.drag-handle')) { e.preventDefault(); return; }
   dragPayload = { kind: 'category', catId };
   e.dataTransfer.effectAllowed = 'move';
   // Set a minimal drag image
