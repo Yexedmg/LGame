@@ -3761,30 +3761,42 @@ function renderTotalStats() {
 }
 
 // ── Birthday timer ──
-function computeBirthdayElapsed(birthdayStr) {
+function computeBirthdayCountdown(birthdayStr) {
   const bd = new Date(birthdayStr + 'T00:00:00');
   if (isNaN(bd.getTime())) return null;
   const now = new Date();
-  if (bd > now) return null;
-  let years = now.getFullYear() - bd.getFullYear();
-  let months = now.getMonth() - bd.getMonth();
-  let days = now.getDate() - bd.getDate();
-  let hours = now.getHours() - bd.getHours();
-  let minutes = now.getMinutes() - bd.getMinutes();
-  let seconds = now.getSeconds() - bd.getSeconds();
+
+  // Next birthday at midnight (this year if still upcoming, otherwise next year)
+  let next = new Date(now.getFullYear(), bd.getMonth(), bd.getDate(), 0, 0, 0);
+  if (next <= now) {
+    next = new Date(now.getFullYear() + 1, bd.getMonth(), bd.getDate(), 0, 0, 0);
+  }
+  const turning = next.getFullYear() - bd.getFullYear();
+
+  // Calendar-aware delta now → next, borrowing from the upper unit as needed
+  let years = next.getFullYear() - now.getFullYear();
+  let months = next.getMonth() - now.getMonth();
+  let days = next.getDate() - now.getDate();
+  let hours = 0 - now.getHours();
+  let minutes = 0 - now.getMinutes();
+  let seconds = 0 - now.getSeconds();
+
   if (seconds < 0) { seconds += 60; minutes--; }
   if (minutes < 0) { minutes += 60; hours--; }
   if (hours < 0) { hours += 24; days--; }
   if (days < 0) {
-    const prevMonthDays = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
-    days += prevMonthDays;
+    // Borrow from the month preceding `next` (days in current calendar month)
+    const borrowDays = new Date(next.getFullYear(), next.getMonth(), 0).getDate();
+    days += borrowDays;
     months--;
   }
   if (months < 0) { months += 12; years--; }
+
   const totalMonths = years * 12 + months;
   const weeks = Math.floor(days / 7);
   days = days % 7;
-  return { months: totalMonths, weeks, days, hours, minutes, seconds };
+
+  return { turning, next, months: totalMonths, weeks, days, hours, minutes, seconds };
 }
 
 function renderBirthday() {
@@ -3796,22 +3808,22 @@ function renderBirthday() {
     el.innerHTML = '<div class="empty-state">No birthday set. Tap "Set" to start the timer.</div>';
     return;
   }
-  const e = computeBirthdayElapsed(bd);
-  if (!e) {
+  const c = computeBirthdayCountdown(bd);
+  if (!c) {
     el.classList.remove('set');
-    el.innerHTML = '<div class="empty-state">Birthday is in the future. Set a past date.</div>';
+    el.innerHTML = '<div class="empty-state">Invalid birthday.</div>';
     return;
   }
   el.classList.add('set');
   el.innerHTML = `
-    <div class="birthday-date">Born ${escapeHtml(bd)} — counting up to today</div>
+    <div class="birthday-date">Turning ${c.turning} — counting down</div>
     <div class="birthday-grid">
-      <div class="birthday-unit"><div class="v">${e.months}</div><div class="l">Mo</div></div>
-      <div class="birthday-unit"><div class="v">${e.weeks}</div><div class="l">Wk</div></div>
-      <div class="birthday-unit"><div class="v">${e.days}</div><div class="l">Dy</div></div>
-      <div class="birthday-unit"><div class="v">${String(e.hours).padStart(2, '0')}</div><div class="l">Hr</div></div>
-      <div class="birthday-unit"><div class="v">${String(e.minutes).padStart(2, '0')}</div><div class="l">Mn</div></div>
-      <div class="birthday-unit"><div class="v">${String(e.seconds).padStart(2, '0')}</div><div class="l">Sc</div></div>
+      <div class="birthday-unit"><div class="v">${c.months}</div><div class="l">Mo</div></div>
+      <div class="birthday-unit"><div class="v">${c.weeks}</div><div class="l">Wk</div></div>
+      <div class="birthday-unit"><div class="v">${c.days}</div><div class="l">Dy</div></div>
+      <div class="birthday-unit"><div class="v">${String(c.hours).padStart(2, '0')}</div><div class="l">Hr</div></div>
+      <div class="birthday-unit"><div class="v">${String(c.minutes).padStart(2, '0')}</div><div class="l">Mn</div></div>
+      <div class="birthday-unit"><div class="v">${String(c.seconds).padStart(2, '0')}</div><div class="l">Sc</div></div>
     </div>
   `;
 }
@@ -3820,7 +3832,7 @@ function openBirthdayModal() {
   const current = (D.settings && D.settings.birthday) || '';
   openModal(`
     <h3>Set Birthday</h3>
-    <div class="desc" style="color:var(--text-secondary);font-size:12px;margin-bottom:10px">Pick the date you were born. The timer counts up from midnight of that day.</div>
+    <div class="desc" style="color:var(--text-secondary);font-size:12px;margin-bottom:10px">Pick your birth date. The timer counts down to your next birthday.</div>
     <input type="date" id="birthday-input" value="${escapeHtml(current)}" max="${new Date().toISOString().split('T')[0]}" style="width:100%;padding:10px;font-family:var(--font-mono);font-size:14px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-accent);border-radius:8px;margin-bottom:12px" />
     <div class="row">
       ${current ? '<button class="pill-btn danger" onclick="clearBirthday()">Clear</button>' : ''}
