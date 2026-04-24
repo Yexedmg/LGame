@@ -1532,6 +1532,69 @@ function computeLeadBar() {
   }));
   return { percent: clamp(avg, 0, 100), parts, slotted };
 }
+
+// ── Lifestyle lead mirroring ──
+// Activities with item.leadgen === true mirror into the "Lifestyle" lead method.
+const LIFESTYLE_METHOD_ID = 'lm-lifestyle';
+const LIFESTYLE_MIRROR_PREFIX = 'li-mirror-';
+
+function syncLifestyleLeads() {
+  const wanted = new Map(); // activityId -> activity item
+  actCats().forEach(cat => {
+    (cat.inventory || []).forEach(it => {
+      if (it.leadgen) wanted.set(it.id, it);
+    });
+  });
+
+  const methods = leadMethods();
+  let lifestyle = methods.find(x => x.id === LIFESTYLE_METHOD_ID);
+
+  if (wanted.size === 0 && !lifestyle) return;
+  if (!lifestyle && wanted.size > 0) {
+    lifestyle = {
+      id: LIFESTYLE_METHOD_ID,
+      name: 'Lifestyle',
+      emoji: '[LFS]',
+      maxSlots: 2,
+      maxGain: 15,
+      slots: [null, null],
+      inventory: [],
+    };
+    methods.push(lifestyle);
+  }
+  if (!lifestyle) return;
+
+  // Add / update mirror items (name stays in sync with the activity)
+  wanted.forEach((activity, actId) => {
+    const mirrorId = LIFESTYLE_MIRROR_PREFIX + actId;
+    let mirror = lifestyle.inventory.find(x => x.id === mirrorId);
+    if (!mirror) {
+      mirror = {
+        id: mirrorId,
+        name: activity.name,
+        difficulty: 'medium',
+        roi: 'medium',
+        leads: 0,
+        sourceActivityId: actId,
+      };
+      lifestyle.inventory.push(mirror);
+    } else {
+      mirror.name = activity.name;
+      mirror.sourceActivityId = actId;
+    }
+  });
+
+  // Remove stale mirrors and clean slots (keep non-mirror items intact)
+  lifestyle.inventory = lifestyle.inventory.filter(it => {
+    if (!it.id || !it.id.startsWith(LIFESTYLE_MIRROR_PREFIX)) return true;
+    const srcId = it.sourceActivityId || it.id.slice(LIFESTYLE_MIRROR_PREFIX.length);
+    return wanted.has(srcId);
+  });
+  lifestyle.slots = lifestyle.slots.map(s => lifestyle.inventory.find(x => x.id === s) ? s : null);
+}
+function isMirrorLeadItem(item) {
+  return !!(item && item.id && item.id.startsWith(LIFESTYLE_MIRROR_PREFIX));
+}
 // ── Tier coloring for lead items / methods ──
 // (Legacy gain-based tiers kept for backward compat, but items use ROI directly)
 const GAIN_TIERS = [
@@ -1669,6 +1732,7 @@ let currentLeadMethodId = null;
 function openLeadMethod(id) { currentLeadMethodId = id; navigateTo('leadmethod'); }
 
 function renderLeadgen() {
+  syncLifestyleLeads();
   const { percent, slotted } = computeLeadBar();
   const bar = document.getElementById('lead-bar-fill');
   if (bar) bar.style.width = Math.min(percent, 100) + '%';
@@ -1773,6 +1837,7 @@ function renderHomeLeads() {
 
 // ── Lead method DETAIL page ──
 function renderLeadMethodDetail() {
+  syncLifestyleLeads();
   const m = leadMethods().find(x => x.id === currentLeadMethodId);
   if (!m) { navigateTo('leadgen'); return; }
   const title = document.getElementById('leadmethod-title');
@@ -2001,6 +2066,11 @@ function submitEditLeadItem(methodId, itemId) {
 function deleteLeadItem(methodId, itemId) {
   const m = leadMethods().find(x => x.id === methodId);
   if (!m) return;
+  const it = m.inventory.find(x => x.id === itemId);
+  if (isMirrorLeadItem(it)) {
+    toast('Toggle “Generates Leads” off on the activity to remove this.');
+    return;
+  }
   m.inventory = m.inventory.filter(x => x.id !== itemId);
   m.slots = m.slots.map(s => s === itemId ? null : s);
   closeModal();
@@ -2719,7 +2789,7 @@ function activityTile(cat, it, inSlot) {
          ondblclick="openEditActivityItem('${cat.id}','${it.id}')">
       <div class="tile-name">${it.emoji || '★'} ${escapeHtml(it.name)}</div>
       <div class="tile-meta">${statEffectsStr(it.statEffects)}${it.meetBonus ? ` · Meet +${it.meetBonus}` : ''}</div>
-      <div class="tile-tags"><span class="kind-tag kind-${kind}">${kind === 'expansion' ? '▲ EXPANSION' : kind === 'cost' ? '● COST' : '■ MAINTENANCE'}</span></div>
+      <div class="tile-tags"><span class="kind-tag kind-${kind}">${kind === 'expansion' ? '▲ EXPANSION' : kind === 'cost' ? '● COST' : '■ MAINTENANCE'}</span>${it.leadgen ? '<span class="kind-tag kind-leadgen" title="Mirrored to Lifestyle in Lead Gen">⚑ LEAD</span>' : ''}</div>
       ${abilHtml}
       <div class="row" style="margin-top:4px">
         <button class="pill-btn good" onclick="event.stopPropagation();doActivityItem('${cat.id}','${it.id}')">Do</button>
@@ -2950,6 +3020,9 @@ function openAddActivityItem(catId) {
     </div>
     <div class="form-row"><label>MEET BAR BONUS</label><input id="ai-meet" type="number" min="0" max="15" value="0"/></div>
     <div class="form-row"><label>XP PER DO</label><input id="ai-xp" type="number" min="1" max="50" value="5"/></div>
+    <div class="form-row">
+      <label class="toggle-row"><input type="checkbox" id="ai-leadgen" /> Generates Leads (adds to Lifestyle in Lead Gen)</label>
+    </div>
     <div class="form-row"><label>STAT EFFECTS</label><div class="effects-grid">${effRows}</div></div>
     <div class="row">
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
@@ -2976,8 +3049,10 @@ function submitAddActivityItem(catId) {
     kind: document.getElementById('ai-kind').value || 'expansion',
     meetBonus: Number(document.getElementById('ai-meet').value) || 0,
     xp: Number(document.getElementById('ai-xp').value) || 5,
+    leadgen: !!document.getElementById('ai-leadgen')?.checked,
     statEffects: readEffectInputs(),
   });
+  syncLifestyleLeads();
   closeModal();
   save(); renderActivitiesV2();
 }
@@ -3001,6 +3076,9 @@ function openEditActivityItem(catId, itemId) {
     </div>
     <div class="form-row"><label>MEET BAR BONUS</label><input id="ai-meet" type="number" min="0" max="15" value="${it.meetBonus || 0}"/></div>
     <div class="form-row"><label>XP PER DO</label><input id="ai-xp" type="number" min="1" max="50" value="${it.xp || 5}"/></div>
+    <div class="form-row">
+      <label class="toggle-row"><input type="checkbox" id="ai-leadgen" ${it.leadgen ? 'checked' : ''} /> Generates Leads (adds to Lifestyle in Lead Gen)</label>
+    </div>
     <div class="form-row"><label>STAT EFFECTS</label><div class="effects-grid">${effRows}</div></div>
     <div class="row">
       <button class="pill-btn danger" onclick="deleteActivityItem('${catId}','${itemId}')">Delete</button>
@@ -3017,7 +3095,9 @@ function submitEditActivityItem(catId, itemId) {
   it.kind = document.getElementById('ai-kind').value || it.kind || 'expansion';
   it.meetBonus = Number(document.getElementById('ai-meet').value) || 0;
   it.xp = Number(document.getElementById('ai-xp').value) || 5;
+  it.leadgen = !!document.getElementById('ai-leadgen')?.checked;
   it.statEffects = readEffectInputs();
+  syncLifestyleLeads();
   closeModal();
   save(); renderActivitiesV2();
 }
@@ -3026,6 +3106,7 @@ function deleteActivityItem(catId, itemId) {
   if (!c) return;
   c.inventory = c.inventory.filter(x => x.id !== itemId);
   c.slots = c.slots.map(s => s === itemId ? null : s);
+  syncLifestyleLeads();
   closeModal();
   save(); renderActivitiesV2();
 }
