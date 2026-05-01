@@ -4359,17 +4359,23 @@ document.addEventListener('DOMContentLoaded', init);
   let touchStartX = 0;
   let touchStartY = 0;
   let isDragging = false;
-  let longPressTimer = null;
+  let tapSelectedEl = null;
+  let suppressNextClick = false;
+  let lastTouchStart = null; // { x, y } for any touch (not just draggables)
   const DRAG_THRESHOLD = 8;
+  const TAP_MOVE_TOLERANCE = 12;
 
   document.addEventListener('touchstart', function (e) {
+    if (e.touches.length > 1) return;
+    const touch = e.touches[0];
+    lastTouchStart = { x: touch.clientX, y: touch.clientY };
+
     const draggable = e.target.closest('[draggable="true"]');
     if (!draggable) return;
     // Don't interfere with buttons / inputs inside tiles
     if (e.target.closest('button, input, select, textarea, a')) return;
 
     touchDragEl = draggable;
-    const touch = e.touches[0];
     touchStartX = touch.clientX;
     touchStartY = touch.clientY;
     isDragging = false;
@@ -4386,6 +4392,8 @@ document.addEventListener('DOMContentLoaded', init);
 
       // Start dragging — fire the ondragstart handler to set dragPayload
       isDragging = true;
+      // Drag takes precedence over any tap-selection
+      clearTapSelection();
       fireDragStart(touchDragEl);
 
       // Create floating visual clone
@@ -4416,36 +4424,79 @@ document.addEventListener('DOMContentLoaded', init);
   }, { passive: false });
 
   document.addEventListener('touchend', function (e) {
-    if (!touchDragEl) return;
-    if (!isDragging) {
-      // It was a tap, not a drag — let normal click handling proceed
+    // CASE A: completing a real drag
+    if (touchDragEl && isDragging) {
+      const touch = e.changedTouches[0];
+      if (touchClone) { touchClone.remove(); touchClone = null; }
+      if (touchDragEl) touchDragEl.style.opacity = '';
+      const dropEl = findDropTarget(touch.clientX, touch.clientY);
+      if (dropEl) fireDropHandler(dropEl);
+      document.querySelectorAll('.drop-active').forEach(function (x) { x.classList.remove('drop-active'); });
+      if (touchDragEl) touchDragEl.classList.remove('dragging');
       touchDragEl = null;
+      isDragging = false;
       return;
     }
 
-    const touch = e.changedTouches[0];
-
-    // Remove clone
-    if (touchClone) {
-      touchClone.remove();
-      touchClone = null;
+    // CASE B: tap (no drag) on a draggable → toggle tap-selection
+    if (touchDragEl && !isDragging) {
+      const tapped = touchDragEl;
+      touchDragEl = null;
+      if (tapSelectedEl === tapped) {
+        clearTapSelection();
+      } else {
+        setTapSelected(tapped);
+      }
+      // Suppress synthetic click that would follow on iOS
+      suppressNextClick = true;
+      e.preventDefault();
+      return;
     }
 
-    // Restore original element opacity
-    if (touchDragEl) touchDragEl.style.opacity = '';
-
-    // Find drop target under finger and fire its ondrop
-    const dropEl = findDropTarget(touch.clientX, touch.clientY);
-    if (dropEl) {
-      fireDropHandler(dropEl);
+    // CASE C: tap NOT on a draggable, with active tap-selection
+    if (tapSelectedEl) {
+      // Only treat as a tap if the touch barely moved (otherwise it was a scroll)
+      if (lastTouchStart) {
+        const touch0 = e.changedTouches[0];
+        const dx = touch0.clientX - lastTouchStart.x;
+        const dy = touch0.clientY - lastTouchStart.y;
+        if (Math.sqrt(dx * dx + dy * dy) > TAP_MOVE_TOLERANCE) return;
+      }
+      const touch = e.changedTouches[0];
+      const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (!targetEl) return;
+      // Cancel button on the hint banner
+      if (targetEl.closest('.tap-hint-cancel')) {
+        e.preventDefault();
+        suppressNextClick = true;
+        clearTapSelection();
+        return;
+      }
+      // Drop zone — fire the drop
+      const dropEl = targetEl.closest('[ondrop]');
+      if (dropEl) {
+        e.preventDefault();
+        suppressNextClick = true;
+        fireDropHandler(dropEl);
+        clearTapSelection();
+        return;
+      }
+      // Tapped on an unrelated control → leave selection alone (user can keep working)
+      // Tapped on plain background → cancel selection
+      if (!targetEl.closest('button, input, select, textarea, a, label')) {
+        clearTapSelection();
+      }
     }
-
-    // Clean up all visual states
-    document.querySelectorAll('.drop-active').forEach(function (x) { x.classList.remove('drop-active'); });
-    if (touchDragEl) touchDragEl.classList.remove('dragging');
-    touchDragEl = null;
-    isDragging = false;
   });
+
+  // Suppress the synthetic click that follows a tap-selection / tap-drop touchend
+  document.addEventListener('click', function (e) {
+    if (suppressNextClick) {
+      suppressNextClick = false;
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
 
   // Cancel drag on multi-touch or context menu
   document.addEventListener('touchcancel', function () {
@@ -4458,6 +4509,45 @@ document.addEventListener('DOMContentLoaded', init);
     document.querySelectorAll('.drop-active').forEach(function (x) { x.classList.remove('drop-active'); });
     touchDragEl = null;
     isDragging = false;
+  }
+
+  // ── Tap-selection helpers ──
+  function setTapSelected(el) {
+    clearTapSelection();
+    tapSelectedEl = el;
+    el.classList.add('tap-selected');
+    // Reuse the inline ondragstart so existing dragPayload logic populates correctly
+    fireDragStart(el);
+    // Visually mark all drop zones
+    document.querySelectorAll('[ondrop]').forEach(function (d) { d.classList.add('tap-target'); });
+    showTapHint(el);
+  }
+  function clearTapSelection() {
+    if (tapSelectedEl) {
+      tapSelectedEl.classList.remove('tap-selected');
+      tapSelectedEl = null;
+    }
+    document.querySelectorAll('.tap-target').forEach(function (d) { d.classList.remove('tap-target'); });
+    hideTapHint();
+    if (typeof dragPayload !== 'undefined') dragPayload = null;
+  }
+
+  let tapHint = null;
+  function showTapHint(el) {
+    hideTapHint();
+    const nameEl = el.querySelector('.tile-name, .category-title, .act-section-name');
+    const name = (nameEl ? nameEl.textContent : 'item').trim() || 'item';
+    const safeName = String(name).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]);
+    });
+    tapHint = document.createElement('div');
+    tapHint.className = 'tap-hint';
+    tapHint.innerHTML = 'Tap a slot to place <strong>' + safeName + '</strong>' +
+      '<button type="button" class="tap-hint-cancel">Cancel</button>';
+    document.body.appendChild(tapHint);
+  }
+  function hideTapHint() {
+    if (tapHint) { tapHint.remove(); tapHint = null; }
   }
 
   // Execute the inline ondragstart attribute to set dragPayload

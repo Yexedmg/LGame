@@ -4076,3 +4076,68 @@ body {
   font-family: var(--font-sans, sans-serif);
   overflow: hidden;
 }
+
+/* ── Tap-and-drop selection (mobile-friendly) ── */
+.tap-selected {
+  outline: 2px solid var(--cyan, #7cf);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(124, 200, 255, 0.18), 0 0 24px rgba(124, 200, 255, 0.35);
+  position: relative;
+  z-index: 5;
+}
+.tap-target {
+  outline: 1px dashed rgba(124, 200, 255, 0.45);
+  outline-offset: 2px;
+  background-color: rgba(124, 200, 255, 0.05);
+  transition: background-color 120ms ease;
+}
+.tap-target:hover,
+.tap-target:active {
+  background-color: rgba(124, 200, 255, 0.14);
+  outline-color: rgba(124, 200, 255, 0.8);
+}
+.tap-hint {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--dock-height, 72px) + var(--safe-bottom, 0px) + 16px);
+  transform: translateX(-50%);
+  z-index: 9000;
+  background: rgba(0, 0, 0, 0.88);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-family: var(--font-sans, sans-serif);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(124, 200, 255, 0.5);
+  max-width: calc(100vw - 24px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: auto;
+  animation: tapHintIn 180ms ease both;
+}
+.tap-hint strong {
+  color: #7ccfff;
+  font-weight: 700;
+  margin-right: 4px;
+}
+.tap-hint-cancel {
+  background: rgba(255, 90, 60, 0.18);
+  color: #ff7b5a;
+  border: 1px solid rgba(255, 90, 60, 0.4);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0.5px;
+}
+@keyframes tapHintIn {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
