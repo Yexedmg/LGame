@@ -2808,9 +2808,12 @@ function activityTile(cat, it, inSlot) {
       <div class="tile-meta">${statEffectsStr(it.statEffects)}${it.meetBonus ? ` · Meet +${it.meetBonus}` : ''}</div>
       <div class="tile-tags"><span class="kind-tag kind-${kind}">${kind === 'expansion' ? '▲ EXPANSION' : kind === 'cost' ? '● COST' : '■ MAINTENANCE'}</span><span class="kind-tag realm-${it.realm === 'synthetic' ? 'synthetic' : 'real'}" title="${it.realm === 'synthetic' ? 'Synthetic — digital/video-game activity' : 'Real — physical/offline activity'}">${it.realm === 'synthetic' ? '◇ SYNTH' : '⬢ REAL'}</span>${it.leadgen ? '<span class="kind-tag kind-leadgen" title="Mirrored to Lifestyle in Lead Gen">⚑ LEAD</span>' : ''}</div>
       ${abilHtml}
-      <div class="row" style="margin-top:4px">
-        <button class="pill-btn good" onclick="event.stopPropagation();doActivityItem('${cat.id}','${it.id}')">Do</button>
-        ${inSlot ? `<button class="pill-btn" onclick="event.stopPropagation();clearActivitySlot('${cat.id}','${it.id}')">Unslot</button>` : ''}
+      <div class="tile-actions" style="margin-top:4px">
+        <button class="tile-btn" onclick="event.stopPropagation();doActivityItem('${cat.id}','${it.id}')">Do</button>
+        ${inSlot
+      ? `<button class="tile-btn" onclick="event.stopPropagation();clearActivitySlot('${cat.id}','${it.id}')">Unslot</button>`
+      : `<button class="tile-btn" onclick="event.stopPropagation();tapSlotActivity('${cat.id}','${it.id}')">Slot →</button>`}
+        <button class="tile-btn" onclick="event.stopPropagation();openEditActivityItem('${cat.id}','${it.id}')">Edit</button>
       </div>
     </div>`;
 }
@@ -2873,6 +2876,29 @@ function clearActivitySlot(catId, itemId) {
   const c = actCats().find(x => x.id === catId);
   if (!c) return;
   c.slots = c.slots.map(s => s === itemId ? null : s);
+  save(); renderActivitiesV2();
+}
+
+// Mobile-friendly tap-to-slot for activities
+function tapSlotActivity(catId, itemId) {
+  const cat = actCats().find(x => x.id === catId);
+  if (!cat) return;
+  if (cat.maxSlots === 1) { placeActivityInSlot(catId, itemId, 0); return; }
+  const btns = cat.slots.map((sid, idx) => {
+    const occ = sid ? cat.inventory.find(x => x.id === sid) : null;
+    return `<button class="pill-btn good" onclick="placeActivityInSlot('${catId}','${itemId}',${idx})">Slot ${idx + 1}${occ ? ` (replace ${escapeHtml(occ.name)})` : ''}</button>`;
+  }).join('');
+  openModal(`
+    <h3>Place in slot</h3>
+    <div style="display:flex;flex-direction:column;gap:6px">${btns}</div>
+    <div class="row"><button class="pill-btn" onclick="closeModal()">Cancel</button></div>`);
+}
+function placeActivityInSlot(catId, itemId, idx) {
+  const cat = actCats().find(x => x.id === catId);
+  if (!cat) return;
+  cat.slots = cat.slots.map(s => s === itemId ? null : s);
+  cat.slots[idx] = itemId;
+  closeModal();
   save(); renderActivitiesV2();
 }
 
