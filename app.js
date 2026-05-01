@@ -206,9 +206,9 @@ function defaultBorough(name) {
 
 // Gain % lookup: difficulty × ROI → gainPct contribution
 const LEAD_GAIN_MATRIX = {
-  easy:   { low: 1, 'medium-low': 2, medium: 4, high: 6,  'very-high': 8  },
-  medium: { low: 2, 'medium-low': 3, medium: 5, high: 8,  'very-high': 10 },
-  hard:   { low: 3, 'medium-low': 5, medium: 7, high: 10, 'very-high': 12 },
+  easy: { low: 1, 'medium-low': 2, medium: 4, high: 6, 'very-high': 8 },
+  medium: { low: 2, 'medium-low': 3, medium: 5, high: 8, 'very-high': 10 },
+  hard: { low: 3, 'medium-low': 5, medium: 7, high: 10, 'very-high': 12 },
 };
 const DIFFICULTY_LABEL = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
 const ROI_LABEL = { low: 'Low', 'medium-low': 'Med-Low', medium: 'Medium', high: 'High', 'very-high': 'Very High' };
@@ -216,10 +216,10 @@ const ROI_LABEL = { low: 'Low', 'medium-low': 'Med-Low', medium: 'Medium', high:
 // ROI determines the item color tier (user spec: red=super, yellow=high, blue=medium, lightgreen=med-low, grey=low)
 const ROI_TIER_MAP = {
   'very-high': { cls: 'tier-legendary', label: 'Legendary' },
-  high:        { cls: 'tier-epic',      label: 'Epic' },
-  medium:      { cls: 'tier-rare',      label: 'Rare' },
-  'medium-low':{ cls: 'tier-uncommon',  label: 'Uncommon' },
-  low:         { cls: 'tier-common',    label: 'Common' },
+  high: { cls: 'tier-epic', label: 'Epic' },
+  medium: { cls: 'tier-rare', label: 'Rare' },
+  'medium-low': { cls: 'tier-uncommon', label: 'Uncommon' },
+  low: { cls: 'tier-common', label: 'Common' },
 };
 function roiTierClass(roi) { return (ROI_TIER_MAP[roi] || ROI_TIER_MAP.low).cls; }
 function roiTierLabel(roi) { return (ROI_TIER_MAP[roi] || ROI_TIER_MAP.low).label; }
@@ -4443,11 +4443,11 @@ function renderManifestPage() {
     const milestoneList = mf.collapsed ? '' : `
       <div class="manifest-milestones">
         ${(mf.milestones || []).map(ms => {
-          const msPct = milestoneProgress(ms);
-          const msDone = isMilestoneDone(ms);
-          const taskCount = (ms.tasks || []).length;
-          const taskDone = (ms.tasks || []).filter(t => t.done).length;
-          const taskListHtml = ms.collapsed ? '' : `
+      const msPct = milestoneProgress(ms);
+      const msDone = isMilestoneDone(ms);
+      const taskCount = (ms.tasks || []).length;
+      const taskDone = (ms.tasks || []).filter(t => t.done).length;
+      const taskListHtml = ms.collapsed ? '' : `
             <div class="ms-task-list" style="padding:6px 0 4px 26px">
               ${(ms.tasks || []).map(tk => `
                 <div class="task-row">
@@ -4460,7 +4460,7 @@ function renderManifestPage() {
                 </div>`).join('')}
               <button class="ms-add-task-btn" onclick="event.stopPropagation();openAddTaskFromList('${mf.id}','${ms.id}')">+ Add task</button>
             </div>`;
-          return `
+      return `
             <div class="milestone-row-wrap">
               <div class="milestone-row" onclick="event.stopPropagation();toggleMilestoneOnList('${mf.id}','${ms.id}')">
                 <div class="milestone-check ${msDone ? 'done' : ''}">✓</div>
@@ -4473,7 +4473,7 @@ function renderManifestPage() {
               </div>
               ${taskListHtml}
             </div>`;
-        }).join('')}
+    }).join('')}
       </div>`;
 
     return `
@@ -4493,6 +4493,15 @@ function renderManifestPage() {
         ${milestoneList}
       </div>`;
   }).join('');
+
+  const infoEl = document.getElementById('global-manifest-info');
+  if (infoEl) {
+    if (D.manifestInfo) {
+      infoEl.innerHTML = escapeHtml(D.manifestInfo).replace(/\n/g, '<br>');
+    } else {
+      infoEl.innerHTML = '<span style="color:var(--text-muted);font-size:12px;font-family:var(--font-mono)">No global information added yet.</span>';
+    }
+  }
 }
 
 function toggleManifestCollapse(id) {
@@ -4715,6 +4724,24 @@ function deleteManifest(id) {
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
       <button class="pill-btn danger" onclick="confirmDeleteManifest('${id}')">Delete</button>
     </div>`);
+}
+
+function openEditGlobalManifestInfo() {
+  const currentInfo = D.manifestInfo || "";
+  openModal(`
+    <h3>Edit Global Information</h3>
+    <textarea id="global-mf-info" style="width:100%;height:120px;resize:vertical;margin-bottom:12px;" placeholder="Add notes, rules, or context for all your goals...">${escapeHtml(currentInfo)}</textarea>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditGlobalManifestInfo()">Save</button>
+    </div>`);
+}
+
+function submitEditGlobalManifestInfo() {
+  D.manifestInfo = (document.getElementById('global-mf-info').value || '').trim();
+  closeModal();
+  save();
+  if (currentPage === 'manifest') renderManifestPage();
 }
 
 function confirmDeleteManifest(id) {
