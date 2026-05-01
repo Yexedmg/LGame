@@ -98,6 +98,9 @@
           <button class="action-card" onclick="showOverlay('calendar')">
             <span class="action-icon">CAL</span><span class="action-label">Calendar</span>
           </button>
+          <button class="action-card" onclick="navigateTo('world')">
+            <span class="action-icon">MAP</span><span class="action-label">World</span>
+          </button>
         </div>
 
         <div class="section-header"><span>STATS</span></div>
@@ -474,6 +477,38 @@
       </div>
     </div>
 
+    <!-- LIFESTYLE PAGE -->
+    <div id="page-lifestyle" class="page">
+      <div class="page-scroll">
+        <div class="page-title">LIFESTYLE</div>
+        <div class="manifest-desc">Build your lifestyle team — see how each activity contributes to your growth.</div>
+        <div class="section-header">
+          <span id="lifestyle-count">LIFESTYLES (0)</span>
+          <button class="small-btn" onclick="openAddLifestyle()">+ New</button>
+        </div>
+        <div id="lifestyle-list"></div>
+      </div>
+    </div>
+
+    <!-- LIFESTYLE DETAIL PAGE -->
+    <div id="page-lifestyledetail" class="page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="navigateTo('lifestyle')">← Lifestyles</button>
+          <div class="page-title" id="lifestyledetail-title" style="margin:0">LIFESTYLE</div>
+        </div>
+        <div id="lifestyledetail-content"></div>
+      </div>
+    </div>
+
+    <!-- SCHEDULE PAGE -->
+    <div id="page-schedule" class="page">
+      <div class="page-scroll">
+        <div class="page-title">SCHEDULE</div>
+        <div id="schedule-content"></div>
+      </div>
+    </div>
+
     <!-- Modal -->
     <div class="modal-backdrop" id="modal-backdrop" onclick="closeModal()"></div>
     <div class="modal-container" id="modal-container">
@@ -485,17 +520,17 @@
       <button class="dock-btn" data-page="activities" onclick="navigateTo('activities')">
         <span class="dock-icon">ACT</span><span class="dock-label">Activities</span>
       </button>
-      <button class="dock-btn" data-page="manifest" onclick="navigateTo('manifest')">
-        <span class="dock-icon">MFST</span><span class="dock-label">Manifest</span>
+      <button class="dock-btn" data-page="lifestyle" onclick="navigateTo('lifestyle')">
+        <span class="dock-icon">LIFE</span><span class="dock-label">Lifestyle</span>
       </button>
       <button class="dock-btn home-btn active" data-page="home" onclick="navigateTo('home')">
         <span class="dock-icon-home">HOME</span>
       </button>
+      <button class="dock-btn" data-page="schedule" onclick="navigateTo('schedule')">
+        <span class="dock-icon">SCHED</span><span class="dock-label">Schedule</span>
+      </button>
       <button class="dock-btn" data-page="girls" onclick="navigateTo('girls')">
         <span class="dock-icon">GRL</span><span class="dock-label">Girls</span>
-      </button>
-      <button class="dock-btn" data-page="world" onclick="navigateTo('world')">
-        <span class="dock-icon">MAP</span><span class="dock-label">World</span>
       </button>
     </nav>
   </div>

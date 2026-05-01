@@ -127,6 +127,11 @@ function defaultData() {
     northstar: null,    // { text, updatedAt }
     eras: [],           // [{ id, name, start: 'YYYY-MM-DD', end: 'YYYY-MM-DD', color, createdAt }]
     manifests: [],       // [{ id, name, emoji, collapsed, milestones:[{ id, name, collapsed, tasks:[{id,name,done}] }], createdAt }]
+    // Lifestyle system — team composition of activities
+    lifestyles: [],     // [{ id, name, emoji, isActive, activities:[{id, activityItemId, catId, sourceLabel, subLabel}] }]
+    activeLifestyleId: null,
+    // Weekly schedule
+    schedule: defaultSchedule(),
   };
 }
 
@@ -202,6 +207,10 @@ function defaultWorld() {
 }
 function defaultBorough(name) {
   return { id: uid('bor'), name: name || 'New Borough', activityCategories: [], leadgen: { methods: [] }, places: [] };
+}
+
+function defaultSchedule() {
+  return { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] };
 }
 
 // Gain % lookup: difficulty × ROI → gainPct contribution
@@ -286,6 +295,12 @@ function load() {
     if (!Array.isArray(D.eras)) D.eras = [];
     // Migration: manifests
     if (!Array.isArray(D.manifests)) D.manifests = [];
+    // Migration: lifestyles
+    if (!Array.isArray(D.lifestyles)) D.lifestyles = [];
+    if (D.activeLifestyleId === undefined) D.activeLifestyleId = null;
+    // Migration: schedule
+    if (!D.schedule) D.schedule = defaultSchedule();
+    ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => { if (!Array.isArray(D.schedule[d])) D.schedule[d] = []; });
     // Migration: world/cities/boroughs
     migrateWorld();
   } catch (e) { console.warn('load failed', e); }
@@ -917,6 +932,9 @@ function render() {
   if (currentPage === 'stat') renderStatPage();
   if (currentPage === 'manifest') renderManifestPage();
   if (currentPage === 'manifestdetail') renderManifestDetail();
+  if (currentPage === 'lifestyle') renderLifestylePage();
+  if (currentPage === 'lifestyledetail') renderLifestyleDetail();
+  if (currentPage === 'schedule') renderSchedulePage();
 }
 
 function updateXPDisplay() {
@@ -4889,6 +4907,480 @@ function toggleTask(mfId, msId, tkId) {
   save(); renderManifestDetail();
 }
 
+// ────────────────────────────────────────────────────────────────
+// LIFESTYLE SYSTEM — "Team" composition of activities
+// ────────────────────────────────────────────────────────────────
+
+// Activity source mapping: maps activity category names to higher-level labels
+// e.g. "College" → "Socialising/Networking"
+const ACTIVITY_SOURCE_MAP = {
+  'School / Classes': 'Socialising/Networking',
+  'school': 'Socialising/Networking',
+  'Social': 'Socialising/Networking',
+  'social': 'Socialising/Networking',
+  'Part-time Job': 'Income/Work',
+  'job': 'Income/Work',
+  'Sports': 'Physical Training',
+  'sport': 'Physical Training',
+  'Combat': 'Physical Training',
+  'combat': 'Physical Training',
+  'Grooming': 'Self-Care/Appearance',
+  'grooming': 'Self-Care/Appearance',
+  'Other': 'Miscellaneous',
+};
+
+function getSourceLabel(catName, itemName) {
+  return ACTIVITY_SOURCE_MAP[catName] || catName;
+}
+
+let currentLifestyleId = null;
+
+// Compute what an activity contributes to each entity component / stat
+function computeActivityContributions(actItem) {
+  const contributions = {};
+  const effs = actItem.statEffects || {};
+  for (const [k, v] of Object.entries(effs)) {
+    if (v !== 0) contributions[STAT_LABELS[k] || k] = v;
+  }
+  if (actItem.meetBonus) contributions['Meet Chance'] = actItem.meetBonus;
+  // Vibe contribution from being slotted
+  const meetB = actItem.meetBonus || 0;
+  const statCount = Object.keys(effs).length;
+  const vibeContrib = 1 + meetB * 0.5 + statCount * 0.3;
+  contributions['Vibe (when slotted)'] = parseFloat(vibeContrib.toFixed(1));
+  return contributions;
+}
+
+// Compute total lifestyle contributions
+function computeLifestyleContributions(lifestyle) {
+  const totals = {};
+  (lifestyle.activities || []).forEach(la => {
+    const cat = findActivityCatAnywhere(la.catId);
+    if (!cat) return;
+    const item = cat.inventory.find(x => x.id === la.activityItemId);
+    if (!item) return;
+    const contribs = computeActivityContributions(item);
+    for (const [k, v] of Object.entries(contribs)) {
+      totals[k] = (totals[k] || 0) + v;
+    }
+  });
+  return totals;
+}
+
+function findActivityCatAnywhere(catId) {
+  // Search main categories first
+  const main = (D.activityCategories || []).find(c => c.id === catId);
+  if (main) return main;
+  // Search borough categories
+  for (const city of (D.world?.cities || [])) {
+    for (const b of (city.boroughs || [])) {
+      const c = (b.activityCategories || []).find(x => x.id === catId);
+      if (c) return c;
+    }
+  }
+  return null;
+}
+
+function renderLifestylePage() {
+  const el = document.getElementById('lifestyle-list');
+  if (!el) return;
+  const lifestyles = D.lifestyles || [];
+  document.getElementById('lifestyle-count').textContent = `LIFESTYLES (${lifestyles.length})`;
+  if (lifestyles.length === 0) {
+    el.innerHTML = '<div class="empty-state">No lifestyles yet. Create your first team composition.</div>';
+    return;
+  }
+  el.innerHTML = lifestyles.map(ls => {
+    const isActive = ls.id === D.activeLifestyleId;
+    const actCount = (ls.activities || []).length;
+    const contribs = computeLifestyleContributions(ls);
+    const sortedContribs = Object.entries(contribs).sort((a, b) => a[1] - b[1]);
+    const total = sortedContribs.reduce((s, [, v]) => s + Math.abs(v), 0);
+    return `
+      <div class="lifestyle-card ${isActive ? 'active-lifestyle' : ''}" onclick="currentLifestyleId='${ls.id}';navigateTo('lifestyledetail')">
+        <div class="lifestyle-card-head">
+          <div class="lifestyle-card-icon">${ls.emoji || '⚡'}</div>
+          <div class="lifestyle-card-info">
+            <div class="lifestyle-card-name">${escapeHtml(ls.name)}</div>
+            <div class="lifestyle-card-sub">${actCount} activit${actCount === 1 ? 'y' : 'ies'}${isActive ? ' · ACTIVE ✓' : ''}</div>
+          </div>
+          <button class="lifestyle-set-btn ${isActive ? 'is-active' : ''}" onclick="event.stopPropagation();toggleActiveLifestyle('${ls.id}')">${isActive ? '★ Active' : '☆ Set Active'}</button>
+        </div>
+        ${sortedContribs.length > 0 ? `
+        <div class="lifestyle-contribs">
+          ${sortedContribs.slice(0, 5).map(([k, v]) => `
+            <div class="lifestyle-contrib-row">
+              <span class="contrib-label">${escapeHtml(k)}</span>
+              <span class="contrib-val ${v >= 0 ? '' : 'neg'}">${v >= 0 ? '+' : ''}${v}</span>
+            </div>`).join('')}
+          ${sortedContribs.length > 5 ? `<div class="contrib-more">+${sortedContribs.length - 5} more</div>` : ''}
+        </div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function toggleActiveLifestyle(id) {
+  if (D.activeLifestyleId === id) {
+    D.activeLifestyleId = null;
+    toast('Lifestyle deactivated.');
+  } else {
+    D.activeLifestyleId = id;
+    const ls = D.lifestyles.find(x => x.id === id);
+    toast(`"${ls?.name}" is now active.`);
+  }
+  save(); renderLifestylePage();
+}
+
+function openAddLifestyle() {
+  openModal(`
+    <h3>New Lifestyle</h3>
+    <div class="form-row"><label>NAME</label><input id="ls-name" placeholder="e.g. College Mode"/></div>
+    <div class="form-row"><label>EMOJI</label><input id="ls-emoji" placeholder="e.g. ⚡ 🎯 🏋️" maxlength="4" style="width:80px"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddLifestyle()">Create</button>
+    </div>`);
+}
+
+function submitAddLifestyle() {
+  const name = (document.getElementById('ls-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  const emoji = (document.getElementById('ls-emoji').value || '').trim() || '⚡';
+  D.lifestyles.push({
+    id: uid('ls'), name, emoji, isActive: false, activities: [], createdAt: Date.now()
+  });
+  closeModal(); save();
+  if (currentPage === 'lifestyle') renderLifestylePage();
+  toast(`Lifestyle "${name}" created.`);
+}
+
+function openEditLifestyle(id) {
+  const ls = D.lifestyles.find(x => x.id === id);
+  if (!ls) return;
+  openModal(`
+    <h3>Edit Lifestyle</h3>
+    <div class="form-row"><label>NAME</label><input id="ls-name" value="${escapeHtml(ls.name)}"/></div>
+    <div class="form-row"><label>EMOJI</label><input id="ls-emoji" value="${escapeHtml(ls.emoji || '')}" maxlength="4" style="width:80px"/></div>
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteLifestyle('${id}')">Delete</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditLifestyle('${id}')">Save</button>
+    </div>`);
+}
+
+function submitEditLifestyle(id) {
+  const ls = D.lifestyles.find(x => x.id === id);
+  if (!ls) return;
+  ls.name = (document.getElementById('ls-name').value || '').trim() || ls.name;
+  ls.emoji = (document.getElementById('ls-emoji').value || '').trim() || ls.emoji;
+  closeModal(); save();
+  if (currentPage === 'lifestyledetail') renderLifestyleDetail();
+  else renderLifestylePage();
+}
+
+function deleteLifestyle(id) {
+  if (!confirm('Delete this lifestyle?')) return;
+  D.lifestyles = D.lifestyles.filter(x => x.id !== id);
+  if (D.activeLifestyleId === id) D.activeLifestyleId = null;
+  closeModal(); save();
+  navigateTo('lifestyle');
+  toast('Lifestyle deleted.');
+}
+
+// Lifestyle Detail
+function renderLifestyleDetail() {
+  const ls = D.lifestyles.find(x => x.id === currentLifestyleId);
+  if (!ls) { navigateTo('lifestyle'); return; }
+  const titleEl = document.getElementById('lifestyledetail-title');
+  if (titleEl) titleEl.textContent = ls.name.toUpperCase();
+  const el = document.getElementById('lifestyledetail-content');
+  if (!el) return;
+
+  const isActive = ls.id === D.activeLifestyleId;
+  const contribs = computeLifestyleContributions(ls);
+  const sortedContribs = Object.entries(contribs).sort((a, b) => a[1] - b[1]);
+  const total = sortedContribs.reduce((s, [, v]) => s + Math.abs(v), 0);
+
+  // Activities list with sub-labels
+  const activitiesHtml = (ls.activities || []).length
+    ? ls.activities.map(la => {
+      const cat = findActivityCatAnywhere(la.catId);
+      const item = cat?.inventory.find(x => x.id === la.activityItemId);
+      if (!item) return `<div class="ls-activity-card orphan"><div class="ls-act-name">⚠ Missing activity</div><button class="tile-btn danger" onclick="removeLifestyleActivity('${ls.id}','${la.id}')">Remove</button></div>`;
+      const sourceLabel = la.sourceLabel || getSourceLabel(cat?.name || '', item.name);
+      const subLabel = la.subLabel || cat?.name || '';
+      const itemContribs = computeActivityContributions(item);
+      const contribStr = Object.entries(itemContribs).slice(0, 3).map(([k, v]) => `${v >= 0 ? '+' : ''}${v} ${k}`).join(' · ');
+      return `
+        <div class="ls-activity-card">
+          <div class="ls-act-head">
+            <div class="ls-act-info">
+              <div class="ls-act-source">${escapeHtml(sourceLabel)}${subLabel && subLabel !== sourceLabel ? `<span class="ls-act-sub">(${escapeHtml(subLabel)})</span>` : ''}</div>
+              <div class="ls-act-name">${item.emoji || '★'} ${escapeHtml(item.name)}</div>
+              <div class="ls-act-contrib">${contribStr}</div>
+            </div>
+            <button class="tile-btn danger" onclick="removeLifestyleActivity('${ls.id}','${la.id}')">×</button>
+          </div>
+        </div>`;
+    }).join('')
+    : '<div class="empty-state">No activities added. Tap "+ Activity" to build your lifestyle.</div>';
+
+  // Contribution breakdown — sorted low to high
+  const breakdownHtml = sortedContribs.length
+    ? sortedContribs.map(([k, v]) => {
+      const pct = total > 0 ? Math.round((Math.abs(v) / total) * 100) : 0;
+      return `
+        <div class="ls-breakdown-row">
+          <span class="ls-brk-label">${escapeHtml(k)}</span>
+          <div class="ls-brk-bar-wrap">
+            <div class="ls-brk-bar" style="width:${pct}%"></div>
+          </div>
+          <span class="ls-brk-val ${v >= 0 ? '' : 'neg'}">${v >= 0 ? '+' : ''}${v}</span>
+          <span class="ls-brk-pct">${pct}%</span>
+        </div>`;
+    }).join('')
+    : '<div class="empty-state">Add activities to see stat contributions.</div>';
+
+  // Rank among all lifestyles
+  const allTotals = D.lifestyles.map(l => {
+    const c = computeLifestyleContributions(l);
+    return { id: l.id, total: Object.values(c).reduce((s, v) => s + Math.abs(v), 0) };
+  }).sort((a, b) => b.total - a.total);
+  const rank = allTotals.findIndex(x => x.id === ls.id) + 1;
+
+  el.innerHTML = `
+    <div class="ls-detail-hero">
+      <div class="ls-detail-icon">${ls.emoji || '⚡'}</div>
+      <div class="ls-detail-body">
+        <div class="ls-detail-name">${escapeHtml(ls.name)}</div>
+        <div class="ls-detail-sub">${(ls.activities || []).length} activities · ${isActive ? 'ACTIVE' : 'Inactive'}</div>
+      </div>
+      <div class="ls-detail-actions">
+        <button class="lifestyle-set-btn ${isActive ? 'is-active' : ''}" onclick="toggleActiveLifestyle('${ls.id}');renderLifestyleDetail()">${isActive ? '★ Active' : '☆ Activate'}</button>
+        <button class="tile-btn" onclick="openEditLifestyle('${ls.id}')">Edit</button>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <span>ACTIVITIES (${(ls.activities || []).length})</span>
+      <button class="small-btn" onclick="openAddLifestyleActivity('${ls.id}')">+ Activity</button>
+    </div>
+    <div class="ls-activities-list">${activitiesHtml}</div>
+
+    <div class="section-header"><span>CONTRIBUTION BREAKDOWN</span></div>
+    <div class="ls-breakdown-card">
+      <div class="ls-breakdown-total">
+        <span>Total Score</span>
+        <span class="ls-total-val">${total}</span>
+      </div>
+      ${D.lifestyles.length > 1 ? `<div class="ls-rank">#${rank} Highest score</div>` : ''}
+      ${breakdownHtml}
+    </div>
+  `;
+}
+
+function openAddLifestyleActivity(lsId) {
+  // Build a list of all available activities across all categories
+  const allActs = [];
+  actCats().forEach(cat => {
+    (cat.inventory || []).forEach(it => {
+      allActs.push({ cat, item: it });
+    });
+  });
+
+  if (allActs.length === 0) {
+    toast('No activities available. Add activities first.');
+    return;
+  }
+
+  const rows = allActs.map(({ cat, item }) => {
+    const sourceLabel = getSourceLabel(cat.name, item.name);
+    const subLabel = cat.name;
+    return `
+      <button class="assign-row" onclick="addLifestyleActivity('${lsId}','${cat.id}','${item.id}','${escapeHtml(sourceLabel)}','${escapeHtml(subLabel)}')">
+        <span class="ar-type">${cat.emoji}</span> ${escapeHtml(item.name)}
+        <span class="ar-scope" style="font-size:9px;color:var(--text-muted)">← ${escapeHtml(sourceLabel)}${subLabel !== sourceLabel ? ' (' + escapeHtml(subLabel) + ')' : ''}</span>
+      </button>`;
+  }).join('');
+
+  openModal(`
+    <h3>Add Activity to Lifestyle</h3>
+    <div class="desc" style="color:var(--text-secondary);font-size:11px;margin-bottom:8px">
+      Pick an activity. It will show under its source category (e.g. College shows under Socialising/Networking).
+    </div>
+    <div class="assign-list" style="max-height:300px">${rows}</div>
+    <div class="row"><button class="pill-btn" onclick="closeModal()">Cancel</button></div>
+  `);
+}
+
+function addLifestyleActivity(lsId, catId, itemId, sourceLabel, subLabel) {
+  const ls = D.lifestyles.find(x => x.id === lsId);
+  if (!ls) return;
+  // Check for duplicate
+  if (ls.activities.some(a => a.activityItemId === itemId && a.catId === catId)) {
+    toast('Already in this lifestyle.');
+    return;
+  }
+  ls.activities.push({
+    id: uid('la'), activityItemId: itemId, catId,
+    sourceLabel, subLabel
+  });
+  closeModal(); save();
+  renderLifestyleDetail();
+  toast('Activity added.');
+}
+
+function removeLifestyleActivity(lsId, laId) {
+  const ls = D.lifestyles.find(x => x.id === lsId);
+  if (!ls) return;
+  ls.activities = ls.activities.filter(x => x.id !== laId);
+  save(); renderLifestyleDetail();
+}
+
+// ────────────────────────────────────────────────────────────────
+// SCHEDULE SYSTEM — Weekly Mon-Sun planner
+// ────────────────────────────────────────────────────────────────
+const DAY_NAMES = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const DAY_LABELS = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
+const DAY_SHORT = { mon: 'MON', tue: 'TUE', wed: 'WED', thu: 'THU', fri: 'FRI', sat: 'SAT', sun: 'SUN' };
+
+let scheduleActiveDay = 'mon';
+
+function renderSchedulePage() {
+  const el = document.getElementById('schedule-content');
+  if (!el) return;
+
+  // Day tabs
+  const tabsHtml = DAY_NAMES.map(d =>
+    `<button class="sched-day-tab ${d === scheduleActiveDay ? 'active' : ''}" onclick="scheduleActiveDay='${d}';renderSchedulePage()">${DAY_SHORT[d]}</button>`
+  ).join('');
+
+  // Current day's entries sorted by time
+  const entries = (D.schedule[scheduleActiveDay] || []).slice().sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+  const entriesHtml = entries.length
+    ? entries.map(entry => {
+      const cat = findActivityCatAnywhere(entry.catId);
+      const item = cat?.inventory.find(x => x.id === entry.activityItemId);
+      const name = item ? `${item.emoji || '★'} ${item.name}` : (entry.name || 'Custom activity');
+      const catName = cat ? cat.name : '';
+      return `
+        <div class="sched-entry">
+          <div class="sched-time">${escapeHtml(entry.time || '--:--')}</div>
+          <div class="sched-entry-body">
+            <div class="sched-entry-name">${escapeHtml(entry.name || (item?.name || 'Activity'))}</div>
+            ${catName ? `<div class="sched-entry-cat">${escapeHtml(catName)}</div>` : ''}
+          </div>
+          <div class="sched-entry-actions">
+            <button class="tile-btn" onclick="openEditScheduleEntry('${scheduleActiveDay}','${entry.id}')">✎</button>
+            <button class="tile-btn danger" onclick="deleteScheduleEntry('${scheduleActiveDay}','${entry.id}')">×</button>
+          </div>
+        </div>`;
+    }).join('')
+    : '<div class="empty-state">No activities scheduled. Tap "+" to add one.</div>';
+
+  // Overview: show tiny dots for each day
+  const overviewHtml = DAY_NAMES.map(d => {
+    const count = (D.schedule[d] || []).length;
+    const dots = count > 0 ? '<span class="sched-dot filled"></span>'.repeat(Math.min(count, 6)) : '<span class="sched-dot empty"></span>';
+    return `<div class="sched-overview-day ${d === scheduleActiveDay ? 'active' : ''}" onclick="scheduleActiveDay='${d}';renderSchedulePage()">
+      <div class="sched-ov-label">${DAY_SHORT[d]}</div>
+      <div class="sched-ov-dots">${dots}</div>
+      <div class="sched-ov-count">${count}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="sched-tabs">${tabsHtml}</div>
+
+    <div class="section-header">
+      <span>${DAY_LABELS[scheduleActiveDay].toUpperCase()}</span>
+      <button class="small-btn" onclick="openAddScheduleEntry('${scheduleActiveDay}')">+ Add</button>
+    </div>
+    <div class="sched-entries">${entriesHtml}</div>
+
+    <div class="section-header"><span>WEEK OVERVIEW</span></div>
+    <div class="sched-overview">${overviewHtml}</div>
+  `;
+}
+
+function openAddScheduleEntry(day) {
+  // Build activity options
+  const actOpts = ['<option value="">— Custom (type name below) —</option>'];
+  actCats().forEach(cat => {
+    (cat.inventory || []).forEach(it => {
+      actOpts.push(`<option value="${cat.id}::${it.id}">${cat.emoji} ${escapeHtml(cat.name)} / ${escapeHtml(it.name)}</option>`);
+    });
+  });
+
+  openModal(`
+    <h3>Add to ${DAY_LABELS[day]}</h3>
+    <div class="form-row"><label>TIME</label><input id="se-time" type="time" value="09:00"/></div>
+    <div class="form-row"><label>ACTIVITY</label><select id="se-activity" onchange="toggleCustomNameField()">${actOpts.join('')}</select></div>
+    <div class="form-row" id="se-custom-row"><label>NAME (custom)</label><input id="se-name" placeholder="e.g. Morning meditation"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddScheduleEntry('${day}')">Add</button>
+    </div>
+  `);
+}
+
+function toggleCustomNameField() {
+  const sel = document.getElementById('se-activity');
+  const row = document.getElementById('se-custom-row');
+  if (row) row.style.display = sel.value ? 'none' : 'flex';
+}
+
+function submitAddScheduleEntry(day) {
+  const time = document.getElementById('se-time').value || '09:00';
+  const actVal = document.getElementById('se-activity').value;
+  let entry;
+  if (actVal) {
+    const [catId, itemId] = actVal.split('::');
+    const cat = findActivityCatAnywhere(catId);
+    const item = cat?.inventory.find(x => x.id === itemId);
+    entry = {
+      id: uid('se'), time, catId, activityItemId: itemId,
+      name: item ? item.name : 'Activity'
+    };
+  } else {
+    const name = (document.getElementById('se-name').value || '').trim();
+    if (!name) { toast('Enter a name or pick an activity.'); return; }
+    entry = { id: uid('se'), time, name, catId: null, activityItemId: null };
+  }
+  D.schedule[day].push(entry);
+  closeModal(); save(); renderSchedulePage();
+  toast(`Added to ${DAY_LABELS[day]}.`);
+}
+
+function openEditScheduleEntry(day, entryId) {
+  const entry = D.schedule[day]?.find(x => x.id === entryId);
+  if (!entry) return;
+  openModal(`
+    <h3>Edit Entry</h3>
+    <div class="form-row"><label>TIME</label><input id="se-time" type="time" value="${entry.time || '09:00'}"/></div>
+    <div class="form-row"><label>NAME</label><input id="se-name" value="${escapeHtml(entry.name || '')}"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditScheduleEntry('${day}','${entryId}')">Save</button>
+    </div>
+  `);
+}
+
+function submitEditScheduleEntry(day, entryId) {
+  const entry = D.schedule[day]?.find(x => x.id === entryId);
+  if (!entry) return;
+  entry.time = document.getElementById('se-time').value || entry.time;
+  entry.name = (document.getElementById('se-name').value || '').trim() || entry.name;
+  closeModal(); save(); renderSchedulePage();
+}
+
+function deleteScheduleEntry(day, entryId) {
+  D.schedule[day] = (D.schedule[day] || []).filter(x => x.id !== entryId);
+  save(); renderSchedulePage();
+  toast('Entry removed.');
+}
+
 function init() {
   load();
   // ensure current month exists
@@ -4903,165 +5395,4 @@ function init() {
 
 document.addEventListener('DOMContentLoaded', init);
 
-// ── Touch drag-and-drop polyfill for mobile ──
-(function () {
-  let touchDragEl = null;
-  let touchClone = null;
-  let touchStartX = 0;
-  let touchStartY = 0;
-  let isDragging = false;
-  let longPressTimer = null;
-  const DRAG_THRESHOLD = 8;
-
-  document.addEventListener('touchstart', function (e) {
-    const draggable = e.target.closest('[draggable="true"]');
-    if (!draggable) return;
-    // Don't interfere with buttons / inputs inside tiles
-    if (e.target.closest('button, input, select, textarea, a')) return;
-
-    touchDragEl = draggable;
-    const touch = e.touches[0];
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
-    isDragging = false;
-  }, { passive: true });
-
-  document.addEventListener('touchmove', function (e) {
-    if (!touchDragEl) return;
-    const touch = e.touches[0];
-
-    if (!isDragging) {
-      const dx = touch.clientX - touchStartX;
-      const dy = touch.clientY - touchStartY;
-      if (Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
-
-      // Start dragging — fire the ondragstart handler to set dragPayload
-      isDragging = true;
-      fireDragStart(touchDragEl);
-
-      // Create floating visual clone
-      touchClone = touchDragEl.cloneNode(true);
-      touchClone.className = 'touch-drag-clone';
-      const rect = touchDragEl.getBoundingClientRect();
-      touchClone.style.cssText =
-        'position:fixed;z-index:10000;pointer-events:none;opacity:0.88;' +
-        'width:' + rect.width + 'px;' +
-        'transform:scale(1.05);border-radius:12px;' +
-        'box-shadow:0 8px 32px rgba(0,0,0,0.5);' +
-        'left:' + (touch.clientX - rect.width / 2) + 'px;' +
-        'top:' + (touch.clientY - 30) + 'px;';
-      document.body.appendChild(touchClone);
-      touchDragEl.style.opacity = '0.25';
-    }
-
-    e.preventDefault(); // prevent scrolling while dragging
-
-    // Move clone to follow finger
-    if (touchClone) {
-      touchClone.style.left = (touch.clientX - touchClone.offsetWidth / 2) + 'px';
-      touchClone.style.top = (touch.clientY - 30) + 'px';
-    }
-
-    // Highlight the drop zone under the finger
-    highlightDropTarget(touch.clientX, touch.clientY);
-  }, { passive: false });
-
-  document.addEventListener('touchend', function (e) {
-    if (!touchDragEl) return;
-    if (!isDragging) {
-      // It was a tap, not a drag — let normal click handling proceed
-      touchDragEl = null;
-      return;
-    }
-
-    const touch = e.changedTouches[0];
-
-    // Remove clone
-    if (touchClone) {
-      touchClone.remove();
-      touchClone = null;
-    }
-
-    // Restore original element opacity
-    if (touchDragEl) touchDragEl.style.opacity = '';
-
-    // Find drop target under finger and fire its ondrop
-    const dropEl = findDropTarget(touch.clientX, touch.clientY);
-    if (dropEl) {
-      fireDropHandler(dropEl);
-    }
-
-    // Clean up all visual states
-    document.querySelectorAll('.drop-active').forEach(function (x) { x.classList.remove('drop-active'); });
-    if (touchDragEl) touchDragEl.classList.remove('dragging');
-    touchDragEl = null;
-    isDragging = false;
-  });
-
-  // Cancel drag on multi-touch or context menu
-  document.addEventListener('touchcancel', function () {
-    cancelTouchDrag();
-  });
-
-  function cancelTouchDrag() {
-    if (touchClone) { touchClone.remove(); touchClone = null; }
-    if (touchDragEl) { touchDragEl.style.opacity = ''; touchDragEl.classList.remove('dragging'); }
-    document.querySelectorAll('.drop-active').forEach(function (x) { x.classList.remove('drop-active'); });
-    touchDragEl = null;
-    isDragging = false;
-  }
-
-  // Execute the inline ondragstart attribute to set dragPayload
-  function fireDragStart(el) {
-    var attr = el.getAttribute('ondragstart');
-    if (!attr) return;
-    var mockEvent = {
-      stopPropagation: function () { },
-      preventDefault: function () { },
-      dataTransfer: { effectAllowed: '', setData: function () { }, setDragImage: function () { } },
-      target: el
-    };
-    try {
-      (new Function('event', attr)).call(el, mockEvent);
-    } catch (err) {
-      console.warn('Touch dragstart error:', err);
-    }
-  }
-
-  // Walk elementsFromPoint to find the nearest element with an ondrop attribute
-  function findDropTarget(x, y) {
-    // Hide clone so elementsFromPoint sees through it
-    if (touchClone) touchClone.style.display = 'none';
-    var els = document.elementsFromPoint(x, y);
-    if (touchClone) touchClone.style.display = '';
-    for (var i = 0; i < els.length; i++) {
-      var el = els[i];
-      var dropEl = el.closest('[ondrop]');
-      if (dropEl) return dropEl;
-    }
-    return null;
-  }
-
-  // Highlight the drop zone currently under the finger
-  function highlightDropTarget(x, y) {
-    document.querySelectorAll('.drop-active').forEach(function (x) { x.classList.remove('drop-active'); });
-    var dropEl = findDropTarget(x, y);
-    if (dropEl) dropEl.classList.add('drop-active');
-  }
-
-  // Execute the inline ondrop attribute on the target element
-  function fireDropHandler(dropEl) {
-    var attr = dropEl.getAttribute('ondrop');
-    if (!attr) return;
-    var mockEvent = {
-      preventDefault: function () { },
-      stopPropagation: function () { },
-      currentTarget: dropEl
-    };
-    try {
-      (new Function('event', attr)).call(dropEl, mockEvent);
-    } catch (err) {
-      console.warn('Touch drop error:', err);
-    }
-  }
-})();
+// Mobile drag-and-drop removed — use Slot→/Unslot buttons on mobile instead.

@@ -4264,14 +4264,7 @@ body {
   font-weight: 700;
 }
 
-/* Touch drag-and-drop clone (mobile polyfill) */
-.touch-drag-clone {
-  background: var(--bg-secondary, #1B2244);
-  border: 1px solid var(--border-accent-strong, rgba(120, 170, 255, 0.45));
-  color: var(--text-primary, #ECF0FA);
-  font-family: var(--font-sans, sans-serif);
-  overflow: hidden;
-}
+/* Touch drag-and-drop clone removed — mobile uses tap-to-slot instead */
 
 /* ============================================
    MANIFEST — Goal tracking system
@@ -4793,4 +4786,492 @@ body {
 
 .milestone-row-wrap .ms-task-list {
   border-top: 1px solid var(--border-subtle);
+}
+
+/* ============================================
+   LIFESTYLE — Team composition system
+   ============================================ */
+
+.lifestyle-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+
+.lifestyle-card:active {
+  transform: scale(0.98);
+}
+
+.lifestyle-card.active-lifestyle {
+  border-color: rgba(78, 200, 255, 0.4);
+  box-shadow: 0 0 20px rgba(78, 200, 255, 0.08), inset 0 0 30px rgba(78, 200, 255, 0.03);
+}
+
+.lifestyle-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lifestyle-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(78, 200, 255, 0.15), rgba(200, 82, 255, 0.15));
+  border: 1px solid var(--border-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.lifestyle-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.lifestyle-card-name {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.lifestyle-card-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.lifestyle-set-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-accent);
+  background: var(--cyan-dim);
+  color: var(--cyan);
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.lifestyle-set-btn.is-active {
+  background: rgba(78, 200, 255, 0.2);
+  border-color: var(--cyan);
+  color: var(--cyan);
+  box-shadow: 0 0 10px rgba(78, 200, 255, 0.2);
+}
+
+.lifestyle-contribs {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.lifestyle-contrib-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.contrib-label {
+  color: var(--text-secondary);
+}
+
+.contrib-val {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.contrib-val.neg {
+  color: var(--red);
+}
+
+.contrib-more {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 4px 0 0;
+}
+
+/* Lifestyle Detail */
+.ls-detail-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: 14px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.ls-detail-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(78, 200, 255, 0.2), rgba(200, 82, 255, 0.2));
+  border: 1px solid var(--border-accent-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 20px rgba(78, 200, 255, 0.15);
+}
+
+.ls-detail-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ls-detail-name {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.ls-detail-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.ls-detail-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Lifestyle activity cards */
+.ls-activities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ls-activity-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: border-color 0.2s;
+}
+
+.ls-activity-card.orphan {
+  border-color: rgba(255, 59, 48, 0.3);
+  opacity: 0.6;
+}
+
+.ls-act-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ls-act-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ls-act-source {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cyan);
+  letter-spacing: 0.5px;
+}
+
+.ls-act-sub {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: 4px;
+  letter-spacing: 0;
+}
+
+.ls-act-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.ls-act-contrib {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  letter-spacing: 0.3px;
+}
+
+/* Lifestyle breakdown */
+.ls-breakdown-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 20px;
+}
+
+.ls-breakdown-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 10px;
+}
+
+.ls-total-val {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--cyan);
+  font-variant-numeric: tabular-nums;
+}
+
+.ls-rank {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--gold, #ffcd4a);
+  text-align: center;
+  padding: 6px 0;
+  text-transform: uppercase;
+}
+
+.ls-breakdown-row {
+  display: grid;
+  grid-template-columns: 1fr 80px 40px 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.ls-brk-label {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ls-brk-bar-wrap {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ls-brk-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--green));
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  min-width: 2px;
+}
+
+.ls-brk-val {
+  color: var(--green);
+  font-weight: 700;
+  text-align: right;
+}
+
+.ls-brk-val.neg {
+  color: var(--red);
+}
+
+.ls-brk-pct {
+  color: var(--text-muted);
+  text-align: right;
+  font-size: 9px;
+}
+
+/* ============================================
+   SCHEDULE — Weekly planner
+   ============================================ */
+
+.sched-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 0 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sched-day-tab {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.sched-day-tab.active {
+  background: rgba(78, 200, 255, 0.12);
+  border-color: var(--cyan);
+  color: var(--cyan);
+  box-shadow: 0 0 12px rgba(78, 200, 255, 0.15);
+}
+
+.sched-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 60px;
+}
+
+.sched-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: border-color 0.2s;
+}
+
+.sched-entry:hover {
+  border-color: var(--border-accent);
+}
+
+.sched-time {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--cyan);
+  min-width: 50px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.sched-entry-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.sched-entry-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sched-entry-cat {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.sched-entry-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Week overview */
+.sched-overview {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.sched-overview-day {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 8px 4px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sched-overview-day.active {
+  border-color: var(--cyan);
+  background: rgba(78, 200, 255, 0.08);
+}
+
+.sched-ov-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.sched-overview-day.active .sched-ov-label {
+  color: var(--cyan);
+}
+
+.sched-ov-dots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  min-height: 10px;
+  margin-bottom: 4px;
+}
+
+.sched-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.sched-dot.filled {
+  background: var(--cyan);
+  box-shadow: 0 0 4px rgba(78, 200, 255, 0.5);
+}
+
+.sched-dot.empty {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sched-ov-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
