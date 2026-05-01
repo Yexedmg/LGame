@@ -126,6 +126,7 @@ function defaultData() {
     abilities: [],      // [{id, name, desc, unlocked, assignments:[{type:'activity'|'leadmethod', methodId, itemId}]}]
     northstar: null,    // { text, updatedAt }
     eras: [],           // [{ id, name, start: 'YYYY-MM-DD', end: 'YYYY-MM-DD', color, createdAt }]
+    manifests: [],       // [{ id, name, emoji, collapsed, milestones:[{ id, name, collapsed, tasks:[{id,name,done}] }], createdAt }]
   };
 }
 
@@ -283,6 +284,8 @@ function load() {
     // Migration: northstar + eras
     if (D.northstar === undefined) D.northstar = null;
     if (!Array.isArray(D.eras)) D.eras = [];
+    // Migration: manifests
+    if (!Array.isArray(D.manifests)) D.manifests = [];
     // Migration: world/cities/boroughs
     migrateWorld();
   } catch (e) { console.warn('load failed', e); }
@@ -912,6 +915,8 @@ function render() {
   if (currentPage === 'world') renderWorld();
   if (currentPage === 'citydetail') renderCityDetail();
   if (currentPage === 'stat') renderStatPage();
+  if (currentPage === 'manifest') renderManifestPage();
+  if (currentPage === 'manifestdetail') renderManifestDetail();
 }
 
 function updateXPDisplay() {
@@ -938,6 +943,7 @@ function renderHome() {
   renderCurrentEraWidget();
   renderBirthday();
   renderHomeLeads();
+  renderHomeManifest();
   // Stats grid
   const grid = document.getElementById('home-stats-grid');
   grid.innerHTML = STAT_KEYS.map(k => `
@@ -4362,6 +4368,498 @@ function renderCalendarYearGrid() {
     `);
   }
   el.innerHTML = monthsHtml.join('');
+}
+
+// ── MANIFEST SYSTEM ──
+let currentManifestId = null;
+
+function manifestProgress(mf) {
+  if (!mf.milestones || mf.milestones.length === 0) return 0;
+  let totalTasks = 0;
+  let doneTasks = 0;
+  mf.milestones.forEach(ms => {
+    const tasks = ms.tasks || [];
+    totalTasks += tasks.length;
+    doneTasks += tasks.filter(t => t.done).length;
+  });
+  return totalTasks === 0 ? 0 : Math.round((doneTasks / totalTasks) * 100);
+}
+
+function milestoneProgress(ms) {
+  const tasks = ms.tasks || [];
+  if (tasks.length === 0) return 0;
+  const done = tasks.filter(t => t.done).length;
+  return Math.round((done / tasks.length) * 100);
+}
+
+function isMilestoneDone(ms) {
+  const tasks = ms.tasks || [];
+  return tasks.length > 0 && tasks.every(t => t.done);
+}
+
+// ── Home preview ──
+function renderHomeManifest() {
+  const el = document.getElementById('home-manifest');
+  if (!el) return;
+  const manifests = D.manifests || [];
+  if (manifests.length === 0) {
+    el.innerHTML = '<div class="empty-state">No manifests yet. Set a goal and detach.</div>';
+    return;
+  }
+  // Show top 3 active (incomplete) manifests, then completed
+  const active = manifests.filter(m => manifestProgress(m) < 100);
+  const show = active.length > 0 ? active.slice(0, 3) : manifests.slice(0, 3);
+  el.innerHTML = show.map(mf => {
+    const pct = manifestProgress(mf);
+    const complete = pct >= 100;
+    return `
+      <div class="manifest-preview-card" onclick="currentManifestId='${mf.id}';navigateTo('manifestdetail')">
+        <div class="manifest-preview-head">
+          <div class="manifest-preview-name">${mf.emoji || '◎'} ${escapeHtml(mf.name)}</div>
+          <div class="manifest-preview-pct" style="color:${complete ? 'var(--green)' : 'var(--cyan)'}">${pct}%</div>
+        </div>
+        <div class="manifest-progress-bar" style="margin:0">
+          <div class="manifest-progress-fill" style="width:${pct}%;${complete ? 'background:linear-gradient(90deg,var(--green),var(--cyan))' : ''}"></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Manifest list page ──
+function renderManifestPage() {
+  const el = document.getElementById('manifest-list');
+  if (!el) return;
+  const manifests = D.manifests || [];
+  document.getElementById('manifest-count').textContent = `GOALS (${manifests.length})`;
+  if (manifests.length === 0) {
+    el.innerHTML = '<div class="empty-state">No goals yet. Tap "+ Goal" to manifest one.</div>';
+    return;
+  }
+  el.innerHTML = manifests.map(mf => {
+    const pct = manifestProgress(mf);
+    const complete = pct >= 100;
+    const totalMs = (mf.milestones || []).length;
+    const doneMs = (mf.milestones || []).filter(ms => isMilestoneDone(ms)).length;
+    const milestoneList = mf.collapsed ? '' : `
+      <div class="manifest-milestones">
+        ${(mf.milestones || []).map(ms => {
+          const msPct = milestoneProgress(ms);
+          const msDone = isMilestoneDone(ms);
+          const taskCount = (ms.tasks || []).length;
+          const taskDone = (ms.tasks || []).filter(t => t.done).length;
+          const taskListHtml = ms.collapsed ? '' : `
+            <div class="ms-task-list" style="padding:6px 0 4px 26px">
+              ${(ms.tasks || []).map(tk => `
+                <div class="task-row">
+                  <div class="task-check ${tk.done ? 'done' : ''}" onclick="event.stopPropagation();toggleTaskFromList('${mf.id}','${ms.id}','${tk.id}')">✓</div>
+                  <div class="task-name ${tk.done ? 'done' : ''}">${escapeHtml(tk.name)}</div>
+                  <div class="task-actions">
+                    <button class="task-btn" onclick="event.stopPropagation();openEditTask('${mf.id}','${ms.id}','${tk.id}')">✎</button>
+                    <button class="task-btn danger" onclick="event.stopPropagation();deleteTaskFromList('${mf.id}','${ms.id}','${tk.id}')">×</button>
+                  </div>
+                </div>`).join('')}
+              <button class="ms-add-task-btn" onclick="event.stopPropagation();openAddTaskFromList('${mf.id}','${ms.id}')">+ Add task</button>
+            </div>`;
+          return `
+            <div class="milestone-row-wrap">
+              <div class="milestone-row" onclick="event.stopPropagation();toggleMilestoneOnList('${mf.id}','${ms.id}')">
+                <div class="milestone-check ${msDone ? 'done' : ''}">✓</div>
+                <div class="milestone-info">
+                  <div class="milestone-name ${msDone ? 'done' : ''}">${escapeHtml(ms.name)}</div>
+                  <div class="milestone-sub">${taskDone}/${taskCount} tasks</div>
+                </div>
+                <div class="milestone-pct ${msDone ? 'done' : ''}">${msPct}%</div>
+                <div class="manifest-chevron ${ms.collapsed ? 'collapsed' : ''}" style="font-size:12px">⌄</div>
+              </div>
+              ${taskListHtml}
+            </div>`;
+        }).join('')}
+      </div>`;
+
+    return `
+      <div class="manifest-card ${complete ? 'completed' : ''}">
+        <div class="manifest-card-head" onclick="toggleManifestCollapse('${mf.id}')">
+          <div class="manifest-card-icon" onclick="event.stopPropagation();currentManifestId='${mf.id}';navigateTo('manifestdetail')">${mf.emoji || '◎'}</div>
+          <div class="manifest-card-info">
+            <div class="manifest-card-name">${escapeHtml(mf.name)}</div>
+            <div class="manifest-card-sub">${doneMs}/${totalMs} milestones${complete ? ' · COMPLETE ✓' : ''}</div>
+          </div>
+          <div class="manifest-card-pct">${pct}%</div>
+          <div class="manifest-chevron ${mf.collapsed ? 'collapsed' : ''}">⌄</div>
+        </div>
+        <div class="manifest-progress-bar">
+          <div class="manifest-progress-fill" style="width:${pct}%"></div>
+        </div>
+        ${milestoneList}
+      </div>`;
+  }).join('');
+}
+
+function toggleManifestCollapse(id) {
+  const mf = D.manifests.find(x => x.id === id);
+  if (!mf) return;
+  mf.collapsed = !mf.collapsed;
+  save(); renderManifestPage();
+}
+
+// List-page milestone expand/collapse
+function toggleMilestoneOnList(mfId, msId) {
+  const mf = D.manifests.find(x => x.id === mfId);
+  if (!mf) return;
+  const ms = (mf.milestones || []).find(x => x.id === msId);
+  if (!ms) return;
+  ms.collapsed = !ms.collapsed;
+  save(); renderManifestPage();
+}
+
+// List-page task toggle
+function toggleTaskFromList(mfId, msId, tkId) {
+  const mf = D.manifests.find(x => x.id === mfId);
+  if (!mf) return;
+  const ms = (mf.milestones || []).find(x => x.id === msId);
+  if (!ms) return;
+  const tk = (ms.tasks || []).find(x => x.id === tkId);
+  if (!tk) return;
+  tk.done = !tk.done;
+  const pct = manifestProgress(mf);
+  if (pct >= 100 && tk.done) {
+    addXP(50, `Completed manifest: ${mf.name}`);
+    toast(`🎯 Goal "${mf.name}" ACHIEVED!`);
+  }
+  save(); renderManifestPage();
+}
+
+// List-page task delete
+function deleteTaskFromList(mfId, msId, tkId) {
+  const mf = D.manifests.find(x => x.id === mfId);
+  if (!mf) return;
+  const ms = (mf.milestones || []).find(x => x.id === msId);
+  if (!ms) return;
+  ms.tasks = (ms.tasks || []).filter(x => x.id !== tkId);
+  save(); renderManifestPage();
+}
+
+// List-page add task (re-renders list page after adding)
+function openAddTaskFromList(mfId, msId) {
+  openModal(`
+    <h3>New Task</h3>
+    <div class="form-row"><label>TASK</label><input id="tk-name" placeholder="e.g. No sugar for 7 days"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddTaskFromList('${mfId}','${msId}')">Add</button>
+    </div>`);
+}
+
+function submitAddTaskFromList(mfId, msId) {
+  const mf = D.manifests.find(x => x.id === mfId);
+  if (!mf) return;
+  const ms = (mf.milestones || []).find(x => x.id === msId);
+  if (!ms) return;
+  const name = (document.getElementById('tk-name').value || '').trim();
+  if (!name) { toast('Task name required.'); return; }
+  ms.tasks.push({ id: uid('tk'), name, done: false });
+  closeModal();
+  save(); renderManifestPage();
+}
+
+// ── Manifest detail page ──
+function renderManifestDetail() {
+  const mf = D.manifests.find(x => x.id === currentManifestId);
+  if (!mf) { navigateTo('manifest'); return; }
+  const titleEl = document.getElementById('manifestdetail-title');
+  if (titleEl) titleEl.textContent = mf.name.toUpperCase();
+  const el = document.getElementById('manifestdetail-content');
+  if (!el) return;
+
+  const pct = manifestProgress(mf);
+  const complete = pct >= 100;
+  const totalMs = (mf.milestones || []).length;
+  const doneMs = (mf.milestones || []).filter(ms => isMilestoneDone(ms)).length;
+
+  const milestonesHtml = (mf.milestones || []).map(ms => {
+    const msPct = milestoneProgress(ms);
+    const msDone = isMilestoneDone(ms);
+    const taskCount = (ms.tasks || []).length;
+    const taskDone = (ms.tasks || []).filter(t => t.done).length;
+
+    const taskListHtml = ms.collapsed ? '' : `
+      <div class="ms-detail-progress">
+        <div class="ms-detail-progress-fill" style="width:${msPct}%"></div>
+      </div>
+      <div class="ms-task-list">
+        ${(ms.tasks || []).map(tk => `
+          <div class="task-row">
+            <div class="task-check ${tk.done ? 'done' : ''}" onclick="event.stopPropagation();toggleTask('${mf.id}','${ms.id}','${tk.id}')">✓</div>
+            <div class="task-name ${tk.done ? 'done' : ''}">${escapeHtml(tk.name)}</div>
+            <div class="task-actions">
+              <button class="task-btn" onclick="event.stopPropagation();openEditTask('${mf.id}','${ms.id}','${tk.id}')">✎</button>
+              <button class="task-btn danger" onclick="event.stopPropagation();deleteTask('${mf.id}','${ms.id}','${tk.id}')">×</button>
+            </div>
+          </div>`).join('')}
+        <button class="ms-add-task-btn" onclick="event.stopPropagation();openAddTask('${mf.id}','${ms.id}')">+ Add task</button>
+      </div>`;
+
+    return `
+      <div class="ms-detail-card">
+        <div class="ms-detail-head" onclick="toggleMilestoneCollapse('${mf.id}','${ms.id}')">
+          <div class="milestone-check ${msDone ? 'done' : ''}">✓</div>
+          <div class="ms-detail-info">
+            <div class="ms-detail-name">${escapeHtml(ms.name)}</div>
+            <div class="ms-detail-meta">${taskDone}/${taskCount} tasks · ${msPct}%</div>
+          </div>
+          <div class="ms-head-actions">
+            <button class="task-btn" onclick="event.stopPropagation();openEditMilestone('${mf.id}','${ms.id}')">✎</button>
+            <button class="task-btn danger" onclick="event.stopPropagation();deleteMilestone('${mf.id}','${ms.id}')">×</button>
+          </div>
+          <div class="manifest-chevron ${ms.collapsed ? 'collapsed' : ''}">⌄</div>
+        </div>
+        ${taskListHtml}
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="mf-detail-hero">
+      <div class="mf-detail-title">${mf.emoji || '◎'} ${escapeHtml(mf.name)}</div>
+      <div class="mf-detail-sub">${doneMs}/${totalMs} milestones complete${complete ? ' — GOAL ACHIEVED ✓' : ''}</div>
+      <div class="mf-detail-progress-wrap">
+        <div class="mf-detail-bar">
+          <div class="mf-detail-bar-fill ${complete ? 'complete' : ''}" style="width:${pct}%"></div>
+        </div>
+        <div class="mf-detail-pct ${complete ? 'complete' : ''}">${pct}%</div>
+      </div>
+      <div class="mf-detail-actions">
+        <button class="tile-btn" onclick="openEditManifest('${mf.id}')">Edit Goal</button>
+        <button class="tile-btn" onclick="openAddMilestone('${mf.id}')">+ Milestone</button>
+        <button class="tile-btn danger" style="color:var(--red);border-color:rgba(255,59,48,0.3)" onclick="deleteManifest('${mf.id}')">Delete</button>
+      </div>
+    </div>
+    <div class="section-header"><span>MILESTONES (${totalMs})</span></div>
+    ${totalMs === 0 ? '<div class="empty-state">No milestones yet. Break your goal into steps.</div>' : milestonesHtml}
+  `;
+}
+
+function toggleMilestoneCollapse(mfId, msId) {
+  const mf = D.manifests.find(x => x.id === mfId);
+  if (!mf) return;
+  const ms = (mf.milestones || []).find(x => x.id === msId);
+  if (!ms) return;
+  ms.collapsed = !ms.collapsed;
+  save(); renderManifestDetail();
+}
+
+// ── Manifest CRUD ──
+function openAddManifest() {
+  openModal(`
+    <h3>New Goal</h3>
+    <div class="form-row"><label>GOAL NAME</label><input id="mf-name" placeholder="e.g. Get a 6-pack"/></div>
+    <div class="form-row"><label>EMOJI</label><input id="mf-emoji" placeholder="e.g. ◎ 💎 🎯" maxlength="4" style="width:80px"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddManifest()">Add</button>
+    </div>`);
+}
+
+function submitAddManifest() {
+  const name = (document.getElementById('mf-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  const emoji = (document.getElementById('mf-emoji').value || '').trim() || '◎';
+  D.manifests.push({
+    id: uid('mf'),
+    name,
+    emoji,
+    collapsed: false,
+    milestones: [],
+    createdAt: Date.now(),
+  });
+  closeModal();
+  addLog(`Manifested goal: "${name}".`, 'manifest');
+  save();
+  if (currentPage === 'manifest') renderManifestPage();
+  else if (currentPage === 'home') renderHomeManifest();
+  toast(`Goal "${name}" manifested.`);
+}
+
+function openEditManifest(id) {
+  const mf = D.manifests.find(x => x.id === id);
+  if (!mf) return;
+  openModal(`
+    <h3>Edit Goal</h3>
+    <div class="form-row"><label>NAME</label><input id="mf-name" value="${escapeHtml(mf.name)}"/></div>
+    <div class="form-row"><label>EMOJI</label><input id="mf-emoji" value="${escapeHtml(mf.emoji || '')}" maxlength="4" style="width:80px"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditManifest('${id}')">Save</button>
+    </div>`);
+}
+
+function submitEditManifest(id) {
+  const mf = D.manifests.find(x => x.id === id);
+  if (!mf) return;
+  mf.name = (document.getElementById('mf-name').value || '').trim() || mf.name;
+  mf.emoji = (document.getElementById('mf-emoji').value || '').trim() || mf.emoji;
+  closeModal();
+  save();
+  if (currentPage === 'manifestdetail') renderManifestDetail();
+  else renderManifestPage();
+}
+
+function deleteManifest(id) {
+  const mf = D.manifests.find(x => x.id === id);
+  if (!mf) return;
+  openModal(`
+    <h3>Delete Goal?</h3>
+    <div class="desc" style="color:var(--text-secondary);font-size:12px;margin-bottom:10px">
+      Delete "${escapeHtml(mf.name)}" and all its milestones/tasks? This cannot be undone.
+    </div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn danger" onclick="confirmDeleteManifest('${id}')">Delete</button>
+    </div>`);
+}
+
+function confirmDeleteManifest(id) {
+  D.manifests = D.manifests.filter(x => x.id !== id);
+  closeModal();
+  addLog('Deleted a manifest goal.', 'manifest');
+  save();
+  navigateTo('manifest');
+  toast('Goal deleted.');
+}
+
+// ── Milestone CRUD ──
+function openAddMilestone(mfId) {
+  openModal(`
+    <h3>New Milestone</h3>
+    <div class="form-row"><label>MILESTONE NAME</label><input id="ms-name" placeholder="e.g. Fix diet"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddMilestone('${mfId}')">Add</button>
+    </div>`);
+}
+
+function submitAddMilestone(mfId) {
+  const mf = D.manifests.find(x => x.id === mfId);
+  if (!mf) return;
+  const name = (document.getElementById('ms-name').value || '').trim();
+  if (!name) { toast('Name required.'); return; }
+  mf.milestones.push({
+    id: uid('ms'),
+    name,
+    collapsed: false,
+    tasks: [],
+  });
+  closeModal();
+  save(); renderManifestDetail();
+  toast(`Milestone "${name}" added.`);
+}
+
+function openEditMilestone(mfId, msId) {
+  const mf = D.manifests.find(x => x.id === mfId);
+  if (!mf) return;
+  const ms = (mf.milestones || []).find(x => x.id === msId);
+  if (!ms) return;
+  openModal(`
+    <h3>Edit Milestone</h3>
+    <div class="form-row"><label>NAME</label><input id="ms-name" value="${escapeHtml(ms.name)}"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditMilestone('${mfId}','${msId}')">Save</button>
+    </div>`);
+}
+
+function submitEditMilestone(mfId, msId) {
+  const mf = D.manifests.find(x => x.id === mfId);
+  if (!mf) return;
+  const ms = (mf.milestones || []).find(x => x.id === msId);
+  if (!ms) return;
+  ms.name = (document.getElementById('ms-name').value || '').trim() || ms.name;
+  closeModal();
+  save(); renderManifestDetail();
+}
+
+function deleteMilestone(mfId, msId) {
+  const mf = D.manifests.find(x => x.id === mfId);
+  if (!mf) return;
+  mf.milestones = (mf.milestones || []).filter(x => x.id !== msId);
+  save(); renderManifestDetail();
+  toast('Milestone deleted.');
+}
+
+// ── Task CRUD ──
+function openAddTask(mfId, msId) {
+  openModal(`
+    <h3>New Task</h3>
+    <div class="form-row"><label>TASK</label><input id="tk-name" placeholder="e.g. No sugar for 7 days"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddTask('${mfId}','${msId}')">Add</button>
+    </div>`);
+}
+
+function submitAddTask(mfId, msId) {
+  const mf = D.manifests.find(x => x.id === mfId);
+  if (!mf) return;
+  const ms = (mf.milestones || []).find(x => x.id === msId);
+  if (!ms) return;
+  const name = (document.getElementById('tk-name').value || '').trim();
+  if (!name) { toast('Task name required.'); return; }
+  ms.tasks.push({ id: uid('tk'), name, done: false });
+  closeModal();
+  save(); renderManifestDetail();
+}
+
+function openEditTask(mfId, msId, tkId) {
+  const mf = D.manifests.find(x => x.id === mfId);
+  if (!mf) return;
+  const ms = (mf.milestones || []).find(x => x.id === msId);
+  if (!ms) return;
+  const tk = (ms.tasks || []).find(x => x.id === tkId);
+  if (!tk) return;
+  openModal(`
+    <h3>Edit Task</h3>
+    <div class="form-row"><label>TASK</label><input id="tk-name" value="${escapeHtml(tk.name)}"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditTask('${mfId}','${msId}','${tkId}')">Save</button>
+    </div>`);
+}
+
+function submitEditTask(mfId, msId, tkId) {
+  const mf = D.manifests.find(x => x.id === mfId);
+  if (!mf) return;
+  const ms = (mf.milestones || []).find(x => x.id === msId);
+  if (!ms) return;
+  const tk = (ms.tasks || []).find(x => x.id === tkId);
+  if (!tk) return;
+  tk.name = (document.getElementById('tk-name').value || '').trim() || tk.name;
+  closeModal();
+  save(); renderManifestDetail();
+}
+
+function deleteTask(mfId, msId, tkId) {
+  const mf = D.manifests.find(x => x.id === mfId);
+  if (!mf) return;
+  const ms = (mf.milestones || []).find(x => x.id === msId);
+  if (!ms) return;
+  ms.tasks = (ms.tasks || []).filter(x => x.id !== tkId);
+  save(); renderManifestDetail();
+}
+
+function toggleTask(mfId, msId, tkId) {
+  const mf = D.manifests.find(x => x.id === mfId);
+  if (!mf) return;
+  const ms = (mf.milestones || []).find(x => x.id === msId);
+  if (!ms) return;
+  const tk = (ms.tasks || []).find(x => x.id === tkId);
+  if (!tk) return;
+  tk.done = !tk.done;
+  // Check if entire manifest is now complete
+  const pct = manifestProgress(mf);
+  if (pct >= 100 && tk.done) {
+    addXP(50, `Completed manifest: ${mf.name}`);
+    toast(`🎯 Goal "${mf.name}" ACHIEVED!`);
+  }
+  save(); renderManifestDetail();
 }
 
 function init() {

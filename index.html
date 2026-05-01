@@ -79,6 +79,14 @@
         </div>
         <div id="home-leads" class="lead-stars-wrap"></div>
 
+        <div class="section-header">
+          <span>MANIFEST</span>
+          <button class="small-btn" onclick="navigateTo('manifest')">Open</button>
+        </div>
+        <div id="home-manifest" class="manifest-home-preview">
+          <div class="empty-state">No manifests yet. Set a goal and detach.</div>
+        </div>
+
         <div class="section-header"><span>OVERVIEW</span></div>
         <div class="quick-actions">
           <button class="action-card" onclick="showOverlay('totalstats')">
@@ -436,6 +444,30 @@
       </div>
     </div>
 
+    <!-- MANIFEST PAGE -->
+    <div id="page-manifest" class="page">
+      <div class="page-scroll">
+        <div class="page-title">MANIFEST</div>
+        <div class="manifest-desc">Set a goal, detach, and do your best on what's required.</div>
+        <div class="section-header">
+          <span id="manifest-count">GOALS (0)</span>
+          <button class="small-btn" onclick="openAddManifest()">+ Goal</button>
+        </div>
+        <div id="manifest-list"></div>
+      </div>
+    </div>
+
+    <!-- MANIFEST DETAIL PAGE -->
+    <div id="page-manifestdetail" class="page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="navigateTo('manifest')">← Manifest</button>
+          <div class="page-title" id="manifestdetail-title" style="margin:0">GOAL</div>
+        </div>
+        <div id="manifestdetail-content"></div>
+      </div>
+    </div>
+
     <!-- Modal -->
     <div class="modal-backdrop" id="modal-backdrop" onclick="closeModal()"></div>
     <div class="modal-container" id="modal-container">
@@ -446,6 +478,9 @@
     <nav class="bottom-dock">
       <button class="dock-btn" data-page="activities" onclick="navigateTo('activities')">
         <span class="dock-icon">ACT</span><span class="dock-label">Activities</span>
+      </button>
+      <button class="dock-btn" data-page="manifest" onclick="navigateTo('manifest')">
+        <span class="dock-icon">MFST</span><span class="dock-label">Manifest</span>
       </button>
       <button class="dock-btn home-btn active" data-page="home" onclick="navigateTo('home')">
         <span class="dock-icon-home">HOME</span>
