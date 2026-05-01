@@ -151,6 +151,7 @@ function defaultLeadgen() {
         ]
       },
       { id: 'lm-cold', name: 'Cold Approach', emoji: '[CLD]', maxSlots: 2, maxGain: 20, slots: [null, null], inventory: [] },
+      { id: 'lm-sports', name: 'Sports', emoji: '[SPT]', maxSlots: 2, maxGain: 18, slots: [null, null], inventory: [] },
       { id: 'lm-event', name: 'Event Hosting', emoji: '[EVT]', maxSlots: 1, maxGain: 12, slots: [null], inventory: [] },
       { id: 'lm-online', name: 'Online Presence', emoji: '[NET]', maxSlots: 2, maxGain: 10, slots: [null, null], inventory: [] },
     ],
@@ -245,6 +246,13 @@ function load() {
         if (!m.maxGain) m.maxGain = 15;
         (m.inventory || []).forEach(it => { if (it.leads == null) it.leads = 0; });
       });
+    }
+    // Migration: add Sports lead method if missing (insert after Cold Approach if present)
+    if (D.leadgen?.methods && !D.leadgen.methods.find(m => m.id === 'lm-sports')) {
+      const sports = { id: 'lm-sports', name: 'Sports', emoji: '[SPT]', maxSlots: 2, maxGain: 18, slots: [null, null], inventory: [] };
+      const coldIdx = D.leadgen.methods.findIndex(m => m.id === 'lm-cold');
+      if (coldIdx === -1) D.leadgen.methods.push(sports);
+      else D.leadgen.methods.splice(coldIdx + 1, 0, sports);
     }
     // Migration: add vibeComponents if missing
     if (!D.vibeComponents || !D.vibeComponents.length) {
