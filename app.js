@@ -2572,7 +2572,10 @@ function toggleActEdit() {
   const el = document.getElementById('activity-categories');
   if (el) el.classList.toggle('editing', actEditMode);
   const btn = document.getElementById('act-edit-toggle');
-  if (btn) btn.classList.toggle('active', actEditMode);
+  if (btn) {
+    btn.classList.toggle('active', actEditMode);
+    btn.textContent = actEditMode ? '✓ Done' : '✎ Edit';
+  }
 }
 
 function renderActivitiesV2() {
@@ -2580,6 +2583,39 @@ function renderActivitiesV2() {
   if (!el) return;
   const sections = actSections();
   const cats = actCats();
+
+  // Render summary bar
+  const sumBar = document.getElementById('act-summary-bar');
+  if (sumBar) {
+    let totalSlots = 0, filledSlots = 0, expCount = 0, mntCount = 0, costCount = 0;
+    cats.forEach(c => {
+      totalSlots += c.maxSlots;
+      filledSlots += c.slots.filter(Boolean).length;
+      c.slots.filter(Boolean).forEach(sid => {
+        const it = c.inventory.find(x => x.id === sid);
+        if (!it) return;
+        const k = it.kind || 'maintenance';
+        if (k === 'expansion') expCount++;
+        else if (k === 'cost') costCount++;
+        else mntCount++;
+      });
+    });
+    const fillPct = totalSlots > 0 ? Math.round((filledSlots / totalSlots) * 100) : 0;
+    sumBar.innerHTML = `
+      <div class="act-sum-meter">
+        <div class="act-sum-meter-track">
+          <div class="act-sum-meter-fill" style="width:${fillPct}%"></div>
+        </div>
+        <div class="act-sum-meter-text">${filledSlots}/${totalSlots} slots active</div>
+      </div>
+      <div class="act-sum-chips">
+        ${expCount ? `<span class="act-sum-chip act-sum-exp">▲ ${expCount}</span>` : ''}
+        ${mntCount ? `<span class="act-sum-chip act-sum-mnt">■ ${mntCount}</span>` : ''}
+        ${costCount ? `<span class="act-sum-chip act-sum-cost">● ${costCount}</span>` : ''}
+        <span class="act-sum-chip act-sum-cats">${cats.length} categories</span>
+      </div>`;
+  }
+
   let html = '';
   if (sections.length === 0) {
     // Flat rendering (legacy / pre-sections)
@@ -2612,6 +2648,7 @@ function renderActivitiesV2() {
     </div>`;
   el.innerHTML = html;
   if (actEditMode) el.classList.add('editing');
+  else el.classList.remove('editing');
 }
 
 function renderActivitySection(sec, cats) {
@@ -2705,22 +2742,38 @@ function deleteSection(id) {
   toast(`Deleted "${s.name}".`);
 }
 function renderActivityCategory(cat) {
+  const used = cat.slots.filter(Boolean).length;
+  const total = cat.maxSlots;
+  const pct = total > 0 ? Math.round((used / total) * 100) : 0;
+  const kindCounts = { expansion: 0, maintenance: 0, cost: 0 };
+  cat.inventory.forEach(it => { kindCounts[it.kind || 'maintenance']++; });
+
+  // Build slot grid
   const slots = cat.slots.map((itemId, idx) => {
     const item = itemId ? cat.inventory.find(x => x.id === itemId) : null;
-    return `
-      <div class="slot-zone"
-           ondragover="onDragOver(event,this)"
-           ondragleave="onDragLeave(event,this)"
-           ondrop="onDropActivity(event,'${cat.id}',${idx})">
-        ${item ? activityTile(cat, item, true) : '<span class="slot-empty">empty</span>'}
-      </div>`;
+    return item
+      ? `<div class="act-slot-zone act-slot-filled"
+              ondragover="onDragOver(event,this)"
+              ondragleave="onDragLeave(event,this)"
+              ondrop="onDropActivity(event,'${cat.id}',${idx})">
+           ${activityTile(cat, item, true)}
+         </div>`
+      : `<div class="act-slot-zone act-slot-empty"
+              ondragover="onDragOver(event,this)"
+              ondragleave="onDragLeave(event,this)"
+              ondrop="onDropActivity(event,'${cat.id}',${idx})">
+           <div class="act-slot-placeholder"><span class="act-slot-num">${idx + 1}</span></div>
+         </div>`;
   }).join('');
+
+  // Build inventory
   const slottedIds = new Set(cat.slots.filter(Boolean));
   const unslotted = cat.inventory.filter(it => !slottedIds.has(it.id));
+  const invCount = unslotted.length;
   const inv = unslotted.length
     ? unslotted.map(it => activityTile(cat, it, false)).join('')
-    : (cat.inventory.length ? '<div class="empty-state">All items slotted.</div>' : '<div class="empty-state">No items. Add one.</div>');
-  const used = cat.slots.filter(Boolean).length;
+    : (cat.inventory.length ? '<div class="act-inv-empty">All items are active in slots</div>' : '<div class="act-inv-empty">No items yet — tap + to add one</div>');
+
   return `
     <div class="category-block" data-cat-id="${cat.id}"
          draggable="true"
@@ -2729,22 +2782,65 @@ function renderActivityCategory(cat) {
          ondragover="onDragOverCategory(event,this,'${cat.id}')"
          ondragleave="onDragLeaveCategory(event,this)"
          ondrop="onDropOnCategory(event,'${cat.id}')">
-      <div class="category-head">
-        <div class="category-title"><span class="drag-handle" title="Drag to reorder">⠿</span>${cat.emoji} ${escapeHtml(cat.name)} — <span class="slot-count">${used}/${cat.maxSlots}</span></div>
-        <div class="category-actions">
-          <button class="slot-pm" onclick="adjustCatMax('${cat.id}',-1)">−</button>
-          <button class="slot-pm" onclick="adjustCatMax('${cat.id}',1)">+</button>
-          <button class="small-btn" onclick="openAddActivityItem('${cat.id}')">+ Item</button>
-          <button class="comp-edit-btn cat-edit-btn" onclick="openEditCategory('${cat.id}')" title="Edit category">✎</button>
+      <div class="act-cat-header" onclick="toggleCatCollapse('${cat.id}')">
+        <div class="act-cat-left">
+          <span class="drag-handle" title="Drag to reorder" onclick="event.stopPropagation()">⠿</span>
+          <div class="act-cat-icon">${cat.emoji}</div>
+          <div class="act-cat-info">
+            <div class="act-cat-name">${escapeHtml(cat.name)}</div>
+            <div class="act-cat-sub">${used}/${total} active${cat.inventory.length ? ' · ' + cat.inventory.length + ' total' : ''}</div>
+          </div>
+        </div>
+        <div class="act-cat-right">
+          <div class="act-cat-meter">
+            <div class="act-cat-meter-fill" style="width:${pct}%"></div>
+          </div>
+          <span class="act-cat-chevron ${cat._collapsed ? 'collapsed' : ''}">‹</span>
         </div>
       </div>
-      <div class="slot-row">${slots}</div>
-      <div class="inv-label">Inventory</div>
-      <div class="inv-row"
-           ondragover="onDragOver(event,this)"
-           ondragleave="onDragLeave(event,this)"
-           ondrop="onDropActivityInv(event,'${cat.id}')">${inv}</div>
+      ${cat._collapsed ? '' : `
+      <div class="act-cat-body">
+        <div class="act-cat-toolbar">
+          <div class="act-cat-slots-ctrl">
+            <button class="act-pm-btn" onclick="event.stopPropagation();adjustCatMax('${cat.id}',-1)">−</button>
+            <span class="act-pm-label">${total} slot${total > 1 ? 's' : ''}</span>
+            <button class="act-pm-btn" onclick="event.stopPropagation();adjustCatMax('${cat.id}',1)">+</button>
+          </div>
+          <div class="act-cat-btns">
+            <button class="act-add-btn" onclick="event.stopPropagation();openAddActivityItem('${cat.id}')">+ Add</button>
+            <button class="comp-edit-btn cat-edit-btn" onclick="event.stopPropagation();openEditCategory('${cat.id}')" title="Edit category">✎</button>
+          </div>
+        </div>
+        <div class="act-slot-grid">${slots}</div>
+        ${invCount > 0 || !cat.inventory.length ? `
+        <div class="act-inv-section">
+          <div class="act-inv-header" onclick="event.stopPropagation();toggleCatInv('${cat.id}')">
+            <span class="act-inv-title">Bench${invCount ? ' · ' + invCount : ''}</span>
+            <span class="act-inv-chevron ${cat._invOpen ? 'open' : ''}">‹</span>
+          </div>
+          ${cat._invOpen ? `<div class="act-inv-body"
+               ondragover="onDragOver(event,this)"
+               ondragleave="onDragLeave(event,this)"
+               ondrop="onDropActivityInv(event,'${cat.id}')">${inv}</div>` : ''}
+        </div>` : '<div class="act-inv-allslotted">✓ All items active</div>'}
+      </div>`}
     </div>`;
+}
+
+// Toggle category collapse
+function toggleCatCollapse(catId) {
+  const c = actCats().find(x => x.id === catId);
+  if (!c) return;
+  c._collapsed = !c._collapsed;
+  renderActivitiesV2();
+}
+
+// Toggle inventory panel
+function toggleCatInv(catId) {
+  const c = actCats().find(x => x.id === catId);
+  if (!c) return;
+  c._invOpen = !c._invOpen;
+  renderActivitiesV2();
 }
 
 // ── Category CRUD ──
@@ -2819,25 +2915,41 @@ function deleteCategory(catId) {
 
 function activityTile(cat, it, inSlot) {
   const kind = it.kind || 'maintenance';
+  const kindIcon = kind === 'expansion' ? '▲' : kind === 'cost' ? '●' : '■';
+  const realmIcon = it.realm === 'synthetic' ? '◇' : '⬢';
   const abils = abilitiesForTarget('activity', cat.id, it.id);
   const abilHtml = abils.length
-    ? `<div class="ability-chips">${abils.map(a => `<span class="ability-chip ${a.unlocked ? 'unlocked' : 'locked'}" title="${escapeHtml(a.desc || '')}">◈ ${escapeHtml(a.name)}</span>`).join('')}</div>`
+    ? `<div class="act-tile-abilities">${abils.map(a => `<span class="act-abil-chip ${a.unlocked ? 'unlocked' : 'locked'}" title="${escapeHtml(a.desc || '')}">◈ ${escapeHtml(a.name)}</span>`).join('')}</div>`
     : '';
+  const statsStr = statEffectsStr(it.statEffects);
+  const metaParts = [];
+  if (statsStr) metaParts.push(statsStr);
+  if (it.meetBonus) metaParts.push(`Meet +${it.meetBonus}`);
+  const metaHtml = metaParts.length ? `<div class="act-tile-stats">${metaParts.join(' · ')}</div>` : '';
+
   return `
-    <div class="act-tile" draggable="true"
+    <div class="act-tile act-tile--${kind} ${inSlot ? 'act-tile--slotted' : 'act-tile--bench'}" draggable="true"
          ondragstart="onDragStartActivity(event,'${cat.id}','${it.id}')"
          ondragend="onDragEnd(event)"
          ondblclick="openEditActivityItem('${cat.id}','${it.id}')">
-      <div class="tile-name">${it.emoji || '★'} ${escapeHtml(it.name)}</div>
-      <div class="tile-meta">${statEffectsStr(it.statEffects)}${it.meetBonus ? ` · Meet +${it.meetBonus}` : ''}</div>
-      <div class="tile-tags"><span class="kind-tag kind-${kind}">${kind === 'expansion' ? '▲ EXPANSION' : kind === 'cost' ? '● COST' : '■ MAINTENANCE'}</span><span class="kind-tag realm-${it.realm === 'synthetic' ? 'synthetic' : 'real'}" title="${it.realm === 'synthetic' ? 'Synthetic — digital/video-game activity' : 'Real — physical/offline activity'}">${it.realm === 'synthetic' ? '◇ SYNTH' : '⬢ REAL'}</span>${it.leadgen ? '<span class="kind-tag kind-leadgen" title="Mirrored to Lifestyle in Lead Gen">⚑ LEAD</span>' : ''}</div>
+      <div class="act-tile-row">
+        <div class="act-tile-indicator act-ind-${kind}" title="${kind}"><span>${kindIcon}</span></div>
+        <div class="act-tile-main">
+          <div class="act-tile-name">${it.emoji || '★'} ${escapeHtml(it.name)}</div>
+          ${metaHtml}
+        </div>
+        <div class="act-tile-badges">
+          <span class="act-realm-dot act-realm-${it.realm === 'synthetic' ? 'synth' : 'real'}" title="${it.realm === 'synthetic' ? 'Synthetic' : 'Real'}">${realmIcon}</span>
+          ${it.leadgen ? '<span class="act-lead-dot" title="Generates Leads">⚑</span>' : ''}
+        </div>
+      </div>
       ${abilHtml}
-      <div class="tile-actions" style="margin-top:4px">
-        <button class="tile-btn" onclick="event.stopPropagation();doActivityItem('${cat.id}','${it.id}')">Do</button>
+      <div class="act-tile-actions">
+        <button class="act-do-btn" onclick="event.stopPropagation();doActivityItem('${cat.id}','${it.id}')">⚡ Do</button>
         ${inSlot
-      ? `<button class="tile-btn" onclick="event.stopPropagation();clearActivitySlot('${cat.id}','${it.id}')">Unslot</button>`
-      : `<button class="tile-btn" onclick="event.stopPropagation();tapSlotActivity('${cat.id}','${it.id}')">Slot →</button>`}
-        <button class="tile-btn" onclick="event.stopPropagation();openEditActivityItem('${cat.id}','${it.id}')">Edit</button>
+      ? `<button class="act-action-btn" onclick="event.stopPropagation();clearActivitySlot('${cat.id}','${it.id}')">Unslot</button>`
+      : `<button class="act-action-btn act-slot-btn" onclick="event.stopPropagation();tapSlotActivity('${cat.id}','${it.id}')">Slot →</button>`}
+        <button class="act-action-btn" onclick="event.stopPropagation();openEditActivityItem('${cat.id}','${it.id}')">Edit</button>
       </div>
     </div>`;
 }

@@ -140,9 +140,14 @@
     <!-- ACTIVITIES PAGE -->
     <div id="page-activities" class="page">
       <div class="page-scroll">
-        <div class="page-title">ACTIVITIES</div>
-        <div class="section-header"><span>CATEGORIES (tap Slot → or drag into slots)</span>
-          <button class="small-btn" id="act-edit-toggle" onclick="toggleActEdit()">✎</button>
+        <div class="act-page-hero">
+          <div class="act-page-title">ACTIVITIES</div>
+          <div class="act-page-desc">Build your daily routine — slot activities to track progress</div>
+        </div>
+        <div class="act-summary-bar" id="act-summary-bar"></div>
+        <div class="act-controls-row">
+          <span class="act-controls-label">Categories</span>
+          <button class="act-edit-toggle-btn" id="act-edit-toggle" onclick="toggleActEdit()">✎ Edit</button>
         </div>
         <div id="activity-categories"></div>
 
