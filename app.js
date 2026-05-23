@@ -298,6 +298,11 @@ function load() {
     // Migration: lifestyles
     if (!Array.isArray(D.lifestyles)) D.lifestyles = [];
     if (D.activeLifestyleId === undefined) D.activeLifestyleId = null;
+    // Migration: lifestyle schedules
+    D.lifestyles.forEach(ls => {
+      if (!ls.schedule) ls.schedule = { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] };
+      ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => { if (!Array.isArray(ls.schedule[d])) ls.schedule[d] = []; });
+    });
     // Migration: schedule
     if (!D.schedule) D.schedule = defaultSchedule();
     ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => { if (!Array.isArray(D.schedule[d])) D.schedule[d] = []; });
@@ -432,6 +437,35 @@ function starsHtml(r) { return '★'.repeat(r) + '☆'.repeat(5 - r); }
 function rarityClass(r) { return 'rar-' + r; }
 function initial(name) { return (name || '?').trim().charAt(0).toUpperCase(); }
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// Time range helpers — stored as "HH:MM–HH:MM" e.g. "09:00–11:00"
+function parseTimeRange(time) {
+  if (!time) return null;
+  const sep = time.includes('–') ? '–' : time.includes('-') ? '-' : null;
+  if (!sep) {
+    // Single time (legacy) — no end, 0 hours
+    return { start: time, end: '', hours: 0, display: time };
+  }
+  const [start, end] = time.split(sep).map(s => s.trim());
+  if (!start || !end) return { start: start || '', end: end || '', hours: 0, display: time };
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  let mins = (eh * 60 + em) - (sh * 60 + sm);
+  if (mins < 0) mins += 24 * 60; // overnight
+  return { start, end, hours: Math.round(mins / 30) * 0.5, display: `${start}–${end}` };
+}
+function buildTimeStr(start, end) {
+  if (!start && !end) return '';
+  if (start && end) return `${start}–${end}`;
+  return start || end || '';
+}
+function timeRangeHours(time) {
+  const parsed = parseTimeRange(time);
+  return parsed ? parsed.hours : 0;
+}
+function defaultLifestyleSchedule() {
+  return { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] };
+}
 
 function dayToMonthIndex(day) { return Math.floor((day - 1) / DAYS_PER_MONTH); }
 function monthInfoFromIndex(idx) {
@@ -2601,6 +2635,17 @@ function renderActivitiesV2() {
       });
     });
     const fillPct = totalSlots > 0 ? Math.round((filledSlots / totalSlots) * 100) : 0;
+    // Collect total hours from all slotted activities
+    let totalHours = 0;
+    cats.forEach(c => {
+      c.slots.filter(Boolean).forEach(sid => {
+        const it = c.inventory.find(x => x.id === sid);
+        if (it && it.time) totalHours += timeRangeHours(it.time);
+      });
+    });
+    const timeChip = totalHours > 0
+      ? `<span class="act-sum-chip act-sum-time">⏱ ${totalHours}h</span>`
+      : '';
     sumBar.innerHTML = `
       <div class="act-sum-meter">
         <div class="act-sum-meter-track">
@@ -2612,6 +2657,7 @@ function renderActivitiesV2() {
         ${expCount ? `<span class="act-sum-chip act-sum-exp">▲ ${expCount}</span>` : ''}
         ${mntCount ? `<span class="act-sum-chip act-sum-mnt">■ ${mntCount}</span>` : ''}
         ${costCount ? `<span class="act-sum-chip act-sum-cost">● ${costCount}</span>` : ''}
+        ${timeChip}
         <span class="act-sum-chip act-sum-cats">${cats.length} categories</span>
       </div>`;
   }
@@ -2926,6 +2972,8 @@ function activityTile(cat, it, inSlot) {
   if (statsStr) metaParts.push(statsStr);
   if (it.meetBonus) metaParts.push(`Meet +${it.meetBonus}`);
   const metaHtml = metaParts.length ? `<div class="act-tile-stats">${metaParts.join(' · ')}</div>` : '';
+  const tr = parseTimeRange(it.time);
+  const timeHtml = tr ? `<span class="act-tile-time" title="${tr.hours ? tr.hours + 'h' : 'Scheduled time'}">${tr.display}</span>` : '';
 
   return `
     <div class="act-tile act-tile--${kind} ${inSlot ? 'act-tile--slotted' : 'act-tile--bench'}" draggable="true"
@@ -2935,7 +2983,7 @@ function activityTile(cat, it, inSlot) {
       <div class="act-tile-row">
         <div class="act-tile-indicator act-ind-${kind}" title="${kind}"><span>${kindIcon}</span></div>
         <div class="act-tile-main">
-          <div class="act-tile-name">${it.emoji || '★'} ${escapeHtml(it.name)}</div>
+          <div class="act-tile-name">${it.emoji || '★'} ${escapeHtml(it.name)}${timeHtml}</div>
           ${metaHtml}
         </div>
         <div class="act-tile-badges">
@@ -3191,6 +3239,13 @@ function openAddActivityItem(catId) {
     <h3>★ Add Item</h3>
     <div class="form-row"><label>NAME</label><input id="ai-name" placeholder="e.g. Judo class"/></div>
     <div class="form-row"><label>EMOJI</label><input id="ai-emoji" placeholder="" maxlength="2"/></div>
+    <div class="form-row"><label>TIME</label>
+      <div class="time-range-pair">
+        <input id="ai-time-start" type="time" value=""/>
+        <span class="time-range-sep">–</span>
+        <input id="ai-time-end" type="time" value=""/>
+      </div>
+    </div>
     <div class="form-row"><label>KIND</label>
       <select id="ai-kind">
         <option value="expansion" selected>▲ Expansion (grows you: stats, skills, leads)</option>
@@ -3228,10 +3283,13 @@ function submitAddActivityItem(catId) {
   if (!c) return;
   const name = (document.getElementById('ai-name').value || '').trim();
   if (!name) { toast('Name required.'); return; }
+  const timeStart = document.getElementById('ai-time-start')?.value || '';
+  const timeEnd = document.getElementById('ai-time-end')?.value || '';
   c.inventory.push({
     id: uid('ai'),
     name,
     emoji: document.getElementById('ai-emoji').value || '★',
+    time: buildTimeStr(timeStart, timeEnd),
     kind: document.getElementById('ai-kind').value || 'expansion',
     realm: document.getElementById('ai-realm')?.value === 'synthetic' ? 'synthetic' : 'real',
     meetBonus: Number(document.getElementById('ai-meet').value) || 0,
@@ -3250,10 +3308,20 @@ function openEditActivityItem(catId, itemId) {
   const effRows = STAT_KEYS.map(k =>
     `<div class="eff-row"><label>${STAT_LABELS[k]}</label><input type="number" value="${it.statEffects?.[k] || 0}" data-stat="${k}" class="eff-input"/></div>`
   ).join('');
+  const existingTR = parseTimeRange(it.time);
+  const existStart = existingTR ? existingTR.start : '';
+  const existEnd = existingTR ? existingTR.end : '';
   openModal(`
     <h3> Edit ${escapeHtml(it.name)}</h3>
     <div class="form-row"><label>NAME</label><input id="ai-name" value="${escapeHtml(it.name)}"/></div>
     <div class="form-row"><label>EMOJI</label><input id="ai-emoji" value="${it.emoji || ''}" maxlength="2"/></div>
+    <div class="form-row"><label>TIME</label>
+      <div class="time-range-pair">
+        <input id="ai-time-start" type="time" value="${existStart}"/>
+        <span class="time-range-sep">–</span>
+        <input id="ai-time-end" type="time" value="${existEnd}"/>
+      </div>
+    </div>
     <div class="form-row"><label>KIND</label>
       <select id="ai-kind">
         <option value="expansion" ${(it.kind || 'expansion') === 'expansion' ? 'selected' : ''}>▲ Expansion</option>
@@ -3285,6 +3353,7 @@ function submitEditActivityItem(catId, itemId) {
   if (!it) return;
   it.name = document.getElementById('ai-name').value || it.name;
   it.emoji = document.getElementById('ai-emoji').value || it.emoji;
+  it.time = buildTimeStr(document.getElementById('ai-time-start')?.value || '', document.getElementById('ai-time-end')?.value || '');
   it.kind = document.getElementById('ai-kind').value || it.kind || 'expansion';
   it.realm = document.getElementById('ai-realm')?.value === 'synthetic' ? 'synthetic' : 'real';
   it.meetBonus = Number(document.getElementById('ai-meet').value) || 0;
@@ -5159,7 +5228,7 @@ function submitAddLifestyle() {
   if (!name) { toast('Name required.'); return; }
   const emoji = (document.getElementById('ls-emoji').value || '').trim() || '⚡';
   D.lifestyles.push({
-    id: uid('ls'), name, emoji, isActive: false, activities: [], createdAt: Date.now()
+    id: uid('ls'), name, emoji, isActive: false, activities: [], schedule: defaultLifestyleSchedule(), createdAt: Date.now()
   });
   closeModal(); save();
   if (currentPage === 'lifestyle') renderLifestylePage();
@@ -5223,12 +5292,14 @@ function renderLifestyleDetail() {
       const subLabel = la.subLabel || cat?.name || '';
       const itemContribs = computeActivityContributions(item);
       const contribStr = Object.entries(itemContribs).slice(0, 3).map(([k, v]) => `${v >= 0 ? '+' : ''}${v} ${k}`).join(' · ');
+      const trLS = parseTimeRange(item.time);
+      const timeTag = trLS ? `<span class="ls-act-time">${trLS.display}${trLS.hours ? ' · ' + trLS.hours + 'h' : ''}</span>` : '';
       return `
         <div class="ls-activity-card">
           <div class="ls-act-head">
             <div class="ls-act-info">
               <div class="ls-act-source">${escapeHtml(sourceLabel)}${subLabel && subLabel !== sourceLabel ? `<span class="ls-act-sub">(${escapeHtml(subLabel)})</span>` : ''}</div>
-              <div class="ls-act-name">${item.emoji || '★'} ${escapeHtml(item.name)}</div>
+              <div class="ls-act-name">${item.emoji || '★'} ${escapeHtml(item.name)}${timeTag}</div>
               <div class="ls-act-contrib">${contribStr}</div>
             </div>
             <button class="tile-btn danger" onclick="removeLifestyleActivity('${ls.id}','${la.id}')">×</button>
@@ -5288,6 +5359,8 @@ function renderLifestyleDetail() {
       ${D.lifestyles.length > 1 ? `<div class="ls-rank">#${rank} Highest score</div>` : ''}
       ${breakdownHtml}
     </div>
+
+    ${renderLifestyleScheduleHtml(ls)}
   `;
 }
 
@@ -5357,109 +5430,385 @@ const DAY_LABELS = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thur
 const DAY_SHORT = { mon: 'MON', tue: 'TUE', wed: 'WED', thu: 'THU', fri: 'FRI', sat: 'SAT', sun: 'SUN' };
 
 let scheduleActiveDay = 'mon';
+let lsScheduleActiveDay = 'mon';
+
+// Shared: compute weekly stats from a schedule object
+function computeScheduleWeekStats(schedule) {
+  const perDay = {};
+  const weekCats = {};
+  const weekStats = {};  // stat → total weekly hours
+  const weekStatDetail = {}; // stat → [{day, actName, hours}]
+  const weekCatDetail = {};  // catName → [{day, actName, hours}]
+  let weekHours = 0;
+  DAY_NAMES.forEach(d => {
+    let dayHours = 0;
+    const dayCats = {};
+    const dayStats = {};  // stat → hours for this day
+    const dayActivities = []; // detailed activity list
+    (schedule[d] || []).forEach(entry => {
+      const h = timeRangeHours(entry.time);
+      dayHours += h;
+      const cat = findActivityCatAnywhere(entry.catId);
+      const catName = cat ? cat.name : (entry.name || 'Other');
+      dayCats[catName] = (dayCats[catName] || 0) + h;
+      weekCats[catName] = (weekCats[catName] || 0) + h;
+      // Stat-level tracking: which stats does this activity affect?
+      const item = cat?.inventory.find(x => x.id === entry.activityItemId);
+      const effs = item?.statEffects || {};
+      const affectedStats = Object.keys(effs).filter(k => effs[k] !== 0);
+      const actName = entry.name || (item?.name || 'Activity');
+      if (affectedStats.length > 0 && h > 0) {
+        affectedStats.forEach(statKey => {
+          dayStats[statKey] = (dayStats[statKey] || 0) + h;
+          weekStats[statKey] = (weekStats[statKey] || 0) + h;
+          if (!weekStatDetail[statKey]) weekStatDetail[statKey] = [];
+          weekStatDetail[statKey].push({ day: d, actName, hours: h });
+        });
+      }
+      // Category detail tracking
+      if (h > 0) {
+        if (!weekCatDetail[catName]) weekCatDetail[catName] = [];
+        weekCatDetail[catName].push({ day: d, actName, hours: h });
+      }
+      // Build activity detail for the day list
+      const tr = parseTimeRange(entry.time);
+      dayActivities.push({
+        name: actName,
+        catName,
+        hours: h,
+        time: tr ? tr.display : (entry.time || '--:--'),
+        stats: affectedStats,
+        isCustom: !entry.catId,
+      });
+    });
+    weekHours += dayHours;
+    perDay[d] = { hours: dayHours, cats: dayCats, stats: dayStats, activities: dayActivities, count: (schedule[d] || []).length };
+  });
+  return { perDay, weekCats, weekStats, weekStatDetail, weekCatDetail, weekHours };
+}
+
+// Render weekly overview + totals (shared by global + lifestyle)
+function renderWeekOverviewHtml(schedule, activeDay, onClickExpr) {
+  const stats = computeScheduleWeekStats(schedule);
+
+  // ── Week overview grid (7-day cards) ──
+  const overviewHtml = DAY_NAMES.map(d => {
+    const pd = stats.perDay[d];
+    const count = pd.count;
+    const dots = count > 0 ? '<span class="sched-dot filled"></span>'.repeat(Math.min(count, 6)) : '<span class="sched-dot empty"></span>';
+    // Per-day stat mini-breakdown
+    const sortedDayStats = Object.entries(pd.stats).filter(([,v]) => v > 0).sort((a, b) => b[1] - a[1]);
+    const statMiniHtml = sortedDayStats.length ? sortedDayStats.map(([k, h]) => {
+      const label = STAT_LABELS[k] || k;
+      const pct = Math.round((h / 24) * 100);
+      const cssClass = STAT_CSS[k] || '';
+      return `<div class="sched-ov-stat-row"><span class="sched-ov-stat-name stat-${cssClass}">${STAT_EMOJI[k] || ''} ${label}</span><span class="sched-ov-stat-val">${h}h <span class="sched-ov-stat-pct">${pct}%</span></span></div>`;
+    }).join('') : '';
+    return `<div class="sched-overview-day ${d === activeDay ? 'active' : ''}" onclick="${onClickExpr.replace('__DAY__', d)}">
+      <div class="sched-ov-label">${DAY_SHORT[d]}</div>
+      <div class="sched-ov-dots">${dots}</div>
+      <div class="sched-ov-count">${count}</div>
+      ${pd.hours > 0 ? `<div class="sched-ov-hours">${pd.hours}h</div>` : ''}
+      ${statMiniHtml ? `<div class="sched-ov-stats">${statMiniHtml}</div>` : ''}
+      ${pd.hours > 0 && pd.hours < 24 ? `<div class="sched-ov-unsched">${24 - pd.hours}h free</div>` : ''}
+    </div>`;
+  }).join('');
+
+  // ── Active day: activities list with time and % ──
+  const activePd = stats.perDay[activeDay];
+  const DAY_TOTAL_HOURS = 24;
+  let dayActivitiesHtml = '';
+  if (activePd.activities.length > 0) {
+    const unscheduledHours = Math.max(0, DAY_TOTAL_HOURS - activePd.hours);
+    const unscheduledPct = Math.round((unscheduledHours / DAY_TOTAL_HOURS) * 100);
+    const scheduledPct = Math.round((activePd.hours / DAY_TOTAL_HOURS) * 100);
+    dayActivitiesHtml = `<div class="section-header"><span>${DAY_LABELS[activeDay].toUpperCase()} BREAKDOWN</span></div>
+    <div class="sched-day-breakdown">
+      <div class="sched-day-total-bar">
+        <span>SCHEDULED</span>
+        <span class="sched-day-total-val">${activePd.hours}h <span class="sched-day-total-pct">/ 24h · ${scheduledPct}%</span></span>
+      </div>
+      <div class="sched-day-usage-bar">
+        <div class="sched-day-usage-fill" style="width:${scheduledPct}%"></div>
+      </div>
+      <div class="sched-day-activities">
+        ${activePd.activities.map(a => {
+          const pct = Math.round((a.hours / DAY_TOTAL_HOURS) * 100);
+          const statChips = a.stats.length > 0 ? a.stats.map(k =>
+            `<span class="sched-act-stat-chip stat-${STAT_CSS[k] || ''}">${STAT_EMOJI[k] || ''} ${STAT_LABELS[k] || k}</span>`
+          ).join('') : '<span class="sched-act-stat-chip unscheduled">No stat</span>';
+          return `<div class="sched-act-row${a.isCustom ? ' custom' : ''}">
+            <div class="sched-act-time">${escapeHtml(a.time)}</div>
+            <div class="sched-act-info">
+              <div class="sched-act-name">${escapeHtml(a.name)}${a.isCustom ? ' <span class="sched-custom-tag">custom</span>' : ''}</div>
+              <div class="sched-act-chips">${statChips}</div>
+            </div>
+            <div class="sched-act-metrics">
+              <div class="sched-act-hrs">${a.hours}h</div>
+              <div class="sched-act-pct">${pct}%</div>
+            </div>
+          </div>`;
+        }).join('')}
+        ${unscheduledHours > 0 ? `<div class="sched-act-row not-scheduled">
+          <div class="sched-act-time">—</div>
+          <div class="sched-act-info">
+            <div class="sched-act-name">Not Scheduled</div>
+            <div class="sched-act-chips"><span class="sched-act-stat-chip unscheduled">Free / Unplanned</span></div>
+          </div>
+          <div class="sched-act-metrics">
+            <div class="sched-act-hrs not-sched-hrs">${unscheduledHours}h</div>
+            <div class="sched-act-pct">${unscheduledPct}%</div>
+          </div>
+        </div>` : ''}
+      </div>
+      ${Object.keys(activePd.stats).length > 0 ? `
+      <div class="sched-day-stat-summary">
+        <div class="sched-day-stat-head">STAT HOURS</div>
+        ${Object.entries(activePd.stats).filter(([,v]) => v > 0).sort((a, b) => b[1] - a[1]).map(([k, h]) => {
+          const pct = Math.round((h / DAY_TOTAL_HOURS) * 100);
+          return `<div class="sched-day-stat-row">
+            <span class="sched-day-stat-label stat-${STAT_CSS[k] || ''}">${STAT_EMOJI[k] || ''} ${STAT_LABELS[k] || k}</span>
+            <div class="sched-day-stat-bar-wrap">
+              <div class="sched-day-stat-bar" style="width:${pct}%"></div>
+            </div>
+            <span class="sched-day-stat-val">${h}h</span>
+            <span class="sched-day-stat-pct">${pct}%</span>
+          </div>`;
+        }).join('')}
+      </div>` : ''}
+    </div>`;
+  }
+
+  // ── Helper: build day-activity detail sub-rows from a detail array ──
+  function buildDetailSubHtml(detailArr) {
+    if (!detailArr || !detailArr.length) return '';
+    // Group by day
+    const byDay = {};
+    detailArr.forEach(d => {
+      if (!byDay[d.day]) byDay[d.day] = [];
+      byDay[d.day].push(d);
+    });
+    const dayOrder = DAY_NAMES.filter(d => byDay[d]);
+    return `<div class="sched-detail-sub">
+      ${dayOrder.map(d => {
+        const items = byDay[d];
+        const dayTotal = items.reduce((s, i) => s + i.hours, 0);
+        return `<div class="sched-detail-day">
+          <div class="sched-detail-day-head">
+            <span class="sched-detail-day-label">${DAY_SHORT[d]}</span>
+            <span class="sched-detail-day-hrs">${dayTotal}h</span>
+          </div>
+          ${items.map(i => `<div class="sched-detail-act">
+            <span class="sched-detail-act-name">${escapeHtml(i.actName)}</span>
+            <span class="sched-detail-act-hrs">${i.hours}h</span>
+          </div>`).join('')}
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  // ── Weekly total: stat-level sums ──
+  const sortedWeekStats = Object.entries(stats.weekStats).filter(([,v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const weekStatBreakdownHtml = sortedWeekStats.length ? sortedWeekStats.map(([k, hrs]) => {
+    const pct = stats.weekHours > 0 ? Math.round((hrs / stats.weekHours) * 100) : 0;
+    const days = stats.weekStatDetail[k] || [];
+    const uniqueDays = [...new Set(days.map(d => d.day))];
+    const dayChips = uniqueDays.map(d => `<span class="sched-day-chip">${DAY_SHORT[d]}</span>`).join('');
+    const detailHtml = buildDetailSubHtml(days);
+    return `<div class="sched-stat-block">
+      <div class="sched-cat-row">
+        <span class="sched-cat-name stat-${STAT_CSS[k] || ''}">${STAT_EMOJI[k] || ''} ${STAT_LABELS[k] || k}</span>
+        <div class="sched-week-stat-bar-wrap">
+          <div class="sched-week-stat-bar" style="width:${pct}%"></div>
+        </div>
+        <span class="sched-cat-hrs">${hrs}h</span>
+        <span class="sched-cat-pct">${pct}%</span>
+      </div>
+      <div class="sched-stat-days">${dayChips}</div>
+      ${detailHtml}
+    </div>`;
+  }).join('') : '';
+
+  // Also keep category breakdown
+  const sortedCats = Object.entries(stats.weekCats).filter(([,v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const catBreakdownHtml = sortedCats.length ? sortedCats.map(([name, hrs]) => {
+    const pct = stats.weekHours > 0 ? Math.round((hrs / stats.weekHours) * 100) : 0;
+    const days = stats.weekCatDetail[name] || [];
+    const uniqueDays = [...new Set(days.map(d => d.day))];
+    const dayChips = uniqueDays.map(d => `<span class="sched-day-chip">${DAY_SHORT[d]}</span>`).join('');
+    const detailHtml = buildDetailSubHtml(days);
+    return `<div class="sched-stat-block">
+      <div class="sched-cat-row"><span class="sched-cat-name">${escapeHtml(name)}</span><span class="sched-cat-hrs">${hrs}h</span><span class="sched-cat-pct">${pct}%</span></div>
+      <div class="sched-stat-days">${dayChips}</div>
+      ${detailHtml}
+    </div>`;
+  }).join('') : '';
+
+  return `
+    <div class="section-header"><span>WEEK OVERVIEW</span></div>
+    <div class="sched-overview">${overviewHtml}</div>
+    ${dayActivitiesHtml}
+    ${stats.weekHours > 0 ? `
+    <div class="sched-week-total">
+      <div class="sched-week-total-head">
+        <span>WEEKLY TOTAL</span>
+        <span class="sched-week-total-hrs">${stats.weekHours}h</span>
+      </div>
+      ${weekStatBreakdownHtml ? `
+        <div class="sched-week-section-label">BY STAT</div>
+        <div class="sched-cat-breakdown">${weekStatBreakdownHtml}</div>
+      ` : ''}
+      ${catBreakdownHtml ? `
+        <div class="sched-week-section-label">BY CATEGORY</div>
+        <div class="sched-cat-breakdown">${catBreakdownHtml}</div>
+      ` : ''}
+    </div>` : ''}`;
+}
+
+// Render a schedule entry row (shared)
+function renderScheduleEntry(entry, dayKey, editFn, deleteFn) {
+  const cat = findActivityCatAnywhere(entry.catId);
+  const item = cat?.inventory.find(x => x.id === entry.activityItemId);
+  const displayName = escapeHtml(entry.name || (item?.name || 'Activity'));
+  const catName = cat ? cat.name : '';
+  const tr = parseTimeRange(entry.time);
+  const timeStr = tr ? tr.display : (entry.time || '--:--');
+  const durationStr = tr && tr.hours > 0 ? `<span class="sched-duration">${tr.hours}h</span>` : '';
+  return `
+    <div class="sched-entry">
+      <div class="sched-time">${escapeHtml(timeStr)}</div>
+      <div class="sched-entry-body">
+        <div class="sched-entry-name">${displayName}${durationStr}</div>
+        ${catName ? `<div class="sched-entry-cat">${escapeHtml(catName)}</div>` : ''}
+      </div>
+      <div class="sched-entry-actions">
+        <button class="tile-btn" onclick="${editFn}">✎</button>
+        <button class="tile-btn danger" onclick="${deleteFn}">×</button>
+      </div>
+    </div>`;
+}
 
 function renderSchedulePage() {
   const el = document.getElementById('schedule-content');
   if (!el) return;
-
-  // Day tabs
   const tabsHtml = DAY_NAMES.map(d =>
     `<button class="sched-day-tab ${d === scheduleActiveDay ? 'active' : ''}" onclick="scheduleActiveDay='${d}';renderSchedulePage()">${DAY_SHORT[d]}</button>`
   ).join('');
 
-  // Current day's entries sorted by time
   const entries = (D.schedule[scheduleActiveDay] || []).slice().sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-
   const entriesHtml = entries.length
-    ? entries.map(entry => {
-      const cat = findActivityCatAnywhere(entry.catId);
-      const item = cat?.inventory.find(x => x.id === entry.activityItemId);
-      const name = item ? `${item.emoji || '★'} ${item.name}` : (entry.name || 'Custom activity');
-      const catName = cat ? cat.name : '';
-      return `
-        <div class="sched-entry">
-          <div class="sched-time">${escapeHtml(entry.time || '--:--')}</div>
-          <div class="sched-entry-body">
-            <div class="sched-entry-name">${escapeHtml(entry.name || (item?.name || 'Activity'))}</div>
-            ${catName ? `<div class="sched-entry-cat">${escapeHtml(catName)}</div>` : ''}
-          </div>
-          <div class="sched-entry-actions">
-            <button class="tile-btn" onclick="openEditScheduleEntry('${scheduleActiveDay}','${entry.id}')">✎</button>
-            <button class="tile-btn danger" onclick="deleteScheduleEntry('${scheduleActiveDay}','${entry.id}')">×</button>
-          </div>
-        </div>`;
-    }).join('')
+    ? entries.map(entry => renderScheduleEntry(entry, scheduleActiveDay,
+        `openEditScheduleEntry('${scheduleActiveDay}','${entry.id}')`,
+        `deleteScheduleEntry('${scheduleActiveDay}','${entry.id}')`
+      )).join('')
     : '<div class="empty-state">No activities scheduled. Tap "+" to add one.</div>';
 
-  // Overview: show tiny dots for each day
-  const overviewHtml = DAY_NAMES.map(d => {
-    const count = (D.schedule[d] || []).length;
-    const dots = count > 0 ? '<span class="sched-dot filled"></span>'.repeat(Math.min(count, 6)) : '<span class="sched-dot empty"></span>';
-    return `<div class="sched-overview-day ${d === scheduleActiveDay ? 'active' : ''}" onclick="scheduleActiveDay='${d}';renderSchedulePage()">
-      <div class="sched-ov-label">${DAY_SHORT[d]}</div>
-      <div class="sched-ov-dots">${dots}</div>
-      <div class="sched-ov-count">${count}</div>
-    </div>`;
-  }).join('');
+  const weekHtml = renderWeekOverviewHtml(D.schedule, scheduleActiveDay, "scheduleActiveDay='__DAY__';renderSchedulePage()");
 
   el.innerHTML = `
     <div class="sched-tabs">${tabsHtml}</div>
-
     <div class="section-header">
       <span>${DAY_LABELS[scheduleActiveDay].toUpperCase()}</span>
       <button class="small-btn" onclick="openAddScheduleEntry('${scheduleActiveDay}')">+ Add</button>
     </div>
     <div class="sched-entries">${entriesHtml}</div>
-
-    <div class="section-header"><span>WEEK OVERVIEW</span></div>
-    <div class="sched-overview">${overviewHtml}</div>
+    ${weekHtml}
   `;
 }
 
-function openAddScheduleEntry(day) {
-  // Build activity options
+function openAddScheduleEntry(day, scheduleTarget) {
+  const target = scheduleTarget || 'global';
   const actOpts = ['<option value="">— Custom (type name below) —</option>'];
-  actCats().forEach(cat => {
-    (cat.inventory || []).forEach(it => {
-      actOpts.push(`<option value="${cat.id}::${it.id}">${cat.emoji} ${escapeHtml(cat.name)} / ${escapeHtml(it.name)}</option>`);
+  const sourceActs = target === 'global' ? actCats() : [];
+  // For lifestyle schedules, restrict to lifestyle's activities
+  let lsId = '';
+  if (target !== 'global') {
+    lsId = target;
+    const ls = D.lifestyles.find(x => x.id === lsId);
+    if (ls) {
+      (ls.activities || []).forEach(la => {
+        const cat = findActivityCatAnywhere(la.catId);
+        const item = cat?.inventory.find(x => x.id === la.activityItemId);
+        if (item) {
+          const tr = parseTimeRange(item.time);
+          const timeHint = tr ? ' @ ' + tr.display : '';
+          actOpts.push(`<option value="${la.catId}::${item.id}">${cat?.emoji || ''} ${escapeHtml(cat?.name || '')} / ${escapeHtml(item.name)}${timeHint}</option>`);
+        }
+      });
+    }
+  } else {
+    sourceActs.forEach(cat => {
+      (cat.inventory || []).forEach(it => {
+        const tr = parseTimeRange(it.time);
+        const timeHint = tr ? ' @ ' + tr.display : '';
+        actOpts.push(`<option value="${cat.id}::${it.id}">${cat.emoji} ${escapeHtml(cat.name)} / ${escapeHtml(it.name)}${timeHint}</option>`);
+      });
     });
-  });
+  }
+
+  const submitFn = target === 'global'
+    ? `submitAddScheduleEntry('${day}')`
+    : `submitAddLsScheduleEntry('${lsId}','${day}')`;
 
   openModal(`
     <h3>Add to ${DAY_LABELS[day]}</h3>
-    <div class="form-row"><label>TIME</label><input id="se-time" type="time" value="09:00"/></div>
-    <div class="form-row"><label>ACTIVITY</label><select id="se-activity" onchange="toggleCustomNameField()">${actOpts.join('')}</select></div>
+    <div class="form-row"><label>TIME</label>
+      <div class="time-range-pair">
+        <input id="se-time-start" type="time" value="09:00"/>
+        <span class="time-range-sep">–</span>
+        <input id="se-time-end" type="time" value="10:00"/>
+      </div>
+    </div>
+    <div class="form-row"><label>ACTIVITY</label><select id="se-activity" onchange="onScheduleActivityChange()">${actOpts.join('')}</select></div>
     <div class="form-row" id="se-custom-row"><label>NAME (custom)</label><input id="se-name" placeholder="e.g. Morning meditation"/></div>
     <div class="row">
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
-      <button class="pill-btn good" onclick="submitAddScheduleEntry('${day}')">Add</button>
+      <button class="pill-btn good" onclick="${submitFn}">Add</button>
     </div>
   `);
 }
 
-function toggleCustomNameField() {
+function onScheduleActivityChange() {
   const sel = document.getElementById('se-activity');
   const row = document.getElementById('se-custom-row');
   if (row) row.style.display = sel.value ? 'none' : 'flex';
+  if (sel.value) {
+    const [catId, itemId] = sel.value.split('::');
+    const cat = findActivityCatAnywhere(catId);
+    const item = cat?.inventory.find(x => x.id === itemId);
+    if (item && item.time) {
+      const tr = parseTimeRange(item.time);
+      if (tr) {
+        const s = document.getElementById('se-time-start');
+        const e = document.getElementById('se-time-end');
+        if (s && tr.start) s.value = tr.start;
+        if (e && tr.end) e.value = tr.end;
+      }
+    }
+  }
 }
 
-function submitAddScheduleEntry(day) {
-  const time = document.getElementById('se-time').value || '09:00';
-  const actVal = document.getElementById('se-activity').value;
-  let entry;
+function toggleCustomNameField() { onScheduleActivityChange(); }
+
+function buildScheduleEntry(actVal) {
+  const timeStart = document.getElementById('se-time-start')?.value || '';
+  const timeEnd = document.getElementById('se-time-end')?.value || '';
+  const time = buildTimeStr(timeStart, timeEnd);
   if (actVal) {
     const [catId, itemId] = actVal.split('::');
     const cat = findActivityCatAnywhere(catId);
     const item = cat?.inventory.find(x => x.id === itemId);
-    entry = {
-      id: uid('se'), time, catId, activityItemId: itemId,
-      name: item ? item.name : 'Activity'
-    };
+    return { id: uid('se'), time, catId, activityItemId: itemId, name: item ? item.name : 'Activity' };
   } else {
     const name = (document.getElementById('se-name').value || '').trim();
-    if (!name) { toast('Enter a name or pick an activity.'); return; }
-    entry = { id: uid('se'), time, name, catId: null, activityItemId: null };
+    if (!name) { toast('Enter a name or pick an activity.'); return null; }
+    return { id: uid('se'), time, name, catId: null, activityItemId: null };
   }
+}
+
+function submitAddScheduleEntry(day) {
+  const entry = buildScheduleEntry(document.getElementById('se-activity').value);
+  if (!entry) return;
   D.schedule[day].push(entry);
   closeModal(); save(); renderSchedulePage();
   toast(`Added to ${DAY_LABELS[day]}.`);
@@ -5468,9 +5817,16 @@ function submitAddScheduleEntry(day) {
 function openEditScheduleEntry(day, entryId) {
   const entry = D.schedule[day]?.find(x => x.id === entryId);
   if (!entry) return;
+  const tr = parseTimeRange(entry.time);
   openModal(`
     <h3>Edit Entry</h3>
-    <div class="form-row"><label>TIME</label><input id="se-time" type="time" value="${entry.time || '09:00'}"/></div>
+    <div class="form-row"><label>TIME</label>
+      <div class="time-range-pair">
+        <input id="se-time-start" type="time" value="${tr ? tr.start : '09:00'}"/>
+        <span class="time-range-sep">–</span>
+        <input id="se-time-end" type="time" value="${tr ? tr.end : ''}"/>
+      </div>
+    </div>
     <div class="form-row"><label>NAME</label><input id="se-name" value="${escapeHtml(entry.name || '')}"/></div>
     <div class="row">
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
@@ -5482,7 +5838,7 @@ function openEditScheduleEntry(day, entryId) {
 function submitEditScheduleEntry(day, entryId) {
   const entry = D.schedule[day]?.find(x => x.id === entryId);
   if (!entry) return;
-  entry.time = document.getElementById('se-time').value || entry.time;
+  entry.time = buildTimeStr(document.getElementById('se-time-start')?.value || '', document.getElementById('se-time-end')?.value || '');
   entry.name = (document.getElementById('se-name').value || '').trim() || entry.name;
   closeModal(); save(); renderSchedulePage();
 }
@@ -5492,6 +5848,89 @@ function deleteScheduleEntry(day, entryId) {
   save(); renderSchedulePage();
   toast('Entry removed.');
 }
+
+// ── Lifestyle Schedule ──
+function renderLifestyleScheduleHtml(ls) {
+  if (!ls.schedule) ls.schedule = defaultLifestyleSchedule();
+  const day = lsScheduleActiveDay;
+  const tabsHtml = DAY_NAMES.map(d =>
+    `<button class="sched-day-tab ${d === day ? 'active' : ''}" onclick="lsScheduleActiveDay='${d}';renderLifestyleDetail()">${DAY_SHORT[d]}</button>`
+  ).join('');
+
+  const entries = (ls.schedule[day] || []).slice().sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  const entriesHtml = entries.length
+    ? entries.map(entry => renderScheduleEntry(entry, day,
+        `openEditLsScheduleEntry('${ls.id}','${day}','${entry.id}')`,
+        `deleteLsScheduleEntry('${ls.id}','${day}','${entry.id}')`
+      )).join('')
+    : '<div class="empty-state">No activities scheduled for this day.</div>';
+
+  const weekHtml = renderWeekOverviewHtml(ls.schedule, day, `lsScheduleActiveDay='__DAY__';renderLifestyleDetail()`);
+
+  return `
+    <div class="section-header">
+      <span>SCHEDULE</span>
+      <button class="small-btn" onclick="openAddScheduleEntry('${day}','${ls.id}')">+ Add</button>
+    </div>
+    <div class="sched-tabs">${tabsHtml}</div>
+    <div class="section-header"><span>${DAY_LABELS[day].toUpperCase()}</span></div>
+    <div class="sched-entries">${entriesHtml}</div>
+    ${weekHtml}
+  `;
+}
+
+function submitAddLsScheduleEntry(lsId, day) {
+  const ls = D.lifestyles.find(x => x.id === lsId);
+  if (!ls) return;
+  if (!ls.schedule) ls.schedule = defaultLifestyleSchedule();
+  const entry = buildScheduleEntry(document.getElementById('se-activity').value);
+  if (!entry) return;
+  ls.schedule[day].push(entry);
+  closeModal(); save(); renderLifestyleDetail();
+  toast(`Added to ${DAY_LABELS[day]}.`);
+}
+
+function openEditLsScheduleEntry(lsId, day, entryId) {
+  const ls = D.lifestyles.find(x => x.id === lsId);
+  if (!ls) return;
+  const entry = ls.schedule[day]?.find(x => x.id === entryId);
+  if (!entry) return;
+  const tr = parseTimeRange(entry.time);
+  openModal(`
+    <h3>Edit Entry</h3>
+    <div class="form-row"><label>TIME</label>
+      <div class="time-range-pair">
+        <input id="se-time-start" type="time" value="${tr ? tr.start : '09:00'}"/>
+        <span class="time-range-sep">–</span>
+        <input id="se-time-end" type="time" value="${tr ? tr.end : ''}"/>
+      </div>
+    </div>
+    <div class="form-row"><label>NAME</label><input id="se-name" value="${escapeHtml(entry.name || '')}"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditLsScheduleEntry('${lsId}','${day}','${entryId}')">Save</button>
+    </div>
+  `);
+}
+
+function submitEditLsScheduleEntry(lsId, day, entryId) {
+  const ls = D.lifestyles.find(x => x.id === lsId);
+  if (!ls) return;
+  const entry = ls.schedule[day]?.find(x => x.id === entryId);
+  if (!entry) return;
+  entry.time = buildTimeStr(document.getElementById('se-time-start')?.value || '', document.getElementById('se-time-end')?.value || '');
+  entry.name = (document.getElementById('se-name').value || '').trim() || entry.name;
+  closeModal(); save(); renderLifestyleDetail();
+}
+
+function deleteLsScheduleEntry(lsId, day, entryId) {
+  const ls = D.lifestyles.find(x => x.id === lsId);
+  if (!ls) return;
+  ls.schedule[day] = (ls.schedule[day] || []).filter(x => x.id !== entryId);
+  save(); renderLifestyleDetail();
+  toast('Entry removed.');
+}
+
 
 function init() {
   load();
