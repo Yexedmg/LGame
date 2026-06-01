@@ -87,32 +87,7 @@
           <div class="empty-state">No manifests yet. Set a goal and detach.</div>
         </div>
 
-        <div class="section-header"><span>OVERVIEW</span></div>
-        <div class="quick-actions">
-          <button class="action-card" onclick="showOverlay('totalstats')">
-            <span class="action-icon">STAT</span><span class="action-label">Total Stats</span>
-          </button>
-          <button class="action-card" onclick="showOverlay('abilities')">
-            <span class="action-icon">ABIL</span><span class="action-label">Abilities</span>
-          </button>
-          <button class="action-card" onclick="showOverlay('calendar')">
-            <span class="action-icon">CAL</span><span class="action-label">Calendar</span>
-          </button>
-          <button class="action-card" onclick="navigateTo('world')">
-            <span class="action-icon">MAP</span><span class="action-label">World</span>
-          </button>
-        </div>
 
-        <div class="section-header"><span>STATS</span></div>
-        <div class="quick-stats-grid" id="home-stats-grid"></div>
-
-        <div class="section-header">
-          <span>RELATIONSHIPS</span>
-          <button class="small-btn" onclick="navigateTo('life')">Open</button>
-        </div>
-        <div id="home-slots-preview" class="slots-preview">
-          <div class="empty-state">No one yet. Go out and meet someone.</div>
-        </div>
 
         <div class="section-header"><span>QUICK ACTIONS</span></div>
         <div class="quick-actions">
@@ -140,6 +115,9 @@
     <!-- ACTIVITIES PAGE -->
     <div id="page-activities" class="page">
       <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="navigateTo('lifestyle')">← Lifestyle</button>
+        </div>
         <div class="act-page-hero">
           <div class="act-page-title">ACTIVITIES</div>
           <div class="act-page-desc">Build your daily routine — slot activities to track progress</div>
@@ -487,6 +465,16 @@
       <div class="page-scroll">
         <div class="page-title">LIFESTYLE</div>
         <div class="manifest-desc">Build your lifestyle team — see how each activity contributes to your growth.</div>
+
+        <div class="section-header"><span>HUB</span></div>
+        <div class="lifestyle-hub-grid">
+          <button class="hub-card" onclick="navigateTo('activities')">
+            <div class="hub-icon">⚡</div>
+            <div class="hub-body"><div class="hub-title">Activities</div><div class="hub-desc">Manage your daily routine</div></div>
+            <div class="hub-arrow">→</div>
+          </button>
+        </div>
+
         <div class="section-header">
           <span id="lifestyle-count">LIFESTYLES (0)</span>
           <button class="small-btn" onclick="openAddLifestyle()">+ New</button>
@@ -514,6 +502,53 @@
       </div>
     </div>
 
+    <!-- ME PAGE -->
+    <div id="page-me" class="page">
+      <div class="page-scroll">
+        <div class="me-page-hero">
+          <div class="me-avatar-ring">
+            <div class="me-avatar" id="me-avatar">ME</div>
+          </div>
+          <div class="me-hero-info">
+            <div class="me-hero-name" id="me-hero-name">YOUR STATS</div>
+            <div class="me-hero-sub" id="me-hero-sub">Track every dimension of yourself</div>
+          </div>
+        </div>
+        <div class="section-header"><span>OVERVIEW</span></div>
+        <div class="quick-actions">
+          <button class="action-card" onclick="showOverlay('totalstats')">
+            <span class="action-icon">STAT</span><span class="action-label">Total Stats</span>
+          </button>
+          <button class="action-card" onclick="showOverlay('abilities')">
+            <span class="action-icon">ABIL</span><span class="action-label">Abilities</span>
+          </button>
+          <button class="action-card" onclick="showOverlay('calendar')">
+            <span class="action-icon">CAL</span><span class="action-label">Calendar</span>
+          </button>
+          <button class="action-card" onclick="navigateTo('world')">
+            <span class="action-icon">MAP</span><span class="action-label">World</span>
+          </button>
+        </div>
+
+        <div class="section-header"><span>STATS</span></div>
+        <div class="quick-stats-grid" id="me-stats-grid"></div>
+
+        <div class="section-header">
+          <span>RELATIONSHIPS</span>
+          <button class="small-btn" onclick="navigateTo('life')">Open</button>
+        </div>
+        <div id="me-slots-preview" class="slots-preview">
+          <div class="empty-state">No one yet. Go out and meet someone.</div>
+        </div>
+
+        <div class="section-header">
+          <span id="me-stat-count">MY STATS (0)</span>
+          <button class="small-btn" onclick="openAddMeStat()">+ Add Stat</button>
+        </div>
+        <div id="me-stats-list"></div>
+      </div>
+    </div>
+
     <!-- Modal -->
     <div class="modal-backdrop" id="modal-backdrop" onclick="closeModal()"></div>
     <div class="modal-container" id="modal-container">
@@ -522,20 +557,20 @@
 
     <!-- Bottom Dock -->
     <nav class="bottom-dock">
-      <button class="dock-btn" data-page="activities" onclick="navigateTo('activities')">
-        <span class="dock-icon">ACT</span><span class="dock-label">Activities</span>
-      </button>
       <button class="dock-btn" data-page="lifestyle" onclick="navigateTo('lifestyle')">
         <span class="dock-icon">LIFE</span><span class="dock-label">Lifestyle</span>
-      </button>
-      <button class="dock-btn home-btn active" data-page="home" onclick="navigateTo('home')">
-        <span class="dock-icon-home">HOME</span>
       </button>
       <button class="dock-btn" data-page="schedule" onclick="navigateTo('schedule')">
         <span class="dock-icon">SCHED</span><span class="dock-label">Schedule</span>
       </button>
+      <button class="dock-btn home-btn active" data-page="home" onclick="navigateTo('home')">
+        <span class="dock-icon-home">HOME</span>
+      </button>
       <button class="dock-btn" data-page="girls" onclick="navigateTo('girls')">
         <span class="dock-icon">GRL</span><span class="dock-label">Girls</span>
+      </button>
+      <button class="dock-btn" data-page="me" onclick="navigateTo('me')">
+        <span class="dock-icon">ME</span><span class="dock-label">Me</span>
       </button>
     </nav>
   </div>

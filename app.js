@@ -132,6 +132,8 @@ function defaultData() {
     activeLifestyleId: null,
     // Weekly schedule
     schedule: defaultSchedule(),
+    // Me page — personal stat cards with star ratings
+    meStats: [],   // [{ id, title, desc, stars (1-8), createdAt }]
   };
 }
 
@@ -306,6 +308,8 @@ function load() {
     // Migration: schedule
     if (!D.schedule) D.schedule = defaultSchedule();
     ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => { if (!Array.isArray(D.schedule[d])) D.schedule[d] = []; });
+    // Migration: meStats
+    if (!Array.isArray(D.meStats)) D.meStats = [];
     // Migration: world/cities/boroughs
     migrateWorld();
   } catch (e) { console.warn('load failed', e); }
@@ -969,6 +973,7 @@ function render() {
   if (currentPage === 'lifestyle') renderLifestylePage();
   if (currentPage === 'lifestyledetail') renderLifestyleDetail();
   if (currentPage === 'schedule') renderSchedulePage();
+  if (currentPage === 'me') renderMePage();
 }
 
 function updateXPDisplay() {
@@ -996,30 +1001,6 @@ function renderHome() {
   renderBirthday();
   renderHomeLeads();
   renderHomeManifest();
-  // Stats grid
-  const grid = document.getElementById('home-stats-grid');
-  grid.innerHTML = STAT_KEYS.map(k => `
-    <button class="qstat qstat-btn ${STAT_CSS[k]}" onclick="openStatPage('${k}')">
-      <div class="qstat-label">${STAT_EMOJI[k] || ''} ${STAT_LABELS[k]}${k === 'money' ? ' ($)' : ''}</div>
-      <div class="qstat-value">${Math.round(D.player.stats[k])}</div>
-    </button>
-  `).join('');
-
-  // Slots preview
-  const sp = document.getElementById('home-slots-preview');
-  const one = D.relationships.theOne ? girlById(D.relationships.theOne) : null;
-  const commons = D.relationships.commons.map(girlById).filter(Boolean);
-  if (!one && commons.length === 0) {
-    sp.innerHTML = '<div class="empty-state">Your roster is empty.</div>';
-  } else {
-    let html = '';
-    if (one) html += `<div class="slot-mini the-one"><div class="label">THE ONE</div><div class="name">${one.name}</div><div class="label">${starsHtml(one.rarity)} • ${one.affinity}%</div></div>`;
-    commons.forEach(g => {
-      html += `<div class="slot-mini common"><div class="label">COMMON</div><div class="name">${g.name}</div><div class="label">${starsHtml(g.rarity)} • ${g.affinity}%</div></div>`;
-    });
-    sp.innerHTML = html;
-  }
-
   // Activity feed (recent log, last 12, newest first)
   const feed = document.getElementById('home-activity-feed');
   const recent = D.log.slice(-12).reverse();
@@ -5929,6 +5910,147 @@ function deleteLsScheduleEntry(lsId, day, entryId) {
   ls.schedule[day] = (ls.schedule[day] || []).filter(x => x.id !== entryId);
   save(); renderLifestyleDetail();
   toast('Entry removed.');
+}
+
+// ── Me Page — personal stat cards with 8-star rating ──
+
+function renderMePage() {
+  // Stats grid
+  const grid = document.getElementById('me-stats-grid');
+  if (grid) {
+    grid.innerHTML = STAT_KEYS.map(k => `
+      <button class="qstat qstat-btn ${STAT_CSS[k]}" onclick="openStatPage('${k}')">
+        <div class="qstat-label">${STAT_EMOJI[k] || ''} ${STAT_LABELS[k]}${k === 'money' ? ' ($)' : ''}</div>
+        <div class="qstat-value">${Math.round(D.player.stats[k])}</div>
+      </button>
+    `).join('');
+  }
+
+  // Slots preview
+  const sp = document.getElementById('me-slots-preview');
+  if (sp) {
+    const one = D.relationships.theOne ? girlById(D.relationships.theOne) : null;
+    const commons = D.relationships.commons.map(girlById).filter(Boolean);
+    if (!one && commons.length === 0) {
+      sp.innerHTML = '<div class="empty-state">Your roster is empty.</div>';
+    } else {
+      let html = '';
+      if (one) html += `<div class="slot-mini the-one"><div class="label">THE ONE</div><div class="name">${one.name}</div><div class="label">${starsHtml(one.rarity)} • ${one.affinity}%</div></div>`;
+      commons.forEach(g => {
+        html += `<div class="slot-mini common"><div class="label">COMMON</div><div class="name">${g.name}</div><div class="label">${starsHtml(g.rarity)} • ${g.affinity}%</div></div>`;
+      });
+      sp.innerHTML = html;
+    }
+  }
+
+  const el = document.getElementById('me-stats-list');
+  if (!el) return;
+  const stats = D.meStats || [];
+  document.getElementById('me-stat-count').textContent = `MY STATS (${stats.length})`;
+  if (stats.length === 0) {
+    el.innerHTML = '<div class="empty-state">No stats yet. Tap "+ Add Stat" to track something about yourself.</div>';
+    return;
+  }
+  el.innerHTML = stats.map(s => {
+    const filledStars = s.stars || 0;
+    const emptyStars = 8 - filledStars;
+    return `
+      <div class="me-stat-row" onclick="openEditMeStat('${s.id}')">
+        <div class="me-stat-title">${escapeHtml(s.title)}</div>
+        <div class="me-stat-card">
+          <div class="me-stat-desc">${escapeHtml(s.desc || 'No description')}</div>
+          <div class="me-stat-stars">
+            ${'<span class="me-star filled">★</span>'.repeat(filledStars)}${'<span class="me-star empty">☆</span>'.repeat(emptyStars)}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openAddMeStat() {
+  openModal(`
+    <h3>Add Stat</h3>
+    <div class="form-row"><label>TITLE</label><input id="me-stat-title" placeholder="e.g. Confidence"/></div>
+    <div class="form-row"><label>DESCRIPTION</label><textarea id="me-stat-desc" placeholder="Describe this stat..." rows="2"></textarea></div>
+    <div class="form-row"><label>RATING (1–8 stars)</label></div>
+    <div class="me-star-picker" id="me-star-picker">
+      ${Array.from({length:8}, (_,i) => `<span class="me-star-pick empty" data-val="${i+1}" onclick="pickMeStar(${i+1})">☆</span>`).join('')}
+    </div>
+    <input type="hidden" id="me-star-val" value="0"/>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitAddMeStat()">Add</button>
+    </div>`);
+}
+
+function pickMeStar(val) {
+  document.getElementById('me-star-val').value = val;
+  document.querySelectorAll('#me-star-picker .me-star-pick').forEach((el, i) => {
+    if (i < val) {
+      el.classList.remove('empty');
+      el.classList.add('filled');
+      el.textContent = '★';
+    } else {
+      el.classList.remove('filled');
+      el.classList.add('empty');
+      el.textContent = '☆';
+    }
+  });
+}
+
+function submitAddMeStat() {
+  const title = (document.getElementById('me-stat-title').value || '').trim();
+  if (!title) { toast('Title required.'); return; }
+  const desc = (document.getElementById('me-stat-desc').value || '').trim();
+  const stars = parseInt(document.getElementById('me-star-val').value) || 0;
+  D.meStats.push({
+    id: uid('mst'), title, desc, stars: clamp(stars, 0, 8), createdAt: Date.now()
+  });
+  closeModal(); save();
+  renderMePage();
+  toast(`Stat "${title}" added.`);
+}
+
+function openEditMeStat(id) {
+  const s = D.meStats.find(x => x.id === id);
+  if (!s) return;
+  const starPicker = Array.from({length:8}, (_,i) => {
+    const isFilled = i < (s.stars || 0);
+    return `<span class="me-star-pick ${isFilled ? 'filled' : 'empty'}" data-val="${i+1}" onclick="pickMeStar(${i+1})">${isFilled ? '★' : '☆'}</span>`;
+  }).join('');
+  openModal(`
+    <h3>Edit Stat</h3>
+    <div class="form-row"><label>TITLE</label><input id="me-stat-title" value="${escapeHtml(s.title)}"/></div>
+    <div class="form-row"><label>DESCRIPTION</label><textarea id="me-stat-desc" rows="2">${escapeHtml(s.desc || '')}</textarea></div>
+    <div class="form-row"><label>RATING (1–8 stars)</label></div>
+    <div class="me-star-picker" id="me-star-picker">
+      ${starPicker}
+    </div>
+    <input type="hidden" id="me-star-val" value="${s.stars || 0}"/>
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteMeStat('${id}')">Delete</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditMeStat('${id}')">Save</button>
+    </div>`);
+}
+
+function submitEditMeStat(id) {
+  const s = D.meStats.find(x => x.id === id);
+  if (!s) return;
+  s.title = (document.getElementById('me-stat-title').value || '').trim() || s.title;
+  s.desc = (document.getElementById('me-stat-desc').value || '').trim();
+  s.stars = clamp(parseInt(document.getElementById('me-star-val').value) || 0, 0, 8);
+  closeModal(); save();
+  renderMePage();
+  toast('Stat updated.');
+}
+
+function deleteMeStat(id) {
+  if (!confirm('Delete this stat?')) return;
+  D.meStats = D.meStats.filter(x => x.id !== id);
+  closeModal(); save();
+  renderMePage();
+  toast('Stat deleted.');
 }
 
 
