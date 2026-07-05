@@ -310,6 +310,8 @@ function load() {
     ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => { if (!Array.isArray(D.schedule[d])) D.schedule[d] = []; });
     // Migration: meStats
     if (!Array.isArray(D.meStats)) D.meStats = [];
+    // Migration: social media platforms (Social world)
+    if (!Array.isArray(D.socialMedia)) D.socialMedia = [];
     // Migration: world/cities/boroughs
     migrateWorld();
   } catch (e) { console.warn('load failed', e); }
@@ -548,7 +550,9 @@ function hideOverlay() {
 function applyEffects(effects) {
   for (const k of Object.keys(effects)) {
     if (D.player.stats[k] === undefined) continue;
-    D.player.stats[k] = Math.max(0, D.player.stats[k] + effects[k]);
+    const next = Math.max(0, D.player.stats[k] + effects[k]);
+    // Stats max out at 25 — money is uncapped.
+    D.player.stats[k] = k === 'money' ? next : Math.min(next, 25);
   }
 }
 
@@ -974,6 +978,10 @@ function render() {
   if (currentPage === 'lifestyledetail') renderLifestyleDetail();
   if (currentPage === 'schedule') renderSchedulePage();
   if (currentPage === 'me') renderMePage();
+  if (currentPage === 'portal') renderPortalPage();
+  if (currentPage === 'social') renderSocialPage();
+  if (currentPage === 'socialmedia') renderSocialMediaPage();
+  if (currentPage === 'money') renderMoneyPage();
 }
 
 function updateXPDisplay() {
@@ -992,14 +1000,22 @@ function updateHeaderSubtitle() {
   const info = currentMonthInfo();
   const taken = (D.relationships.theOne ? 1 : 0) + D.relationships.commons.length;
   const talking = D.girls.filter(g => g.status === 'Talking' || g.status === 'Dating').length;
-  el.textContent = `Day ${D.day} — ${info.name} ${info.year} • taken: ${taken} / talking: ${talking}`;
+  el.textContent = `DAY ${D.day} — ${info.name.toUpperCase()} ${info.year}`;
+  const chips = document.getElementById('home-meta-chips');
+  if (chips) {
+    chips.innerHTML = `
+      <span class="ms">TAKEN <b>${taken}</b></span>
+      <span class="ms">TALKING <b>${talking}</b></span>
+      <span class="ms">LVL <b>${D.player.level}</b></span>
+      <span class="ms">DAY <b>${D.day}</b></span>`;
+  }
 }
 
 function renderHome() {
   renderNorthstar();
   renderCurrentEraWidget();
   renderBirthday();
-  renderHomeLeads();
+  renderHomeTerminals();
   renderHomeManifest();
   // Activity feed (recent log, last 12, newest first)
   const feed = document.getElementById('home-activity-feed');
@@ -1546,7 +1562,7 @@ function renderGirls() {
       <div class="hub-icon"></div>
       <div class="hub-body"><div class="hub-title">Life (Slots)</div><div class="hub-desc">${taken} girlfriend${taken === 1 ? '' : 's'}</div></div>
     </button>
-    <button class="hub-card" onclick="navigateTo('meet')">
+    <button class="hub-card" onclick="navigateTo('vibe')">
       <div class="hub-icon"></div>
       <div class="hub-body"><div class="hub-title">Meet</div><div class="hub-desc">${computeMeetBar().percent.toFixed(0)}% chance bar</div></div>
     </button>
@@ -1880,6 +1896,54 @@ function renderHomeLeads() {
   const el = document.getElementById('home-leads');
   if (!el) return;
   el.innerHTML = leadStarsCard('POTENTIAL LEADS', totalLeadCount());
+}
+
+// ── Terminal panels (home) ──
+function termStars(n) {
+  return '★'.repeat(clamp(n, 0, 8));
+}
+
+function termSect(title, rows, onclickPage) {
+  const body = rows.length
+    ? rows.map(r => `<div class="term-row"><span>${escapeHtml(r[0])}</span><b>${r[1]}</b></div>`).join('')
+    : '<div class="term-row term-dim"><span>none yet</span></div>';
+  return `
+    <div class="term-sect" ${onclickPage ? `onclick="navigateTo('${onclickPage}')"` : ''}>
+      <div class="term-title">${escapeHtml(title)}</div>
+      ${body}
+    </div>`;
+}
+
+function renderHomeTerminals() {
+  const el = document.getElementById('home-terminals');
+  if (!el) return;
+
+  // LEADS — one row per method that has leads
+  const leadRows = leadMethods()
+    .map(m => [m.name.toLowerCase(), methodLeadCount(m)])
+    .filter(r => r[1] > 0)
+    .map(r => [r[0], `<span class="term-stars">${termStars(r[1])}</span>`]);
+  const hot = totalLeadCount();
+
+  // MONEY / HEALTH — player stats
+  const s = D.player.stats;
+  const moneyRows = [['balance', `$${Math.round(s.money)}`]];
+  const healthRows = [['health', `${Math.round(s.health)}`]];
+
+  // LIFESTYLE — user lifestyles
+  const lifestyleRows = (D.lifestyles || []).map(ls =>
+    [ls.name.toLowerCase(), ls.isActive ? '<span class="term-stars">active</span>' : 'bench']);
+
+  // SOCIAL CIRCLE — friends + their star rating
+  const circleRows = (D.friends || []).map(f =>
+    [(f.name || 'friend').toLowerCase(), `<span class="term-stars">${termStars(f.rarity || f.social || 1)}</span>`]);
+
+  el.innerHTML =
+    termSect(`LEADS (${hot} hot)`, leadRows, 'leadgen') +
+    termSect('MONEY', moneyRows, null) +
+    termSect('HEALTH', healthRows, null) +
+    termSect('LIFESTYLE', lifestyleRows, 'lifestyle') +
+    termSect(`SOCIAL CIRCLE (${(D.friends || []).length})`, circleRows, 'social');
 }
 
 // ── Lead method DETAIL page ──
@@ -4140,15 +4204,18 @@ function renderBirthday() {
     return;
   }
   el.classList.add('set');
+  // Total days to next birthday
+  const now = new Date();
+  const bdate = new Date(bd + 'T00:00:00');
+  const next = new Date(now.getFullYear(), bdate.getMonth(), bdate.getDate());
+  if (next <= now) next.setFullYear(next.getFullYear() + 1);
+  const totalDays = Math.ceil((next - now) / 86400000);
+  const yearPct = Math.round((1 - totalDays / 365) * 100);
   el.innerHTML = `
-    <div class="birthday-date">Turning ${c.turning} — counting down</div>
-    <div class="birthday-grid">
-      <div class="birthday-unit"><div class="v">${c.months}</div><div class="l">Mo</div></div>
-      <div class="birthday-unit"><div class="v">${c.weeks}</div><div class="l">Wk</div></div>
-      <div class="birthday-unit"><div class="v">${c.days}</div><div class="l">Dy</div></div>
-      <div class="birthday-unit"><div class="v">${String(c.hours).padStart(2, '0')}</div><div class="l">Hr</div></div>
-      <div class="birthday-unit"><div class="v">${String(c.minutes).padStart(2, '0')}</div><div class="l">Mn</div></div>
-      <div class="birthday-unit"><div class="v">${String(c.seconds).padStart(2, '0')}</div><div class="l">Sc</div></div>
+    <div class="bday-big">
+      <div class="bday-num">${totalDays}</div>
+      <div class="bday-lbl">DAYS TO ${c.turning}</div>
+      <div class="qbar"><i style="width:${clamp(yearPct, 0, 100)}%"></i></div>
     </div>
   `;
 }
@@ -4205,18 +4272,20 @@ function renderNorthstar() {
     el.innerHTML = '<div class="empty-state">No northstar set. What are you heading toward?</div>';
     return;
   }
+  let numHtml = '<div class="north-num">✦</div>';
+  if (ns.targetDate) {
+    const days = Math.ceil((new Date(ns.targetDate + 'T00:00:00') - Date.now()) / 86400000);
+    if (days >= 0) numHtml = `<div class="north-num">${days}</div><div class="north-days-lbl">DAYS LEFT</div>`;
+  }
   el.innerHTML = `
-    <div class="northstar-inner">
-      <div class="northstar-icon">✦</div>
-      <div class="northstar-text">${escapeHtml(ns.text)}</div>
-      <div class="northstar-actions">
-        <button class="small-btn" onclick="openNorthstarModal()">Edit</button>
-        <button class="small-btn" onclick="clearNorthstar()">Clear</button>
-      </div>
+    <div class="north" onclick="openNorthstarModal()">
+      ${numHtml}
+      <div class="north-cap">${escapeHtml(ns.text.toUpperCase())}</div>
     </div>`;
 }
 function openNorthstarModal() {
   const current = (D.northstar && D.northstar.text) || '';
+  const currentDate = (D.northstar && D.northstar.targetDate) || '';
   openModal(`
     <h3>✦ Northstar</h3>
     <div class="desc" style="color:var(--text-secondary);font-size:12px;margin-bottom:8px">One sentence. The direction everything else serves.</div>
@@ -4224,7 +4293,12 @@ function openNorthstarModal() {
       <label>NORTHSTAR</label>
       <textarea id="ns-text" rows="3" placeholder="e.g. Build a life where I choose who I spend my time with.">${escapeHtml(current)}</textarea>
     </div>
+    <div class="form-row">
+      <label>DEADLINE (optional — powers the big countdown)</label>
+      <input type="date" id="ns-date" value="${escapeHtml(currentDate)}"/>
+    </div>
     <div class="row">
+      ${current ? '<button class="pill-btn danger" onclick="clearNorthstar()">Clear</button>' : ''}
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
       <button class="pill-btn good" onclick="submitNorthstar()">Save</button>
     </div>`);
@@ -4232,14 +4306,15 @@ function openNorthstarModal() {
 function submitNorthstar() {
   const text = (document.getElementById('ns-text').value || '').trim();
   if (!text) { toast('Enter a northstar or Cancel.'); return; }
-  D.northstar = { text, updatedAt: Date.now() };
+  const targetDate = document.getElementById('ns-date').value || null;
+  D.northstar = { text, targetDate, updatedAt: Date.now() };
   save(); closeModal(); renderNorthstar();
   toast('Northstar set.');
 }
 function clearNorthstar() {
   if (!confirm('Clear your northstar?')) return;
   D.northstar = null;
-  save(); renderNorthstar();
+  save(); closeModal(); renderNorthstar();
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -5921,7 +5996,9 @@ function renderMePage() {
     grid.innerHTML = STAT_KEYS.map(k => `
       <button class="qstat qstat-btn ${STAT_CSS[k]}" onclick="openStatPage('${k}')">
         <div class="qstat-label">${STAT_EMOJI[k] || ''} ${STAT_LABELS[k]}${k === 'money' ? ' ($)' : ''}</div>
-        <div class="qstat-value">${Math.round(D.player.stats[k])}</div>
+        <div class="qstat-value">${k === 'money'
+          ? Math.round(D.player.stats[k])
+          : `${Math.round(clamp(D.player.stats[k], 0, 25))}<span class="qstat-max">/25</span>`}</div>
       </button>
     `).join('');
   }
@@ -5943,92 +6020,189 @@ function renderMePage() {
     }
   }
 
-  const el = document.getElementById('me-stats-list');
+  const el = document.getElementById('me-bodymap');
   if (!el) return;
   const stats = D.meStats || [];
-  document.getElementById('me-stat-count').textContent = `MY STATS (${stats.length})`;
-  if (stats.length === 0) {
-    el.innerHTML = '<div class="empty-state">No stats yet. Tap "+ Add Stat" to track something about yourself.</div>';
-    return;
+  document.getElementById('me-stat-count').textContent = `BODY MAP (${stats.length})`;
+  el.innerHTML = buildBodyMapSvg(stats);
+  initBodyMapDrag(el);
+}
+
+// ---- BODY MAP (ME page silhouette) ----
+const BODYMAP_ANCHORS = [
+  { keys: ['inner', 'organisation', 'organization', 'mind', 'mental', 'focus', 'discipline'], x: 200, y: 34 },
+  { keys: ['circle', 'friends', 'network', 'crew'], x: 220, y: 88 },
+  { keys: ['social'], x: 140, y: 88 },
+  { keys: ['health', 'energy', 'sleep'], x: 172, y: 118 },
+  { keys: ['physique', 'fitness', 'body', 'gym', 'muscle', 'strength'], x: 120, y: 150 },
+  { keys: ['money', 'finance', 'wealth', 'income', 'cash'], x: 240, y: 180 },
+  { keys: ['lifestyle', 'style', 'routine'], x: 165, y: 300 },
+];
+const BODYMAP_FALLBACK = [
+  { x: 150, y: 212 }, { x: 210, y: 212 }, { x: 162, y: 340 }, { x: 198, y: 340 }, { x: 180, y: 66 }
+];
+
+function bodymapAnchorFor(s, i) {
+  if (typeof s.mapX === 'number' && typeof s.mapY === 'number') return { x: s.mapX, y: s.mapY };
+  const t = (s.title || '').toLowerCase();
+  for (const a of BODYMAP_ANCHORS) {
+    if (a.keys.some(k => t.includes(k))) return { x: a.x, y: a.y };
   }
-  el.innerHTML = stats.map(s => {
-    const filledStars = s.stars || 0;
-    const emptyStars = 8 - filledStars;
+  return BODYMAP_FALLBACK[i % BODYMAP_FALLBACK.length];
+}
+
+function buildBodyMapSvg(stats) {
+  const silhouette = `
+    <g class="bm-figure">
+      <path class="bm-body" d="M180 14
+        C193 14 203 25 203 42 C203 53 198 62 191 67 L191 76
+        C206 79 220 82 229 90 C238 98 242 108 244 122 L250 164
+        C252 176 254 188 251 197 C248 206 240 206 238 196
+        C236 185 233 172 231 162 L225 126 C223 116 220 110 215 106
+        C217 128 216 150 211 168 C217 186 221 200 219 216
+        C217 240 214 258 210 272 C212 292 212 310 208 330 L206 346
+        C206 353 211 356 217 360 C221 363 220 366 215 366 L191 366
+        C188 366 187 363 187 358 L187 346
+        C186 332 184 310 183 292 C182 270 181 248 180 228
+        C179 248 178 270 177 292 C176 310 174 332 173 346 L173 358
+        C173 363 172 366 169 366 L145 366
+        C140 366 139 363 143 360 C149 356 154 353 154 346 L152 330
+        C148 310 148 292 150 272 C146 258 143 240 141 216
+        C139 200 143 186 149 168 C144 150 143 128 145 106
+        C140 110 137 116 135 126 L129 162
+        C127 172 124 185 122 196 C120 206 112 206 109 197
+        C106 188 108 176 110 164 L116 122
+        C118 108 122 98 131 90 C140 82 154 79 169 76 L169 67
+        C162 62 157 53 157 42 C157 25 167 14 180 14 Z"/>
+    </g>`;
+
+  if (stats.length === 0) {
+    return silhouette + `
+      <text class="bm-hint" x="180" y="400" text-anchor="middle">Nothing on the map yet — add health, physique, money, your circle...</text>`;
+  }
+
+  const placed = stats.map((s, i) => ({ s, a: bodymapAnchorFor(s, i) }));
+  const left = placed.filter(p => p.a.x < 180).sort((p, q) => p.a.y - q.a.y);
+  const right = placed.filter(p => p.a.x >= 180).sort((p, q) => p.a.y - q.a.y);
+
+  const labelsFor = (side, arr) => arr.map((p, i) => {
+    const n = arr.length;
+    const step = n > 1 ? Math.min((380 - 40) / (n - 1), 60) : 0;
+    const ly = 44 + i * step;
+    const lx = side === 'L' ? 6 : 354;
+    const title = escapeHtml((p.s.title || '').toUpperCase().slice(0, 18));
+    const v = clamp(p.s.stars || 0, 0, 25);
     return `
-      <div class="me-stat-row" onclick="openEditMeStat('${s.id}')">
-        <div class="me-stat-title">${escapeHtml(s.title)}</div>
-        <div class="me-stat-card">
-          <div class="me-stat-desc">${escapeHtml(s.desc || 'No description')}</div>
-          <div class="me-stat-stars">
-            ${'<span class="me-star filled">★</span>'.repeat(filledStars)}${'<span class="me-star empty">☆</span>'.repeat(emptyStars)}
-          </div>
-        </div>
-      </div>`;
+      <g class="bm-label" data-id="${p.s.id}" onclick="openEditMeStat('${p.s.id}')">
+        <polyline class="bm-line" points="${lx},${ly + 3} ${side === 'L' ? lx + 86 : lx - 86},${ly + 3} ${p.a.x},${p.a.y}"/>
+        <g class="bm-handle" data-id="${p.s.id}">
+          <circle class="bm-dot-hit" cx="${p.a.x}" cy="${p.a.y}" r="14"/>
+          <circle class="bm-dot" cx="${p.a.x}" cy="${p.a.y}" r="5"/>
+        </g>
+        <text class="bm-title" x="${lx}" y="${ly}" text-anchor="${side === 'L' ? 'start' : 'end'}">${title}</text>
+        <text class="bm-stars" x="${lx}" y="${ly + 14}" text-anchor="${side === 'L' ? 'start' : 'end'}">${v} / 25</text>
+      </g>`;
   }).join('');
+
+  return silhouette + labelsFor('L', left) + labelsFor('R', right);
+}
+
+// Drag a stat's point anywhere on the body; position is saved on the stat.
+function initBodyMapDrag(svg) {
+  svg.querySelectorAll('.bm-handle').forEach(handle => {
+    handle.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = handle.dataset.id;
+      const group = handle.closest('.bm-label');
+      const line = group.querySelector('.bm-line');
+      const dots = handle.querySelectorAll('circle');
+      const basePoints = line.getAttribute('points').split(' ').slice(0, 2).join(' ');
+      let moved = false, x = 0, y = 0;
+
+      const toSvg = ev => {
+        const r = svg.getBoundingClientRect();
+        return {
+          x: clamp((ev.clientX - r.left) * 360 / r.width, 0, 360),
+          y: clamp((ev.clientY - r.top) * 420 / r.height, 0, 420)
+        };
+      };
+
+      const onMove = ev => {
+        const pt = toSvg(ev);
+        x = pt.x; y = pt.y; moved = true;
+        dots.forEach(c => { c.setAttribute('cx', x); c.setAttribute('cy', y); });
+        line.setAttribute('points', `${basePoints} ${x},${y}`);
+      };
+
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        if (!moved) return;
+        window.__bmDragJustEnded = true;
+        setTimeout(() => { window.__bmDragJustEnded = false; }, 250);
+        const s = (D.meStats || []).find(st => st.id === id);
+        if (s) {
+          s.mapX = Math.round(x);
+          s.mapY = Math.round(y);
+          save();
+          renderMePage();
+        }
+      };
+
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    });
+  });
 }
 
 function openAddMeStat() {
   openModal(`
-    <h3>Add Stat</h3>
-    <div class="form-row"><label>TITLE</label><input id="me-stat-title" placeholder="e.g. Confidence"/></div>
-    <div class="form-row"><label>DESCRIPTION</label><textarea id="me-stat-desc" placeholder="Describe this stat..." rows="2"></textarea></div>
-    <div class="form-row"><label>RATING (1–8 stars)</label></div>
-    <div class="me-star-picker" id="me-star-picker">
-      ${Array.from({length:8}, (_,i) => `<span class="me-star-pick empty" data-val="${i+1}" onclick="pickMeStar(${i+1})">☆</span>`).join('')}
+    <h3>Add to your body map</h3>
+    <div class="form-row"><label>What part of you is this?</label><input id="me-stat-title" placeholder="Health, physique, money, social circle..."/></div>
+    <div class="form-row"><label>A few words about it</label><textarea id="me-stat-desc" placeholder="Where you're at, what you're building toward..." rows="2"></textarea></div>
+    <div class="form-row"><label>How strong is it right now?</label></div>
+    <div class="bm-range-row">
+      <input type="range" id="me-stat-val" min="0" max="25" value="0"
+        oninput="document.getElementById('me-stat-val-out').textContent = this.value + ' / 25'"/>
+      <span class="bm-range-out" id="me-stat-val-out">0 / 25</span>
     </div>
-    <input type="hidden" id="me-star-val" value="0"/>
     <div class="row">
-      <button class="pill-btn" onclick="closeModal()">Cancel</button>
-      <button class="pill-btn good" onclick="submitAddMeStat()">Add</button>
+      <button class="pill-btn" onclick="closeModal()">Never mind</button>
+      <button class="pill-btn good" onclick="submitAddMeStat()">Put it on the map</button>
     </div>`);
-}
-
-function pickMeStar(val) {
-  document.getElementById('me-star-val').value = val;
-  document.querySelectorAll('#me-star-picker .me-star-pick').forEach((el, i) => {
-    if (i < val) {
-      el.classList.remove('empty');
-      el.classList.add('filled');
-      el.textContent = '★';
-    } else {
-      el.classList.remove('filled');
-      el.classList.add('empty');
-      el.textContent = '☆';
-    }
-  });
 }
 
 function submitAddMeStat() {
   const title = (document.getElementById('me-stat-title').value || '').trim();
-  if (!title) { toast('Title required.'); return; }
+  if (!title) { toast('Give it a name first.'); return; }
   const desc = (document.getElementById('me-stat-desc').value || '').trim();
-  const stars = parseInt(document.getElementById('me-star-val').value) || 0;
+  const val = parseInt(document.getElementById('me-stat-val').value) || 0;
   D.meStats.push({
-    id: uid('mst'), title, desc, stars: clamp(stars, 0, 8), createdAt: Date.now()
+    id: uid('mst'), title, desc, stars: clamp(val, 0, 25), createdAt: Date.now()
   });
   closeModal(); save();
   renderMePage();
-  toast(`Stat "${title}" added.`);
+  toast(`"${title}" is on your map.`);
 }
 
 function openEditMeStat(id) {
+  if (window.__bmDragJustEnded) { window.__bmDragJustEnded = false; return; }
   const s = D.meStats.find(x => x.id === id);
   if (!s) return;
-  const starPicker = Array.from({length:8}, (_,i) => {
-    const isFilled = i < (s.stars || 0);
-    return `<span class="me-star-pick ${isFilled ? 'filled' : 'empty'}" data-val="${i+1}" onclick="pickMeStar(${i+1})">${isFilled ? '★' : '☆'}</span>`;
-  }).join('');
+  const v = clamp(s.stars || 0, 0, 25);
   openModal(`
-    <h3>Edit Stat</h3>
-    <div class="form-row"><label>TITLE</label><input id="me-stat-title" value="${escapeHtml(s.title)}"/></div>
-    <div class="form-row"><label>DESCRIPTION</label><textarea id="me-stat-desc" rows="2">${escapeHtml(s.desc || '')}</textarea></div>
-    <div class="form-row"><label>RATING (1–8 stars)</label></div>
-    <div class="me-star-picker" id="me-star-picker">
-      ${starPicker}
+    <h3>${escapeHtml(s.title)}</h3>
+    <div class="form-row"><label>What part of you is this?</label><input id="me-stat-title" value="${escapeHtml(s.title)}"/></div>
+    <div class="form-row"><label>A few words about it</label><textarea id="me-stat-desc" rows="2" placeholder="Where you're at, what you're building toward...">${escapeHtml(s.desc || '')}</textarea></div>
+    <div class="form-row"><label>How strong is it right now?</label></div>
+    <div class="bm-range-row">
+      <input type="range" id="me-stat-val" min="0" max="25" value="${v}"
+        oninput="document.getElementById('me-stat-val-out').textContent = this.value + ' / 25'"/>
+      <span class="bm-range-out" id="me-stat-val-out">${v} / 25</span>
     </div>
-    <input type="hidden" id="me-star-val" value="${s.stars || 0}"/>
     <div class="row">
-      <button class="pill-btn danger" onclick="deleteMeStat('${id}')">Delete</button>
+      <button class="pill-btn danger" onclick="deleteMeStat('${id}')">Take it off</button>
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
       <button class="pill-btn good" onclick="submitEditMeStat('${id}')">Save</button>
     </div>`);
@@ -6039,18 +6213,256 @@ function submitEditMeStat(id) {
   if (!s) return;
   s.title = (document.getElementById('me-stat-title').value || '').trim() || s.title;
   s.desc = (document.getElementById('me-stat-desc').value || '').trim();
-  s.stars = clamp(parseInt(document.getElementById('me-star-val').value) || 0, 0, 8);
+  s.stars = clamp(parseInt(document.getElementById('me-stat-val').value) || 0, 0, 25);
   closeModal(); save();
   renderMePage();
-  toast('Stat updated.');
+  toast('Saved.');
 }
 
 function deleteMeStat(id) {
-  if (!confirm('Delete this stat?')) return;
+  if (!confirm('Take this off your body map?')) return;
   D.meStats = D.meStats.filter(x => x.id !== id);
   closeModal(); save();
   renderMePage();
-  toast('Stat deleted.');
+  toast('Off the map.');
+}
+
+// ── PORTAL (world select) ──
+function isSocialStat(s) { return /social|circle|friend/i.test(s.title || ''); }
+function isMoneyStat(s) { return /money|finance|wealth|income|cash/i.test(s.title || ''); }
+
+function renderPortalPage() {
+  const el = document.getElementById('portal-doors');
+  if (!el) return;
+  const ms = D.meStats || [];
+  const socialStats = ms.filter(isSocialStat);
+  const moneyStat = ms.find(isMoneyStat);
+  const others = ms.filter(s => !isSocialStat(s) && !isMoneyStat(s));
+  const friends = (D.friends || []).length;
+  const platforms = (D.socialMedia || []).length;
+  const girls = (D.girls || []).length;
+
+  const hl = rows => rows.map(r =>
+    `<div class="world-hl"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('');
+
+  // Social world — social circle & friends live IN here
+  let html = `
+    <button class="world-door" onclick="navigateTo('social')">
+      <div class="world-door-name">◉ SOCIAL</div>
+      ${hl([
+        ['friends', friends],
+        ['platforms', platforms],
+        ['girls', girls],
+        ...socialStats.map(s => [escapeHtml(s.title.toLowerCase()), `${clamp(s.stars || 0, 0, 25)}/25`])
+      ])}
+    </button>
+    <button class="world-door" onclick="navigateTo('money')">
+      <div class="world-door-name">$ MONEY</div>
+      ${hl([
+        ['balance', '$' + Math.round(D.player.stats.money)],
+        ...(moneyStat ? [['level', `${clamp(moneyStat.stars || 0, 0, 25)}/25`]] : [])
+      ])}
+    </button>`;
+
+  // Remaining body-map stats — each its own world
+  others.forEach(s => {
+    const t = (s.title || '').toLowerCase();
+    const v = clamp(s.stars || 0, 0, 25);
+    const click = t.includes('health') ? `openStatPage('health')` : `openEditMeStat('${s.id}')`;
+    const rows = [['level', `${v}/25`]];
+    if (s.desc) rows.push(['note', escapeHtml(s.desc.slice(0, 16))]);
+    html += `
+      <button class="world-door" onclick="${click}">
+        <div class="world-door-name">◆ ${escapeHtml((s.title || '').toUpperCase())}</div>
+        ${hl(rows)}
+      </button>`;
+  });
+
+  el.innerHTML = html;
+}
+
+// ── MONEY WORLD ──
+function renderMoneyPage() {
+  const bal = document.getElementById('money-balance');
+  const el = document.getElementById('money-areas');
+  if (!el) return;
+  const moneyStats = (D.meStats || []).filter(isMoneyStat);
+
+  if (bal) {
+    bal.innerHTML = `
+      <div class="term-sect" onclick="openStatPage('money')">
+        <div class="term-title">BALANCE</div>
+        <div class="term-row"><span>current</span><b>$${Math.round(D.player.stats.money)}</b></div>
+      </div>`;
+  }
+
+  el.innerHTML = `
+    <button class="hub-card" onclick="openStatPage('money')">
+      <div class="hub-icon">$</div>
+      <div class="hub-body"><div class="hub-title">Money Stat</div><div class="hub-desc">Log gains, hits, and history</div></div>
+      <div class="hub-arrow">→</div>
+    </button>
+    <button class="hub-card" onclick="navigateTo('manifest')">
+      <div class="hub-icon">◆</div>
+      <div class="hub-body"><div class="hub-title">Manifest</div><div class="hub-desc">Income goals — set and detach</div></div>
+      <div class="hub-arrow">→</div>
+    </button>
+    <button class="hub-card" onclick="navigateTo('leadgen')">
+      <div class="hub-icon">⚡</div>
+      <div class="hub-body"><div class="hub-title">Lead Gen</div><div class="hub-desc">Pipelines that feed the stack</div></div>
+      <div class="hub-arrow">→</div>
+    </button>`;
+
+  if (moneyStats.length) {
+    el.innerHTML += `
+      <div class="term-sect" onclick="void(0)">
+        <div class="term-title">YOUR MONEY STATS</div>
+        ${moneyStats.map(s => `
+          <div class="term-row" onclick="openEditMeStat('${s.id}')" style="cursor:pointer">
+            <span>${escapeHtml(s.title.toLowerCase())}</span>
+            <b><span class="term-stars">${clamp(s.stars || 0, 0, 25)} / 25</span></b>
+          </div>`).join('')}
+      </div>`;
+  }
+}
+
+// ── SOCIAL WORLD ──
+function renderSocialPage() {
+  const el = document.getElementById('social-areas');
+  if (!el) return;
+  const platforms = D.socialMedia || [];
+  const friends = (D.friends || []).length;
+  el.innerHTML = `
+    <button class="hub-card social-portal" onclick="navigateTo('girls')">
+      <div class="hub-icon portal-swirl">◉</div>
+      <div class="hub-body"><div class="hub-title">Girls</div><div class="hub-desc">The Entity, roster, slots, meet</div></div>
+      <div class="hub-arrow">→</div>
+    </button>
+    <button class="hub-card social-portal" onclick="navigateTo('socialmedia')">
+      <div class="hub-icon portal-swirl">◉</div>
+      <div class="hub-body"><div class="hub-title">Social Media</div><div class="hub-desc">${platforms.length} platform${platforms.length === 1 ? '' : 's'} — your online world</div></div>
+      <div class="hub-arrow">→</div>
+    </button>
+    <button class="hub-card" onclick="navigateTo('roster'); switchRosterTab('friends')">
+      <div class="hub-icon">☺</div>
+      <div class="hub-body"><div class="hub-title">Circle</div><div class="hub-desc">${friends} friend${friends === 1 ? '' : 's'} in your corner</div></div>
+      <div class="hub-arrow">→</div>
+    </button>
+    <button class="hub-card" onclick="navigateTo('vibe')">
+      <div class="hub-icon">✧</div>
+      <div class="hub-body"><div class="hub-title">Meet</div><div class="hub-desc">${computeMeetBar().percent.toFixed(0)}% chance out there</div></div>
+      <div class="hub-arrow">→</div>
+    </button>
+    <button class="hub-card" onclick="navigateTo('activities')">
+      <div class="hub-icon">♪</div>
+      <div class="hub-body"><div class="hub-title">Events & Parties</div><div class="hub-desc">Where the world happens</div></div>
+      <div class="hub-arrow">→</div>
+    </button>`;
+
+  // Your social body-map stats belong in this world
+  const socialStats = (D.meStats || []).filter(isSocialStat);
+  if (socialStats.length) {
+    el.innerHTML += `
+      <div class="term-sect" onclick="void(0)">
+        <div class="term-title">YOUR SOCIAL STATS</div>
+        ${socialStats.map(s => `
+          <div class="term-row" onclick="openEditMeStat('${s.id}')" style="cursor:pointer">
+            <span>${escapeHtml(s.title.toLowerCase())}</span>
+            <b><span class="term-stars">${clamp(s.stars || 0, 0, 25)} / 25</span></b>
+          </div>`).join('')}
+      </div>`;
+  }
+}
+
+function renderSocialMediaPage() {
+  const el = document.getElementById('socialmedia-list');
+  if (!el) return;
+  const platforms = D.socialMedia || [];
+  document.getElementById('sm-count').textContent = `PLATFORMS (${platforms.length})`;
+  if (platforms.length === 0) {
+    el.innerHTML = '<div class="empty-state">Nothing here yet — add Instagram, TikTok, YouTube, whatever you\'re building.</div>';
+    return;
+  }
+  el.innerHTML = platforms.map(p => {
+    const v = clamp(p.level || 0, 0, 25);
+    return `
+      <div class="sm-card" onclick="openEditSocialMedia('${p.id}')">
+        <div class="sm-card-head">
+          <div class="sm-card-name">${escapeHtml(p.title)}</div>
+          <div class="sm-card-lvl">${v} / 25</div>
+        </div>
+        <div class="sm-card-desc">${escapeHtml(p.desc || '')}</div>
+        <div class="sm-bar"><div class="sm-bar-fill" style="width:${(v / 25) * 100}%"></div></div>
+      </div>`;
+  }).join('');
+}
+
+function openAddSocialMedia() {
+  openModal(`
+    <h3>Add a platform</h3>
+    <div class="form-row"><label>Which one?</label><input id="sm-title" placeholder="Instagram, TikTok, YouTube..."/></div>
+    <div class="form-row"><label>A few words about it</label><textarea id="sm-desc" rows="2" placeholder="What you post, where it's heading..."></textarea></div>
+    <div class="form-row"><label>How alive is it right now?</label></div>
+    <div class="bm-range-row">
+      <input type="range" id="sm-val" min="0" max="25" value="0"
+        oninput="document.getElementById('sm-val-out').textContent = this.value + ' / 25'"/>
+      <span class="bm-range-out" id="sm-val-out">0 / 25</span>
+    </div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Never mind</button>
+      <button class="pill-btn good" onclick="submitAddSocialMedia()">Add it</button>
+    </div>`);
+}
+
+function submitAddSocialMedia() {
+  const title = (document.getElementById('sm-title').value || '').trim();
+  if (!title) { toast('Give it a name first.'); return; }
+  const desc = (document.getElementById('sm-desc').value || '').trim();
+  const level = clamp(parseInt(document.getElementById('sm-val').value) || 0, 0, 25);
+  D.socialMedia.push({ id: uid('smp'), title, desc, level, createdAt: Date.now() });
+  closeModal(); save();
+  renderSocialMediaPage();
+  toast(`"${title}" is in your world.`);
+}
+
+function openEditSocialMedia(id) {
+  const p = D.socialMedia.find(x => x.id === id);
+  if (!p) return;
+  const v = clamp(p.level || 0, 0, 25);
+  openModal(`
+    <h3>${escapeHtml(p.title)}</h3>
+    <div class="form-row"><label>Which one?</label><input id="sm-title" value="${escapeHtml(p.title)}"/></div>
+    <div class="form-row"><label>A few words about it</label><textarea id="sm-desc" rows="2">${escapeHtml(p.desc || '')}</textarea></div>
+    <div class="form-row"><label>How alive is it right now?</label></div>
+    <div class="bm-range-row">
+      <input type="range" id="sm-val" min="0" max="25" value="${v}"
+        oninput="document.getElementById('sm-val-out').textContent = this.value + ' / 25'"/>
+      <span class="bm-range-out" id="sm-val-out">${v} / 25</span>
+    </div>
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteSocialMedia('${id}')">Remove</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditSocialMedia('${id}')">Save</button>
+    </div>`);
+}
+
+function submitEditSocialMedia(id) {
+  const p = D.socialMedia.find(x => x.id === id);
+  if (!p) return;
+  p.title = (document.getElementById('sm-title').value || '').trim() || p.title;
+  p.desc = (document.getElementById('sm-desc').value || '').trim();
+  p.level = clamp(parseInt(document.getElementById('sm-val').value) || 0, 0, 25);
+  closeModal(); save();
+  renderSocialMediaPage();
+  toast('Saved.');
+}
+
+function deleteSocialMedia(id) {
+  if (!confirm('Remove this platform?')) return;
+  D.socialMedia = D.socialMedia.filter(x => x.id !== id);
+  closeModal(); save();
+  renderSocialMediaPage();
+  toast('Gone.');
 }
 
 

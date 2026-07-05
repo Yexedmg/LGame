@@ -1,0 +1,501 @@
+/* ============================================
+   LIFE — NEO-BRUTALIST SKIN (override layer)
+   Loads after styles.css. Winning design from revamp-2.
+   Hard borders, offset shadows, zero radius, Archivo Black.
+   ============================================ */
+
+:root {
+  --b-ink: #F2F4FC;
+  --b-bg: #181F3C;
+  --b-shadow-cyan: 6px 6px 0 #4EC8FF;
+  --b-shadow-pink: 6px 6px 0 #FF3366;
+  --b-shadow-gold: 6px 6px 0 #FFCB1C;
+  --b-shadow-green: 6px 6px 0 #40E382;
+  --b-shadow-purple: 6px 6px 0 #C852FF;
+  --font-display: 'Archivo Black', 'Inter', sans-serif;
+  --font-sans: 'Space Grotesk', 'Inter', sans-serif;
+}
+
+/* ---- Kill all rounding ---- */
+#app *,
+.modal,
+.modal * {
+  border-radius: 0 !important;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+/* Exact FINAL-brutalist background — flat, no gradients */
+body,
+#app,
+.page,
+.page-scroll {
+  background: #12172B !important;
+}
+
+/* ---- Display type ---- */
+.page-title,
+.act-page-title,
+.xp-title,
+.vibe-hero-label,
+.me-hero-name,
+.saveload-section-title,
+.saveload-danger-title {
+  font-family: var(--font-display) !important;
+  letter-spacing: 0.5px;
+}
+
+.section-header span,
+.section-header {
+  font-family: var(--font-display) !important;
+  color: var(--b-ink);
+  letter-spacing: 1.5px;
+}
+
+/* ---- Cards: 3px border + hard offset shadow, rotating accents ---- */
+.northstar-card,
+.era-card-home,
+.birthday-card,
+.activity-feed,
+.manifest-home-preview,
+.activity-card,
+.activity-item,
+.balance-card,
+.borough-card,
+.city-card,
+.common-card,
+.entity-card,
+.hub-card,
+.lifestyle-card,
+.ls-activity-card,
+.ls-breakdown-card,
+.manifest-card,
+.manifest-preview-card,
+.me-stat-card,
+.move-card,
+.ms-detail-card,
+.slot-one-card,
+.lead-tile,
+.act-tile,
+.month-recap,
+.manifest-info-box,
+.saveload-section,
+.saveload-danger,
+.act-summary-bar,
+.me-page-hero,
+.vibe-hero,
+.act-page-hero,
+.bodymap-wrap,
+.sm-card,
+.world-door {
+  background: var(--b-bg) !important;
+  border: 3px solid var(--b-ink) !important;
+  box-shadow: var(--b-shadow-cyan);
+  margin-bottom: 18px;
+}
+
+/* Accent rotation by section personality */
+.northstar-card { box-shadow: var(--b-shadow-pink); }
+.era-card-home { box-shadow: var(--b-shadow-gold); }
+.birthday-card { box-shadow: var(--b-shadow-green); }
+.manifest-card,
+.manifest-preview-card,
+.manifest-home-preview { box-shadow: var(--b-shadow-gold); }
+.hub-card,
+.lifestyle-card { box-shadow: var(--b-shadow-purple); }
+.slot-one-card { box-shadow: var(--b-shadow-pink); }
+.saveload-danger { box-shadow: var(--b-shadow-pink); border-color: #FF3366 !important; }
+
+/* ---- XP header ---- */
+.xp-header {
+  background: var(--b-bg) !important;
+  border: 3px solid var(--b-ink) !important;
+  box-shadow: var(--b-shadow-cyan);
+  padding: 14px;
+  margin-bottom: 20px;
+}
+
+.xp-level-badge {
+  background: #4EC8FF !important;
+  border: 3px solid var(--b-ink) !important;
+  color: #12172B !important;
+  box-shadow: 3px 3px 0 var(--b-ink);
+}
+
+.xp-level-number,
+.xp-level-label { color: #12172B !important; }
+
+.xp-title { font-size: 22px; }
+
+/* ---- Bars: bordered tracks + hazard-stripe fills ---- */
+.xp-bar-container,
+.meet-bar-track,
+.vibe-bar-track,
+.affinity-bar,
+.act-sum-meter-track,
+.manifest-progress-bar,
+.mf-detail-bar,
+.ls-brk-bar-wrap,
+.sched-day-usage-bar,
+.rarity-bar {
+  background: #0C1020 !important;
+  border: 2px solid var(--b-ink) !important;
+  overflow: hidden;
+}
+
+.xp-bar-fill,
+.meet-bar-fill,
+.vibe-bar-fill,
+.affinity-bar-fill,
+.act-sum-meter-fill,
+.act-cat-meter-fill,
+.manifest-progress-fill,
+.mf-detail-bar-fill,
+.ms-detail-progress-fill,
+.era-progress-fill,
+.sched-day-usage-fill {
+  background: repeating-linear-gradient(45deg, #40E382 0 8px, #2FBF69 8px 16px) !important;
+  box-shadow: none !important;
+}
+
+.meet-bar-sheen { display: none; }
+
+/* ---- Buttons: bordered blocks that physically press ---- */
+.small-btn,
+.back-btn,
+.act-edit-toggle-btn,
+.act-do-btn,
+.act-action-btn,
+.tile-btn,
+.saveload-btn,
+.inv-add-btn,
+.add-component-btn,
+.add-borough-btn,
+.add-place-btn,
+.bor-act-btn {
+  background: #FF3366 !important;
+  border: 2px solid var(--b-ink) !important;
+  color: var(--b-ink) !important;
+  font-family: var(--font-mono) !important;
+  font-weight: 700 !important;
+  box-shadow: 3px 3px 0 var(--b-ink);
+  transition: transform 0.05s, box-shadow 0.05s;
+}
+
+.back-btn,
+.act-edit-toggle-btn {
+  background: var(--b-bg) !important;
+  box-shadow: 3px 3px 0 #4EC8FF;
+}
+
+.small-btn:active,
+.back-btn:active,
+.saveload-btn:active,
+.act-do-btn:active,
+.tile-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--b-ink);
+}
+
+/* Quick actions — chunky arcade buttons */
+.action-card {
+  background: var(--b-bg) !important;
+  border: 3px solid var(--b-ink) !important;
+  box-shadow: 5px 5px 0 #C852FF;
+  transition: transform 0.05s, box-shadow 0.05s;
+}
+
+.action-card:active {
+  transform: translate(4px, 4px);
+  box-shadow: 1px 1px 0 #C852FF;
+}
+
+.action-icon { font-family: var(--font-display) !important; color: #4EC8FF; }
+
+/* ---- Tabs ---- */
+.inv-tab,
+.month-tab,
+.sched-day-tab {
+  background: var(--b-bg) !important;
+  border: 2px solid var(--b-ink) !important;
+  color: var(--b-ink) !important;
+  font-family: var(--font-mono) !important;
+  font-weight: 700 !important;
+}
+
+.inv-tab.active,
+.month-tab.active,
+.sched-day-tab.active {
+  background: #4EC8FF !important;
+  color: #12172B !important;
+  box-shadow: 3px 3px 0 var(--b-ink);
+}
+
+/* ---- Inputs ---- */
+input[type="text"],
+input[type="number"],
+input[type="date"],
+select,
+textarea,
+.inv-search,
+.calendar-year-select {
+  background: #0C1020 !important;
+  border: 2px solid var(--b-ink) !important;
+  color: var(--b-ink) !important;
+  font-family: var(--font-mono) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none !important;
+  box-shadow: 3px 3px 0 #4EC8FF !important;
+}
+
+/* ---- Chips ---- */
+.chip,
+.ability-chip,
+.act-sum-chip,
+.act-abil-chip,
+.sched-day-chip,
+.sched-act-stat-chip {
+  border: 2px solid var(--b-ink) !important;
+  background: #12172B !important;
+  font-family: var(--font-mono) !important;
+  font-weight: 700 !important;
+}
+
+/* ---- Modal ---- */
+.modal {
+  background: var(--b-bg) !important;
+  border: 3px solid var(--b-ink) !important;
+  box-shadow: 10px 10px 0 #4EC8FF !important;
+}
+
+.modal-backdrop { background: rgba(12, 16, 32, 0.85) !important; }
+
+/* ---- Empty states ---- */
+.empty-state {
+  border: 2px dashed rgba(242, 244, 252, 0.35) !important;
+  background: transparent !important;
+  font-family: var(--font-mono) !important;
+  padding: 14px !important;
+}
+
+/* ---- Bottom dock: exact FINAL-brutalist slab ---- */
+.bottom-dock {
+  background: var(--b-ink) !important;
+  border-top: 3px solid #12172B !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+  height: auto !important;
+  padding: 0 !important;
+  padding-bottom: var(--safe-bottom) !important;
+  display: flex !important;
+  align-items: stretch !important;
+}
+
+.dock-btn {
+  flex: 1 !important;
+  background: var(--b-ink) !important;
+  color: #12172B !important;
+  border: 0 !important;
+  border-right: 3px solid #12172B !important;
+  font-family: var(--font-display) !important;
+  font-size: 10px !important;
+  padding: 16px 0 !important;
+  transform: none !important;
+  width: auto !important;
+  height: auto !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  letter-spacing: 0.5px;
+}
+
+.dock-btn:last-child {
+  border-right: 0 !important;
+}
+
+.dock-btn.active {
+  background: #4EC8FF !important;
+  color: #12172B !important;
+}
+
+/* ---- FINAL layout components ---- */
+.meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ms {
+  border: 2px solid var(--b-ink);
+  background: #12172B;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 5px 8px;
+  color: var(--b-ink);
+  box-shadow: 3px 3px 0 rgba(242, 244, 252, 0.2);
+}
+
+.ms b { color: #4EC8FF; }
+
+/* Northstar — giant countdown */
+.northstar-card .north {
+  text-align: center;
+  padding: 10px 4px;
+  cursor: pointer;
+}
+
+.north-num {
+  font-family: var(--font-display);
+  font-size: 84px;
+  line-height: 1;
+  color: #FFCB1C;
+  text-shadow: 5px 5px 0 #FF3366;
+}
+
+.north-days-lbl {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: #9AA6CC;
+  margin-top: 6px;
+}
+
+.north-cap {
+  font-size: 15px;
+  font-weight: 700;
+  margin-top: 12px;
+  line-height: 1.4;
+}
+
+/* Split grid (b-day | leads) */
+.home-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.home-split > div { min-width: 0; }
+
+/* Birthday big number */
+.bday-big { text-align: center; }
+
+.bday-num {
+  font-family: var(--font-display);
+  font-size: 44px;
+  line-height: 1;
+  color: #40E382;
+}
+
+.bday-lbl {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #9AA6CC;
+  margin-top: 6px;
+  margin-bottom: 10px;
+}
+
+.qbar {
+  border: 2px solid var(--b-ink);
+  height: 14px;
+  position: relative;
+  background: #0C1020;
+  overflow: hidden;
+}
+
+.qbar i {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(45deg, #FFCB1C 0 8px, #E0B010 8px 16px);
+}
+
+/* End day */
+.endday-btn {
+  display: block;
+  width: 100%;
+  margin: 24px 0;
+  border: 3px solid var(--b-ink);
+  background: #FF3366;
+  color: var(--b-ink);
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: 1px;
+  padding: 16px;
+  box-shadow: 5px 5px 0 var(--b-ink);
+  cursor: pointer;
+  transition: transform 0.05s, box-shadow 0.05s;
+}
+
+.endday-btn:active {
+  transform: translate(4px, 4px);
+  box-shadow: 1px 1px 0 var(--b-ink);
+}
+
+/* Daily boss (unused) */
+.boss-block {
+  border: 3px solid #FF3366;
+  box-shadow: 6px 6px 0 #FF3366;
+  background: #1F1430;
+  padding: 18px 16px;
+  margin: 24px 0;
+  text-align: center;
+}
+
+.boss-k {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: #FF3366;
+}
+
+.boss-t {
+  font-family: var(--font-display);
+  font-size: 24px;
+  margin-top: 8px;
+  color: var(--b-ink);
+}
+
+.boss-s {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #9AA6CC;
+  margin-top: 6px;
+}
+
+.boss-btn {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  border: 3px solid var(--b-ink);
+  background: #FF3366;
+  color: var(--b-ink);
+  font-family: var(--font-display);
+  font-size: 17px;
+  letter-spacing: 1px;
+  padding: 16px;
+  box-shadow: 5px 5px 0 var(--b-ink);
+  cursor: pointer;
+  transition: transform 0.05s, box-shadow 0.05s;
+}
+
+.boss-btn:active {
+  transform: translate(4px, 4px);
+  box-shadow: 1px 1px 0 var(--b-ink);
+}
+
+/* Raster/overlay removed */
+.scanline-overlay {
+  display: none !important;
+}

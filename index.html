@@ -11,9 +11,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&family=Archivo+Black&family=Space+Grotesk:wght@500;700&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=2.6" />
+  <link rel="stylesheet" href="brutalist.css?v=1.1" />
 </head>
 
 <body>
@@ -47,10 +48,11 @@
             <div class="xp-bar-fill" id="home-xp-bar" style="width: 0%"></div>
             <span class="xp-bar-text" id="home-xp-text">0 / 100 XP</span>
           </div>
+          <div class="meta-chips" id="home-meta-chips"></div>
         </div>
 
         <div class="section-header">
-          <span>NORTHSTAR</span>
+          <span>★ NORTHSTAR</span>
           <button class="small-btn" onclick="openNorthstarModal()">Set</button>
         </div>
         <div id="home-northstar" class="northstar-card">
@@ -58,7 +60,7 @@
         </div>
 
         <div class="section-header">
-          <span>CURRENT ERA</span>
+          <span>MAIN QUEST — ERA</span>
           <button class="small-btn" onclick="openAddEra()">+ Plan</button>
         </div>
         <div id="home-current-era" class="era-card-home">
@@ -66,44 +68,27 @@
         </div>
 
         <div class="section-header">
-          <span>BIRTHDAY</span>
+          <span>B-DAY</span>
           <button class="small-btn" onclick="openBirthdayModal()">Set</button>
         </div>
         <div id="home-birthday" class="birthday-card">
-          <div class="empty-state">No birthday set. Tap "Set" to start the timer.</div>
+          <div class="empty-state">No birthday set.</div>
         </div>
 
         <div class="section-header">
-          <span>POTENTIAL LEADS</span>
-          <button class="small-btn" onclick="navigateTo('leadgen')">Open</button>
-        </div>
-        <div id="home-leads" class="lead-stars-wrap"></div>
-
-        <div class="section-header">
-          <span>MANIFEST</span>
+          <span>SIDE QUEST — MANIFEST</span>
           <button class="small-btn" onclick="navigateTo('manifest')">Open</button>
         </div>
         <div id="home-manifest" class="manifest-home-preview">
           <div class="empty-state">No manifests yet. Set a goal and detach.</div>
         </div>
 
+        <div id="home-terminals"></div>
 
-
-        <div class="section-header"><span>QUICK ACTIONS</span></div>
-        <div class="quick-actions">
-          <button class="action-card" onclick="navigateTo('activities')">
-            <span class="action-icon">ACT</span><span class="action-label">Activities</span>
-          </button>
-          <button class="action-card" onclick="navigateTo('roster')">
-            <span class="action-icon">RSTR</span><span class="action-label">Roster</span>
-          </button>
-          <button class="action-card" onclick="endDay()">
-            <span class="action-icon">END</span><span class="action-label">End Day</span>
-          </button>
-        </div>
+        <button class="endday-btn" onclick="endDay()">END DAY</button>
 
         <div class="section-header">
-          <span>RECENT ACTIVITY</span>
+          <span>RECENT</span>
           <button class="small-btn" onclick="showOverlay('months')">Months</button>
         </div>
         <div id="home-activity-feed" class="activity-feed">
@@ -202,6 +187,49 @@
       </div>
     </div>
 
+    <!-- PORTAL PAGE (world select) -->
+    <div id="page-portal" class="page">
+      <div class="page-scroll">
+        <div class="social-hero">
+          <div class="social-hero-title">PORTAL</div>
+          <div class="social-hero-sub">Pick a world. Everything you're building lives here.</div>
+        </div>
+        <div class="section-header"><span>WORLDS</span></div>
+        <div id="portal-doors" class="portal-grid"></div>
+      </div>
+    </div>
+
+    <!-- SOCIAL WORLD PAGE -->
+    <div id="page-social" class="page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="navigateTo('portal')">← Portal</button>
+        </div>
+        <div class="social-hero">
+          <div class="social-hero-title">SOCIAL</div>
+          <div class="social-hero-sub">A whole world of people. Pick a door.</div>
+        </div>
+        <div class="section-header"><span>AREAS</span></div>
+        <div id="social-areas" class="hub-grid"></div>
+      </div>
+    </div>
+
+    <!-- SOCIAL MEDIA PAGE (inside the Social world) -->
+    <div id="page-socialmedia" class="page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="navigateTo('social')">← Social</button>
+          <div class="page-title" style="margin:0">SOCIAL MEDIA</div>
+        </div>
+        <div class="manifest-desc">Your platforms — how alive is each one?</div>
+        <div class="section-header">
+          <span id="sm-count">PLATFORMS (0)</span>
+          <button class="small-btn" onclick="openAddSocialMedia()">+ Add</button>
+        </div>
+        <div id="socialmedia-list"></div>
+      </div>
+    </div>
+
     <!-- THE ENTITY PAGE (the big picture — vibe + lead gen + social proof etc.) -->
     <div id="page-vibe" class="page">
       <div class="page-scroll">
@@ -246,6 +274,22 @@
           <div class="page-title" id="vibecomp-title" style="margin:0">COMPONENT</div>
         </div>
         <div id="vibecomp-content"></div>
+      </div>
+    </div>
+
+    <!-- MONEY WORLD PAGE -->
+    <div id="page-money" class="page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="navigateTo('portal')">← Portal</button>
+        </div>
+        <div class="social-hero money-hero">
+          <div class="social-hero-title">MONEY</div>
+          <div class="social-hero-sub">Stack it. Track it. Make it move.</div>
+        </div>
+        <div id="money-balance"></div>
+        <div class="section-header"><span>AREAS</span></div>
+        <div id="money-areas" class="hub-grid"></div>
       </div>
     </div>
 
@@ -505,14 +549,12 @@
     <!-- ME PAGE -->
     <div id="page-me" class="page">
       <div class="page-scroll">
-        <div class="me-page-hero">
-          <div class="me-avatar-ring">
-            <div class="me-avatar" id="me-avatar">ME</div>
-          </div>
-          <div class="me-hero-info">
-            <div class="me-hero-name" id="me-hero-name">YOUR STATS</div>
-            <div class="me-hero-sub" id="me-hero-sub">Track every dimension of yourself</div>
-          </div>
+        <div class="section-header" style="margin-top:8px">
+          <span id="me-stat-count">BODY MAP (0)</span>
+          <button class="small-btn" onclick="openAddMeStat()">+ Add</button>
+        </div>
+        <div class="bodymap-wrap">
+          <svg id="me-bodymap" viewBox="0 0 360 420" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
         <div class="section-header"><span>OVERVIEW</span></div>
         <div class="quick-actions">
@@ -541,11 +583,6 @@
           <div class="empty-state">No one yet. Go out and meet someone.</div>
         </div>
 
-        <div class="section-header">
-          <span id="me-stat-count">MY STATS (0)</span>
-          <button class="small-btn" onclick="openAddMeStat()">+ Add Stat</button>
-        </div>
-        <div id="me-stats-list"></div>
       </div>
     </div>
 
@@ -557,21 +594,11 @@
 
     <!-- Bottom Dock -->
     <nav class="bottom-dock">
-      <button class="dock-btn" data-page="lifestyle" onclick="navigateTo('lifestyle')">
-        <span class="dock-icon">LIFE</span><span class="dock-label">Lifestyle</span>
-      </button>
-      <button class="dock-btn" data-page="schedule" onclick="navigateTo('schedule')">
-        <span class="dock-icon">SCHED</span><span class="dock-label">Schedule</span>
-      </button>
-      <button class="dock-btn home-btn active" data-page="home" onclick="navigateTo('home')">
-        <span class="dock-icon-home">HOME</span>
-      </button>
-      <button class="dock-btn" data-page="girls" onclick="navigateTo('girls')">
-        <span class="dock-icon">GRL</span><span class="dock-label">Girls</span>
-      </button>
-      <button class="dock-btn" data-page="me" onclick="navigateTo('me')">
-        <span class="dock-icon">ME</span><span class="dock-label">Me</span>
-      </button>
+      <button class="dock-btn" data-page="lifestyle" onclick="navigateTo('lifestyle')">LIFE</button>
+      <button class="dock-btn" data-page="schedule" onclick="navigateTo('schedule')">SCHED</button>
+      <button class="dock-btn active" data-page="home" onclick="navigateTo('home')">HOME</button>
+      <button class="dock-btn" data-page="portal" onclick="navigateTo('portal')">PORTAL</button>
+      <button class="dock-btn" data-page="me" onclick="navigateTo('me')">ME</button>
     </nav>
   </div>
 
