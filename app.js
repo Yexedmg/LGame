@@ -314,6 +314,7 @@ function load() {
     if (!Array.isArray(D.socialMedia)) D.socialMedia = [];
     // Migration: money goal + best time allocation
     if (D.moneyGoal === undefined) D.moneyGoal = null;
+    if (!Array.isArray(D.incomes)) D.incomes = [];
     if (!Array.isArray(D.bestTimeAlloc)) D.bestTimeAlloc = [];
     // Migration: ratings world (⭐ S–F tiers)
     if (!Array.isArray(D.ratings)) {
@@ -542,12 +543,26 @@ function toast(msg) {
 }
 
 // ── Navigation ──
+let navStack = [];
+let suppressNavPush = false;
+
 function navigateTo(page) {
+  if (!suppressNavPush && currentPage && currentPage !== page) {
+    navStack.push(currentPage);
+    if (navStack.length > 30) navStack.shift();
+  }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
   document.querySelectorAll('.dock-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
   currentPage = page;
   render();
+}
+
+function goBack() {
+  const prev = navStack.pop() || 'home';
+  suppressNavPush = true;
+  navigateTo(prev);
+  suppressNavPush = false;
 }
 function showOverlay(page) {
   document.getElementById('page-' + page).classList.add('active');
@@ -1514,8 +1529,10 @@ let currentStatKey = null;
 function openStatPage(key) {
   if (key === 'vibe') { navigateTo('vibe'); return; }
   currentStatKey = key;
+  if (currentPage && currentPage !== 'stat') navStack.push(currentPage);
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-stat').classList.add('active');
+  currentPage = 'stat';
   renderStatPage();
 }
 function renderStatPage() {
@@ -1578,10 +1595,6 @@ function renderGirls() {
     <button class="hub-card" onclick="navigateTo('life')">
       <div class="hub-icon"></div>
       <div class="hub-body"><div class="hub-title">Life (Slots)</div><div class="hub-desc">${taken} girlfriend${taken === 1 ? '' : 's'}</div></div>
-    </button>
-    <button class="hub-card" onclick="navigateTo('vibe')">
-      <div class="hub-icon"></div>
-      <div class="hub-body"><div class="hub-title">Meet</div><div class="hub-desc">${computeMeetBar().percent.toFixed(0)}% chance bar</div></div>
     </button>
   `;
 }
@@ -1673,7 +1686,56 @@ function syncLifestyleLeads() {
   lifestyle.slots = lifestyle.slots.map(s => lifestyle.inventory.find(x => x.id === s) ? s : null);
 }
 function isMirrorLeadItem(item) {
-  return !!(item && item.id && item.id.startsWith(LIFESTYLE_MIRROR_PREFIX));
+  return !!(item && item.id && (item.id.startsWith(LIFESTYLE_MIRROR_PREFIX) || item.id.startsWith(SM_MIRROR_PREFIX)));
+}
+
+// ── FEEDS: Social Media platforms feed Online Presence ──
+// The generic cross-system mechanic: what you build in one world counts somewhere else.
+// A platform's 0–25 level sets the ROI tier of its mirrored lead item in lm-online.
+const ONLINE_METHOD_ID = 'lm-online';
+const SM_MIRROR_PREFIX = 'sm-mirror-';
+
+function smLevelToRoi(level) {
+  if (level >= 21) return 'very-high';
+  if (level >= 16) return 'high';
+  if (level >= 11) return 'medium';
+  if (level >= 6) return 'medium-low';
+  return 'low';
+}
+
+function syncOnlinePresenceFeeds() {
+  const platforms = D.socialMedia || [];
+  const methods = leadMethods();
+  let online = methods.find(x => x.id === ONLINE_METHOD_ID);
+
+  if (platforms.length === 0 && !online) return;
+  if (!online && platforms.length > 0) {
+    online = { id: ONLINE_METHOD_ID, name: 'Online Presence', emoji: '[NET]', maxSlots: 2, maxGain: 10, slots: [null, null], inventory: [] };
+    methods.push(online);
+  }
+  if (!online) return;
+
+  // Mirror each platform; level drives the ROI tier
+  platforms.forEach(p => {
+    const mirrorId = SM_MIRROR_PREFIX + p.id;
+    let mirror = online.inventory.find(x => x.id === mirrorId);
+    if (!mirror) {
+      mirror = { id: mirrorId, name: p.title, difficulty: 'medium', roi: smLevelToRoi(p.level || 0), leads: 0, sourcePlatformId: p.id };
+      online.inventory.push(mirror);
+    } else {
+      mirror.name = p.title;
+      mirror.roi = smLevelToRoi(p.level || 0);
+      mirror.sourcePlatformId = p.id;
+    }
+  });
+
+  // Remove mirrors whose platform is gone; clean slots
+  const ids = new Set(platforms.map(p => p.id));
+  online.inventory = online.inventory.filter(it => {
+    if (!it.id || !it.id.startsWith(SM_MIRROR_PREFIX)) return true;
+    return ids.has(it.sourcePlatformId || it.id.slice(SM_MIRROR_PREFIX.length));
+  });
+  online.slots = online.slots.map(s => online.inventory.find(x => x.id === s) ? s : null);
 }
 // ── Tier coloring for lead items / methods ──
 // (Legacy gain-based tiers kept for backward compat, but items use ROI directly)
@@ -1813,6 +1875,7 @@ function openLeadMethod(id) { currentLeadMethodId = id; navigateTo('leadmethod')
 
 function renderLeadgen() {
   syncLifestyleLeads();
+  syncOnlinePresenceFeeds();
   const { percent, slotted } = computeLeadBar();
   const bar = document.getElementById('lead-bar-fill');
   if (bar) bar.style.width = Math.min(percent, 100) + '%';
@@ -1906,13 +1969,7 @@ function adjustLeadItemCount(methodId, itemId, delta) {
   it.leads = Math.max(0, (Number(it.leads) || 0) + delta);
   save();
   redrawLeadgen();
-  if (currentPage === 'home') renderHomeLeads();
-}
-
-function renderHomeLeads() {
-  const el = document.getElementById('home-leads');
-  if (!el) return;
-  el.innerHTML = leadStarsCard('POTENTIAL LEADS', totalLeadCount());
+  if (currentPage === 'home') renderHomeTerminals();
 }
 
 // ── Terminal panels (home) ──
@@ -1920,12 +1977,12 @@ function termStars(n) {
   return '★'.repeat(clamp(n, 0, 8));
 }
 
-function termSect(title, rows, onclickPage) {
+function termSect(title, rows, clickJs) {
   const body = rows.length
     ? rows.map(r => `<div class="term-row"><span>${escapeHtml(r[0])}</span><b>${r[1]}</b></div>`).join('')
     : '<div class="term-row term-dim"><span>none yet</span></div>';
   return `
-    <div class="term-sect" ${onclickPage ? `onclick="navigateTo('${onclickPage}')"` : ''}>
+    <div class="term-sect" ${clickJs ? `onclick="${clickJs}"` : 'style="cursor:default"'}>
       <div class="term-title">${escapeHtml(title)}</div>
       ${body}
     </div>`;
@@ -1956,16 +2013,17 @@ function renderHomeTerminals() {
     [(f.name || 'friend').toLowerCase(), `<span class="term-stars">${termStars(f.rarity || f.social || 1)}</span>`]);
 
   el.innerHTML =
-    termSect(`LEADS (${hot} hot)`, leadRows, 'leadgen') +
-    termSect('MONEY', moneyRows, null) +
-    termSect('HEALTH', healthRows, null) +
-    termSect('LIFESTYLE', lifestyleRows, 'lifestyle') +
-    termSect(`SOCIAL CIRCLE (${(D.friends || []).length})`, circleRows, 'social');
+    termSect(`LEADS (${hot} hot)`, leadRows, "navigateTo('leadgen')") +
+    termSect('MONEY', moneyRows, "navigateTo('money')") +
+    termSect('HEALTH', healthRows, "openStatPage('health')") +
+    termSect('LIFESTYLE', lifestyleRows, "navigateTo('lifestyle')") +
+    termSect(`SOCIAL CIRCLE (${(D.friends || []).length})`, circleRows, "navigateTo('social')");
 }
 
 // ── Lead method DETAIL page ──
 function renderLeadMethodDetail() {
   syncLifestyleLeads();
+  syncOnlinePresenceFeeds();
   const m = leadMethods().find(x => x.id === currentLeadMethodId);
   if (!m) { navigateTo('leadgen'); return; }
   const title = document.getElementById('leadmethod-title');
@@ -3360,6 +3418,7 @@ function submitAddActivityItem(catId) {
     statEffects: readEffectInputs(),
   });
   syncLifestyleLeads();
+  syncOnlinePresenceFeeds();
   closeModal();
   save(); renderActivitiesV2();
 }
@@ -3423,6 +3482,7 @@ function submitEditActivityItem(catId, itemId) {
   it.leadgen = !!document.getElementById('ai-leadgen')?.checked;
   it.statEffects = readEffectInputs();
   syncLifestyleLeads();
+  syncOnlinePresenceFeeds();
   closeModal();
   save(); renderActivitiesV2();
 }
@@ -3432,6 +3492,7 @@ function deleteActivityItem(catId, itemId) {
   c.inventory = c.inventory.filter(x => x.id !== itemId);
   c.slots = c.slots.map(s => s === itemId ? null : s);
   syncLifestyleLeads();
+  syncOnlinePresenceFeeds();
   closeModal();
   save(); renderActivitiesV2();
 }
@@ -6199,7 +6260,7 @@ function submitAddMeStat() {
     id: uid('mst'), title, desc, stars: clamp(val, 0, 25), createdAt: Date.now()
   });
   closeModal(); save();
-  renderMePage();
+  render();
   toast(`"${title}" is on your map.`);
 }
 
@@ -6232,7 +6293,7 @@ function submitEditMeStat(id) {
   s.desc = (document.getElementById('me-stat-desc').value || '').trim();
   s.stars = clamp(parseInt(document.getElementById('me-stat-val').value) || 0, 0, 25);
   closeModal(); save();
-  renderMePage();
+  render();
   toast('Saved.');
 }
 
@@ -6240,7 +6301,7 @@ function deleteMeStat(id) {
   if (!confirm('Take this off your body map?')) return;
   D.meStats = D.meStats.filter(x => x.id !== id);
   closeModal(); save();
-  renderMePage();
+  render();
   toast('Off the map.');
 }
 
@@ -6331,10 +6392,24 @@ function renderMoneyPage() {
   }
 
   if (bal) {
+    const incomes = D.incomes || [];
+    const totalIncome = incomes.reduce((s, i) => s + (Number(i.amount) || 0), 0);
     bal.innerHTML = `
       <div class="term-sect" onclick="openStatPage('money')">
         <div class="term-title">BALANCE</div>
         <div class="term-row"><span>current</span><b>$${Math.round(D.player.stats.money)}</b></div>
+      </div>
+      <div class="term-sect" onclick="void(0)" style="cursor:default">
+        <div class="term-title">INCOME ($${totalIncome.toLocaleString('en-US')}/mo)
+          <button class="small-btn" style="float:right" onclick="event.stopPropagation();openAddIncome()">+ Add</button>
+        </div>
+        ${incomes.length
+          ? incomes.map(i => `
+            <div class="term-row" style="cursor:pointer" onclick="openEditIncome('${i.id}')">
+              <span>${escapeHtml(i.title.toLowerCase())}</span>
+              <b><span class="term-stars">$${Number(i.amount).toLocaleString('en-US')}/mo</span></b>
+            </div>`).join('')
+          : '<div class="term-row term-dim"><span>no income streams yet</span></div>'}
       </div>`;
   }
 
@@ -6997,7 +7072,10 @@ function renderSocialMediaPage() {
     el.innerHTML = '<div class="empty-state">Nothing here yet — add Instagram, TikTok, YouTube, whatever you\'re building.</div>';
     return;
   }
-  el.innerHTML = platforms.map(p => {
+  el.innerHTML = `
+    <div class="feed-note" onclick="navigateTo('leadgen')">
+      ⚡ FEEDS → ONLINE PRESENCE — every platform here becomes fuel in Lead Gen. Its level sets the tier.
+    </div>` + platforms.map(p => {
     const v = clamp(p.level || 0, 0, 25);
     return `
       <div class="sm-card" onclick="openEditSocialMedia('${p.id}')">
@@ -7007,6 +7085,7 @@ function renderSocialMediaPage() {
         </div>
         <div class="sm-card-desc">${escapeHtml(p.desc || '')}</div>
         <div class="sm-bar"><div class="sm-bar-fill" style="width:${(v / 25) * 100}%"></div></div>
+        <div class="sm-feed">⚡ feeds online presence · ${smLevelToRoi(v).replace('-', ' ')} roi</div>
       </div>`;
   }).join('');
 }
@@ -7034,9 +7113,10 @@ function submitAddSocialMedia() {
   const desc = (document.getElementById('sm-desc').value || '').trim();
   const level = clamp(parseInt(document.getElementById('sm-val').value) || 0, 0, 25);
   D.socialMedia.push({ id: uid('smp'), title, desc, level, createdAt: Date.now() });
+  syncOnlinePresenceFeeds();
   closeModal(); save();
   renderSocialMediaPage();
-  toast(`"${title}" is in your world.`);
+  toast(`"${title}" is in your world — feeding Online Presence.`);
 }
 
 function openEditSocialMedia(id) {
@@ -7066,6 +7146,7 @@ function submitEditSocialMedia(id) {
   p.title = (document.getElementById('sm-title').value || '').trim() || p.title;
   p.desc = (document.getElementById('sm-desc').value || '').trim();
   p.level = clamp(parseInt(document.getElementById('sm-val').value) || 0, 0, 25);
+  syncOnlinePresenceFeeds();
   closeModal(); save();
   renderSocialMediaPage();
   toast('Saved.');
@@ -7074,6 +7155,7 @@ function submitEditSocialMedia(id) {
 function deleteSocialMedia(id) {
   if (!confirm('Remove this platform?')) return;
   D.socialMedia = D.socialMedia.filter(x => x.id !== id);
+  syncOnlinePresenceFeeds();
   closeModal(); save();
   renderSocialMediaPage();
   toast('Gone.');

@@ -6879,6 +6879,25 @@ body {
   background: linear-gradient(90deg, #C7F464, #7BE03A);
 }
 
+.sm-feed {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--cyan);
+  margin-top: 8px;
+}
+
+.feed-note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--cyan);
+  border: 1px dashed var(--border-accent-strong);
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 14px;
+  cursor: pointer;
+}
+
 /* ===== TERMINAL PANELS (home) ===== */
 .term-sect {
   border: 1px solid #1B2C4A;
