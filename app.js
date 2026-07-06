@@ -7505,7 +7505,7 @@ function renderSocialPage() {
     </button>
     <button class="hub-card social-portal" onclick="navigateTo('socialmedia')">
       <div class="hub-icon portal-swirl">◉</div>
-      <div class="hub-body"><div class="hub-title">Social Media</div><div class="hub-desc">${platforms.length} platform${platforms.length === 1 ? '' : 's'} — your online world</div></div>
+      <div class="hub-body"><div class="hub-title">Social life</div><div class="hub-desc">${platforms.length} platform${platforms.length === 1 ? '' : 's'} — your online world</div></div>
       <div class="hub-arrow">→</div>
     </button>
     <button class="hub-card" onclick="navigateTo('roster'); switchRosterTab('friends')">
