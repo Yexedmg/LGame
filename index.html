@@ -85,13 +85,6 @@
 
         <div id="home-terminals"></div>
 
-        <div class="section-header">
-          <span>RECENT</span>
-          <button class="small-btn" onclick="showOverlay('months')">Months</button>
-        </div>
-        <div id="home-activity-feed" class="activity-feed">
-          <div class="empty-state">No activity yet.</div>
-        </div>
       </div>
     </div>
 
@@ -298,6 +291,38 @@
         <div id="money-balance"></div>
         <div class="section-header"><span>AREAS</span></div>
         <div id="money-areas" class="hub-grid"></div>
+      </div>
+    </div>
+
+    <!-- INCOME PAGE (inside Money world) -->
+    <div id="page-income" class="page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="goBack()">← Back</button>
+          <div class="page-title" style="margin:0">INCOME</div>
+        </div>
+        <div id="income-summary"></div>
+        <div class="section-header">
+          <span id="income-active-count">FLOWING</span>
+          <button class="small-btn" onclick="openAddIncome('active')">+ Add</button>
+        </div>
+        <div id="income-active-list"></div>
+        <div class="section-header">
+          <span id="income-possible-count">POSSIBLE STREAMS</span>
+          <button class="small-btn" onclick="openAddIncome('possible')">+ Add</button>
+        </div>
+        <div id="income-possible-list"></div>
+      </div>
+    </div>
+
+    <!-- INCOME STREAM DETAIL PAGE -->
+    <div id="page-incomedetail" class="page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="navigateTo('income')">← Income</button>
+          <div class="page-title" id="incomedetail-title" style="margin:0">STREAM</div>
+        </div>
+        <div id="incomedetail-content"></div>
       </div>
     </div>
 

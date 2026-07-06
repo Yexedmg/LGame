@@ -315,6 +315,12 @@ function load() {
     // Migration: money goal + best time allocation
     if (D.moneyGoal === undefined) D.moneyGoal = null;
     if (!Array.isArray(D.incomes)) D.incomes = [];
+    D.incomes.forEach(i => {
+      if (i.status === undefined) i.status = 'active';
+      if (i.hoursPerWeek === undefined) i.hoursPerWeek = 0;
+      if (i.desc === undefined) i.desc = '';
+      if (!Array.isArray(i.projections)) i.projections = [];
+    });
     if (!Array.isArray(D.bestTimeAlloc)) D.bestTimeAlloc = [];
     // Migration: ratings world (⭐ S–F tiers)
     if (!Array.isArray(D.ratings)) {
@@ -1012,6 +1018,8 @@ function render() {
   if (currentPage === 'social') renderSocialPage();
   if (currentPage === 'socialmedia') renderSocialMediaPage();
   if (currentPage === 'money') renderMoneyPage();
+  if (currentPage === 'income') renderIncomePage();
+  if (currentPage === 'incomedetail') renderIncomeDetail();
   if (currentPage === 'ratings') renderRatingsPage();
   if (currentPage === 'ratingdetail') renderRatingDetail();
 }
@@ -1051,6 +1059,7 @@ function renderHome() {
   renderHomeManifest();
   // Activity feed (recent log, last 12, newest first)
   const feed = document.getElementById('home-activity-feed');
+  if (!feed) return;
   const recent = D.log.slice(-12).reverse();
   if (recent.length === 0) {
     feed.innerHTML = '<div class="empty-state">No activity yet.</div>';
@@ -6383,6 +6392,7 @@ function renderMoneyPage() {
           <div class="money-goal-k">THE GOAL</div>
           <div class="money-goal-num">$${Number(D.moneyGoal).toLocaleString('en-US')}</div>
           <div class="money-goal-sub">$${Math.round(D.player.stats.money).toLocaleString('en-US')} stacked — tap to change</div>
+          ${(() => { const e = projectGoalEta(); return e ? `<div class="money-goal-eta">on trajectory → ${e.label === 'already there' ? 'ALREADY THERE' : 'hits ' + e.label}</div>` : ''; })()}
         </div>`
       : `<div class="money-goal" onclick="openMoneyGoalModal()">
           <div class="money-goal-k">THE GOAL</div>
@@ -6393,23 +6403,21 @@ function renderMoneyPage() {
 
   if (bal) {
     const incomes = D.incomes || [];
-    const totalIncome = incomes.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+    const totalIncome = incomes.filter(i => i.status !== 'possible').reduce((s, i) => s + (Number(i.amount) || 0), 0);
     bal.innerHTML = `
       <div class="term-sect" onclick="openStatPage('money')">
         <div class="term-title">BALANCE</div>
         <div class="term-row"><span>current</span><b>$${Math.round(D.player.stats.money)}</b></div>
       </div>
-      <div class="term-sect" onclick="void(0)" style="cursor:default">
-        <div class="term-title">INCOME ($${totalIncome.toLocaleString('en-US')}/mo)
-          <button class="small-btn" style="float:right" onclick="event.stopPropagation();openAddIncome()">+ Add</button>
-        </div>
-        ${incomes.length
-          ? incomes.map(i => `
-            <div class="term-row" style="cursor:pointer" onclick="openEditIncome('${i.id}')">
+      <div class="term-sect" onclick="navigateTo('income')">
+        <div class="term-title">INCOME ($${totalIncome.toLocaleString('en-US')}/mo)</div>
+        ${incomes.filter(i => i.status !== 'possible').length
+          ? incomes.filter(i => i.status !== 'possible').map(i => `
+            <div class="term-row">
               <span>${escapeHtml(i.title.toLowerCase())}</span>
               <b><span class="term-stars">$${Number(i.amount).toLocaleString('en-US')}/mo</span></b>
             </div>`).join('')
-          : '<div class="term-row term-dim"><span>no income streams yet</span></div>'}
+          : '<div class="term-row term-dim"><span>no income streams yet — tap to build</span></div>'}
       </div>`;
   }
 
@@ -6443,25 +6451,330 @@ function renderMoneyPage() {
   }
 }
 
-// ---- income streams ----
-function openAddIncome() {
+// ---- INCOME (page inside Money world) ----
+let currentIncomeId = null;
+
+function incomeCard(i) {
+  const possible = i.status === 'possible';
+  return `
+    <div class="sm-card" onclick="openIncomeDetail('${i.id}')">
+      <div class="sm-card-head">
+        <div class="sm-card-name">${escapeHtml(i.title)}</div>
+        <div class="sm-card-lvl">$${Number(i.amount || 0).toLocaleString('en-US')}/mo</div>
+      </div>
+      <div class="sm-card-desc">${escapeHtml(i.desc || '')}</div>
+      <div class="sm-feed">${possible ? '◇ possible — not flowing yet' : '⚡ flowing'} · ${i.hoursPerWeek || 0}h/week</div>
+    </div>`;
+}
+
+function renderIncomePage() {
+  const sum = document.getElementById('income-summary');
+  const activeEl = document.getElementById('income-active-list');
+  const possibleEl = document.getElementById('income-possible-list');
+  if (!activeEl) return;
+  const active = (D.incomes || []).filter(i => i.status !== 'possible');
+  const possible = (D.incomes || []).filter(i => i.status === 'possible');
+  const totalMo = active.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+  const totalHrs = active.reduce((s, i) => s + (Number(i.hoursPerWeek) || 0), 0);
+  const potentialMo = possible.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+
+  document.getElementById('income-active-count').textContent = `FLOWING (${active.length})`;
+  document.getElementById('income-possible-count').textContent = `POSSIBLE STREAMS (${possible.length})`;
+
+  if (sum) {
+    const eta = projectGoalEta();
+    sum.innerHTML = `
+      <div class="term-sect" style="cursor:default">
+        <div class="term-title">THE FLOW</div>
+        <div class="term-row"><span>per month</span><b>$${totalMo.toLocaleString('en-US')}</b></div>
+        <div class="term-row"><span>per year</span><b>$${(totalMo * 12).toLocaleString('en-US')}</b></div>
+        <div class="term-row"><span>hours invested</span><b>${totalHrs}h/week</b></div>
+        <div class="term-row"><span>if possibles land</span><b><span class="term-stars">+$${potentialMo.toLocaleString('en-US')}/mo</span></b></div>
+        ${eta ? `<div class="term-row"><span>goal hit on trajectory</span><b><span class="term-stars">${eta.label}</span></b></div>` : ''}
+      </div>
+      ${totalTrajectoryGraph() ? `
+        <div class="term-sect" style="cursor:default">
+          <div class="term-title">TRAJECTORY — TOTAL $/MO</div>
+          ${totalTrajectoryGraph()}
+        </div>` : ''}`;
+  }
+
+  activeEl.innerHTML = active.length ? active.map(incomeCard).join('')
+    : '<div class="empty-state">Nothing flowing yet. Add what pays you now.</div>';
+  possibleEl.innerHTML = possible.length ? possible.map(incomeCard).join('')
+    : '<div class="empty-state">No possible streams mapped. What could pay you?</div>';
+}
+
+function openIncomeDetail(id) {
+  currentIncomeId = id;
+  navigateTo('incomedetail');
+}
+
+function renderIncomeDetail() {
+  const el = document.getElementById('incomedetail-content');
+  if (!el) return;
+  const i = (D.incomes || []).find(x => x.id === currentIncomeId);
+  if (!i) { navigateTo('income'); return; }
+  document.getElementById('incomedetail-title').textContent = i.title.toUpperCase();
+  const mo = Number(i.amount) || 0;
+  const hrs = Number(i.hoursPerWeek) || 0;
+  const hourly = hrs > 0 ? Math.round((mo * 12) / (hrs * 52)) : null;
+  const projections = i.projections || [];
+
+  el.innerHTML = `
+    <div class="term-sect" style="cursor:default">
+      <div class="term-title">${i.status === 'possible' ? '◇ POSSIBLE STREAM' : '⚡ FLOWING'}</div>
+      <div class="term-row"><span>per month</span><b>$${mo.toLocaleString('en-US')}</b></div>
+      <div class="term-row"><span>hours invested</span><b>${hrs}h/week</b></div>
+      <div class="term-row"><span>effective rate</span><b>${hourly != null ? '$' + hourly.toLocaleString('en-US') + '/h' : '–'}</b></div>
+    </div>
+    ${i.desc ? `<div class="rating-card-desc" style="margin-bottom:14px">${escapeHtml(i.desc)}</div>` : ''}
+    <div class="term-sect" style="cursor:default">
+      <div class="term-title">MY PROJECTION
+        <button class="small-btn" style="float:right" onclick="openAddProjection()">+ Call a shot</button>
+      </div>
+      ${streamProjectionGraph(i) || '<div class="term-row term-dim"><span>no trajectory yet — call where this will be by when</span></div>'}
+      ${projections.filter(p => projDate(p)).length ? '<div class="pg-hint">tap a point to edit it</div>' : ''}
+    </div>
+    <div class="row" style="margin-top:16px">
+      <button class="pill-btn" onclick="openEditIncome('${i.id}')">✎ Edit</button>
+      ${i.status === 'possible'
+        ? `<button class="pill-btn good" onclick="activateIncome('${i.id}')">It landed — start flowing</button>`
+        : `<button class="pill-btn" onclick="deactivateIncome('${i.id}')">Move to possible</button>`}
+    </div>`;
+}
+
+function activateIncome(id) {
+  const i = D.incomes.find(x => x.id === id);
+  if (!i) return;
+  i.status = 'active';
+  save(); render();
+  toast(`"${i.title}" is flowing now.`);
+}
+
+function deactivateIncome(id) {
+  const i = D.incomes.find(x => x.id === id);
+  if (!i) return;
+  i.status = 'possible';
+  save(); render();
+  toast('Moved to possible.');
+}
+
+// ---- PROJECTION ENGINE ----
+// Milestones are dated ('YYYY-MM'). Income is modeled as a piecewise function of time:
+// a stream pays its current amount now and steps/ramps to each milestone amount by its date.
+// The engine integrates total monthly income into projected balance and derives the money-goal ETA.
+
+function projDate(p) {
+  if (!p.date) return null;
+  const [y, m] = p.date.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, 1).getTime();
+}
+
+function monthLabel(t) {
+  const d = new Date(t);
+  return d.toLocaleString('en-US', { month: 'short' }) + " '" + String(d.getFullYear()).slice(2);
+}
+
+// Stream's $/mo at time t (linear ramp between dated milestones)
+function streamValueAt(stream, t) {
+  const now = Date.now();
+  const pts = [{ t: now, v: Number(stream.amount) || 0 }]
+    .concat((stream.projections || [])
+      .map(p => ({ t: projDate(p), v: Number(p.amount) || 0 }))
+      .filter(p => p.t && p.t > now)
+      .sort((a, b) => a.t - b.t));
+  if (t <= pts[0].t) return pts[0].v;
+  for (let k = 1; k < pts.length; k++) {
+    if (t <= pts[k].t) {
+      const a = pts[k - 1], b = pts[k];
+      return a.v + (b.v - a.v) * ((t - a.t) / (b.t - a.t));
+    }
+  }
+  return pts[pts.length - 1].v;
+}
+
+function totalIncomeAt(t) {
+  return (D.incomes || []).filter(i => i.status !== 'possible')
+    .reduce((s, i) => s + streamValueAt(i, t), 0);
+}
+
+// Walk month by month: when does projected balance cross the money goal?
+function projectGoalEta() {
+  if (!D.moneyGoal) return null;
+  let bal = Number(D.player.stats.money) || 0;
+  if (bal >= D.moneyGoal) return { label: 'already there', months: 0 };
+  const start = new Date();
+  for (let m = 1; m <= 240; m++) {
+    const t = new Date(start.getFullYear(), start.getMonth() + m, 1).getTime();
+    bal += totalIncomeAt(t);
+    if (bal >= D.moneyGoal) return { label: monthLabel(t), months: m };
+  }
+  return null;
+}
+
+// ---- SVG line graph ----
+// series: [{ color, pts: [{t, v, id?, label?}], area? }]
+function projGraphSvg(series, opts = {}) {
+  const W = 360, H = 200, L = 44, R = 14, T = 18, B = 30;
+  const allPts = series.flatMap(s => s.pts);
+  if (!allPts.length) return '';
+  const now = Date.now();
+  const tMin = now;
+  const tMax = Math.max(...allPts.map(p => p.t), now + 365 * 86400000);
+  const vMax = Math.max(...allPts.map(p => p.v), opts.goalLine || 0, 10) * 1.15;
+  const x = t => L + ((t - tMin) / (tMax - tMin)) * (W - L - R);
+  const y = v => T + (1 - v / vMax) * (H - T - B);
+
+  let out = '';
+  // y grid + labels
+  for (let g = 0; g <= 3; g++) {
+    const v = (vMax / 3) * g;
+    out += `<line x1="${L}" y1="${y(v)}" x2="${W - R}" y2="${y(v)}" class="pg-grid"/>
+      <text x="${L - 5}" y="${y(v) + 3}" text-anchor="end" class="pg-tick">$${Math.round(v / 100) * 100 >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'k' : Math.round(v)}</text>`;
+  }
+  // x labels: start, mid, end
+  [tMin, (tMin + tMax) / 2, tMax].forEach(t => {
+    out += `<text x="${x(t)}" y="${H - 8}" text-anchor="middle" class="pg-tick">${monthLabel(t)}</text>`;
+  });
+  // goal line
+  if (opts.goalLine && opts.goalLine < vMax) {
+    out += `<line x1="${L}" y1="${y(opts.goalLine)}" x2="${W - R}" y2="${y(opts.goalLine)}" class="pg-goal"/>
+      <text x="${W - R}" y="${y(opts.goalLine) - 4}" text-anchor="end" class="pg-goal-label">goal pace</text>`;
+  }
+  // series
+  series.forEach(s => {
+    const pl = s.pts.map(p => `${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
+    if (s.area) {
+      out += `<polygon points="${x(s.pts[0].t)},${y(0)} ${pl} ${x(s.pts[s.pts.length - 1].t)},${y(0)}" fill="${s.color}" opacity="0.12"/>`;
+    }
+    out += `<polyline points="${pl}" fill="none" stroke="${s.color}" stroke-width="2.5"/>`;
+    s.pts.forEach(p => {
+      const click = p.id ? `onclick="openEditProjection('${p.id}')" style="cursor:pointer"` : '';
+      out += `<g ${click}>
+        <circle cx="${x(p.t)}" cy="${y(p.v)}" r="${p.id ? 5 : 3.5}" fill="${s.color}" stroke="#12172B" stroke-width="2"/>
+        ${p.label ? `<text x="${x(p.t)}" y="${y(p.v) - 9}" text-anchor="middle" class="pg-pt">${p.label}</text>` : ''}
+      </g>`;
+    });
+  });
+  return `<div class="proj-graph"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${out}</svg></div>`;
+}
+
+function streamProjectionGraph(i) {
+  const now = Date.now();
+  const dated = (i.projections || [])
+    .map(p => ({ t: projDate(p), v: Number(p.amount) || 0, id: p.id, label: '$' + (Number(p.amount) || 0).toLocaleString('en-US') }))
+    .filter(p => p.t && p.t > now)
+    .sort((a, b) => a.t - b.t);
+  const pts = [{ t: now, v: Number(i.amount) || 0, label: 'now' }].concat(dated);
+  if (dated.length === 0 && !(Number(i.amount) > 0)) return '';
+  if (dated.length === 0) pts.push({ t: now + 365 * 86400000, v: Number(i.amount) || 0 });
+  return projGraphSvg([{ color: '#40E382', pts, area: true }]);
+}
+
+function totalTrajectoryGraph() {
+  const now = Date.now();
+  const active = (D.incomes || []).filter(i => i.status !== 'possible');
+  if (!active.length) return '';
+  const times = new Set([now]);
+  active.forEach(i => (i.projections || []).forEach(p => { const t = projDate(p); if (t && t > now) times.add(t); }));
+  const sorted = [...times].sort((a, b) => a - b);
+  if (sorted.length === 1) sorted.push(now + 365 * 86400000);
+  const pts = sorted.map(t => ({ t, v: Math.round(totalIncomeAt(t)), label: '$' + Math.round(totalIncomeAt(t)).toLocaleString('en-US') }));
+  pts[0].label = 'now';
+  const goalPace = D.moneyGoal ? Math.max(...pts.map(p => p.v)) : 0;
+  return projGraphSvg([{ color: '#4EC8FF', pts, area: true }]);
+}
+
+// ---- projection CRUD (dated) ----
+function openAddProjection() {
+  const d = new Date();
+  const def = `${d.getFullYear() + 1}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   openModal(`
-    <h3>New income stream</h3>
-    <div class="form-row"><label>Where's it from?</label><input id="inc-title" placeholder="Job, studio, side hustle..."/></div>
-    <div class="form-row"><label>How much per month?</label><input type="number" id="inc-amount" min="0" placeholder="1500"/></div>
+    <h3>Call your shot</h3>
+    <div class="form-row"><label>By when?</label><input type="month" id="proj-date" value="${def}"/></div>
+    <div class="form-row"><label>How much per month by then?</label><input type="number" id="proj-amount" min="0" placeholder="5000"/></div>
     <div class="row">
       <button class="pill-btn" onclick="closeModal()">Never mind</button>
-      <button class="pill-btn good" onclick="submitAddIncome()">Add it</button>
+      <button class="pill-btn good" onclick="submitAddProjection()">Call it</button>
     </div>`);
 }
 
-function submitAddIncome() {
+function submitAddProjection() {
+  const i = (D.incomes || []).find(x => x.id === currentIncomeId);
+  if (!i) return;
+  const date = document.getElementById('proj-date').value;
+  if (!date) { toast('Pick a month.'); return; }
+  i.projections = i.projections || [];
+  i.projections.push({ id: uid('prj'), date, when: monthLabel(new Date(date + '-01').getTime()), amount: parseInt(document.getElementById('proj-amount').value) || 0 });
+  closeModal(); save(); renderIncomeDetail();
+  toast('Shot called.');
+}
+
+function openEditProjection(pid) {
+  const i = (D.incomes || []).find(x => x.id === currentIncomeId);
+  const p = i && (i.projections || []).find(x => x.id === pid);
+  if (!p) return;
+  openModal(`
+    <h3>${escapeHtml(p.when || p.date || '')}</h3>
+    <div class="form-row"><label>By when?</label><input type="month" id="proj-date" value="${escapeHtml(p.date || '')}"/></div>
+    <div class="form-row"><label>How much per month by then?</label><input type="number" id="proj-amount" min="0" value="${p.amount || 0}"/></div>
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteProjection('${pid}')">Drop it</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditProjection('${pid}')">Save</button>
+    </div>`);
+}
+
+function submitEditProjection(pid) {
+  const i = (D.incomes || []).find(x => x.id === currentIncomeId);
+  const p = i && (i.projections || []).find(x => x.id === pid);
+  if (!p) return;
+  const date = document.getElementById('proj-date').value;
+  if (date) { p.date = date; p.when = monthLabel(new Date(date + '-01').getTime()); }
+  p.amount = parseInt(document.getElementById('proj-amount').value) || 0;
+  closeModal(); save(); renderIncomeDetail();
+  toast('Saved.');
+}
+
+function deleteProjection(pid) {
+  const i = (D.incomes || []).find(x => x.id === currentIncomeId);
+  if (!i) return;
+  i.projections = (i.projections || []).filter(x => x.id !== pid);
+  closeModal(); save(); renderIncomeDetail();
+  toast('Dropped.');
+}
+
+function incomeFormFields(i) {
+  return `
+    <div class="form-row"><label>Where's it from?</label><input id="inc-title" value="${escapeHtml((i && i.title) || '')}" placeholder="Job, studio, side hustle..."/></div>
+    <div class="form-row"><label>A few words about it</label><textarea id="inc-desc" rows="2" placeholder="What it is, how it grows...">${escapeHtml((i && i.desc) || '')}</textarea></div>
+    <div class="form-row"><label>How much per month?</label><input type="number" id="inc-amount" min="0" value="${(i && i.amount) || ''}" placeholder="1500"/></div>
+    <div class="form-row"><label>Hours a week you put in</label><input type="number" id="inc-hours" min="0" max="168" value="${(i && i.hoursPerWeek) || ''}" placeholder="10"/></div>`;
+}
+
+function openAddIncome(status) {
+  openModal(`
+    <h3>${status === 'possible' ? 'Map a possible stream' : 'New income stream'}</h3>
+    ${incomeFormFields(null)}
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Never mind</button>
+      <button class="pill-btn good" onclick="submitAddIncome('${status === 'possible' ? 'possible' : 'active'}')">Add it</button>
+    </div>`);
+}
+
+function submitAddIncome(status) {
   const title = (document.getElementById('inc-title').value || '').trim();
   if (!title) { toast('Give it a name first.'); return; }
-  const amount = parseInt(document.getElementById('inc-amount').value) || 0;
-  D.incomes.push({ id: uid('inc'), title, amount, createdAt: Date.now() });
-  closeModal(); save(); renderMoneyPage();
-  toast(`"${title}" flowing in.`);
+  D.incomes.push({
+    id: uid('inc'), title,
+    desc: (document.getElementById('inc-desc').value || '').trim(),
+    amount: parseInt(document.getElementById('inc-amount').value) || 0,
+    hoursPerWeek: parseInt(document.getElementById('inc-hours').value) || 0,
+    status, createdAt: Date.now()
+  });
+  closeModal(); save(); render();
+  toast(status === 'possible' ? `"${title}" mapped.` : `"${title}" flowing in.`);
 }
 
 function openEditIncome(id) {
@@ -6469,8 +6782,7 @@ function openEditIncome(id) {
   if (!i) return;
   openModal(`
     <h3>${escapeHtml(i.title)}</h3>
-    <div class="form-row"><label>Where's it from?</label><input id="inc-title" value="${escapeHtml(i.title)}"/></div>
-    <div class="form-row"><label>How much per month?</label><input type="number" id="inc-amount" min="0" value="${i.amount || 0}"/></div>
+    ${incomeFormFields(i)}
     <div class="row">
       <button class="pill-btn danger" onclick="deleteIncome('${id}')">Cut it</button>
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
@@ -6482,15 +6794,19 @@ function submitEditIncome(id) {
   const i = D.incomes.find(x => x.id === id);
   if (!i) return;
   i.title = (document.getElementById('inc-title').value || '').trim() || i.title;
+  i.desc = (document.getElementById('inc-desc').value || '').trim();
   i.amount = parseInt(document.getElementById('inc-amount').value) || 0;
-  closeModal(); save(); renderMoneyPage();
+  i.hoursPerWeek = parseInt(document.getElementById('inc-hours').value) || 0;
+  closeModal(); save(); render();
   toast('Saved.');
 }
 
 function deleteIncome(id) {
   if (!confirm('Cut this income stream?')) return;
   D.incomes = D.incomes.filter(x => x.id !== id);
-  closeModal(); save(); renderMoneyPage();
+  closeModal(); save();
+  if (currentPage === 'incomedetail') navigateTo('income');
+  else render();
   toast('Cut.');
 }
 
@@ -6741,8 +7057,12 @@ function tierBadge(t) {
 // % of potential: items vs all-S, or average of children
 function ratingPotential(node) {
   if (node.items && node.items.length) {
-    const sum = node.items.reduce((s, i) => s + (TIER_VAL[i.tier] ?? 0), 0);
-    return Math.round((sum / (node.items.length * 6)) * 100);
+    const owned = node.items.filter(i => !i.later);
+    if (owned.length) {
+      const sum = owned.reduce((s, i) => s + (TIER_VAL[i.tier] ?? 0), 0);
+      return Math.round((sum / (owned.length * 6)) * 100);
+    }
+    return null;
   }
   if (node.children && node.children.length) {
     const ps = node.children.map(ratingPotential).filter(p => p != null);
@@ -6851,23 +7171,33 @@ function renderRatingDetail() {
       : '<div class="empty-state">Nothing inside yet — add a routine or a rating.</div>';
   } else {
     // Layer 3 items
+    const owned = (node.items || []).filter(it => !it.later);
+    const later = (node.items || []).filter(it => it.later);
+    const itemRow = it => `
+      <div class="rating-item${it.later ? ' later' : ''}" onclick="openItemUpgradeView('${it.id}')">
+        ${it.later ? '<span class="tier-badge none">◇</span>' : tierBadge(it.tier)}
+        <div class="rating-item-body">
+          <div class="rating-item-name">${escapeHtml(it.name)}</div>
+          ${it.later ? '<div class="rating-item-upgrade">not in the stack yet — planned</div>' : ''}
+          ${it.upgrade && it.upgrade.name
+            ? `<div class="rating-item-upgrade">upgrade → ${escapeHtml(it.upgrade.name)} ${tierBadge(it.upgrade.tier)}</div>`
+            : ''}
+        </div>
+        <span class="rating-item-edit" onclick="event.stopPropagation();openEditRatingItem('${it.id}')">✎</span>
+      </div>`;
     html += `
       <div class="section-header" style="margin-top:20px">
-        <span>ITEMS (${(node.items || []).length})</span>
+        <span>ITEMS (${owned.length})</span>
         <button class="small-btn" onclick="openAddRatingItem()">+ Item</button>
       </div>`;
-    html += (node.items || []).length
-      ? node.items.map(it => `
-        <div class="rating-item" onclick="openEditRatingItem('${it.id}')">
-          ${tierBadge(it.tier)}
-          <div class="rating-item-body">
-            <div class="rating-item-name">${escapeHtml(it.name)}</div>
-            ${it.upgrade && it.upgrade.name
-              ? `<div class="rating-item-upgrade">upgrade → ${escapeHtml(it.upgrade.name)} ${tierBadge(it.upgrade.tier)}</div>`
-              : ''}
-          </div>
-        </div>`).join('')
+    html += owned.length
+      ? owned.map(itemRow).join('')
       : '<div class="empty-state">No items yet. Shampoo, conditioner, face wash — rate each one.</div>';
+    if (later.length) {
+      html += `
+        <div class="section-header" style="margin-top:20px"><span>◇ ADD LATER (${later.length})</span></div>
+        ${later.map(itemRow).join('')}`;
+    }
   }
 
   el.innerHTML = html;
@@ -6994,16 +7324,90 @@ function deleteRatingNode() {
   toast('Gone.');
 }
 
+// ---- Zelda-style upgrade screen ----
+function openItemUpgradeView(itemId) {
+  const node = ratingNodeById(currentRatingL1, currentRatingL2);
+  const it = node && (node.items || []).find(x => x.id === itemId);
+  if (!it) return;
+  if (!it.upgrade || !it.upgrade.name) { openEditRatingItem(itemId); return; }
+
+  const price = Number(it.upgrade.price) || 0;
+  const money = Math.round(D.player.stats.money);
+  const canAfford = money >= price;
+
+  openModal(`
+    <div class="upg-title">${escapeHtml(it.name)}</div>
+    <div class="upg-panel">
+      <div class="upg-box current">
+        <div class="upg-box-name">${escapeHtml(it.name)}</div>
+        ${tierBadge(it.tier)}
+      </div>
+      <div class="upg-arrow">➜</div>
+      <div class="upg-box target">
+        <div class="upg-box-name">${escapeHtml(it.upgrade.name)}</div>
+        ${tierBadge(it.upgrade.tier)}
+      </div>
+    </div>
+    ${price > 0 ? `
+      <div class="upg-price-row">
+        <span class="upg-price-label">PRICE</span>
+        <span class="upg-price ${canAfford ? '' : 'cant'}">$${price.toLocaleString('en-US')}</span>
+        <span class="upg-owned">you have $${money.toLocaleString('en-US')}</span>
+      </div>` : ''}
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Back</button>
+      <button class="pill-btn good" ${price > 0 && !canAfford ? 'disabled style="opacity:.4"' : ''}
+        onclick="doItemUpgrade('${it.id}')">${price > 0 && !canAfford ? 'Not enough $' : 'Upgrade'}</button>
+    </div>`);
+}
+
+function doItemUpgrade(itemId) {
+  const node = ratingNodeById(currentRatingL1, currentRatingL2);
+  const it = node && (node.items || []).find(x => x.id === itemId);
+  if (!it || !it.upgrade) return;
+  const price = Number(it.upgrade.price) || 0;
+  if (price > 0) {
+    if (D.player.stats.money < price) { toast('Not enough $.'); return; }
+    D.player.stats.money -= price;
+  }
+  const oldName = it.name;
+  it.name = it.upgrade.name;
+  it.tier = it.upgrade.tier;
+  it.later = false;
+  it.upgrade = null;
+  addLog(`Upgraded ${oldName} → ${it.name} (${it.tier} tier)${price ? ` for $${price}` : ''}.`, 'upgrade');
+  closeModal(); save(); renderRatingDetail();
+  toast(`${it.name} — upgraded.`);
+}
+
 // ---- item CRUD (layer 3) ----
+function laterToggle(isLater) {
+  return `
+    <div class="form-row"><label>In your stack already?</label>
+      <div class="bta-tabs">
+        <button type="button" class="bta-tab${isLater ? '' : ' active'}" id="ri-now"
+          onclick="this.classList.add('active');document.getElementById('ri-later').classList.remove('active')">Using it now</button>
+        <button type="button" class="bta-tab${isLater ? ' active' : ''}" id="ri-later"
+          onclick="this.classList.add('active');document.getElementById('ri-now').classList.remove('active')">◇ Add later</button>
+      </div>
+    </div>`;
+}
+
+function readLater() {
+  return document.getElementById('ri-later').classList.contains('active');
+}
+
 function openAddRatingItem() {
   openModal(`
     <h3>Add an item</h3>
-    <div class="form-row"><label>What is it?</label><input id="ri-name" placeholder="Shampoo, conditioner, face wash..."/></div>
+    <div class="form-row"><label>What is it?</label><input id="ri-name" placeholder="Shampoo, conditioner, mouthwash..."/></div>
+    ${laterToggle(false)}
     <div class="form-row"><label>Rate what you use now</label></div>
     ${tierPicker('C', 'main-tier')}
     <div class="form-row"><label>The upgrade (optional)</label><input id="ri-up-name" placeholder="Shampoo+ ..."/></div>
     <div class="form-row"><label>Upgrade tier</label></div>
     ${tierPicker('A', 'up-tier')}
+    <div class="form-row"><label>Upgrade price (optional, taken from your $)</label><input type="number" id="ri-up-price" min="0" placeholder="25"/></div>
     <div class="row">
       <button class="pill-btn" onclick="closeModal()">Never mind</button>
       <button class="pill-btn good" onclick="submitAddRatingItem()">Add it</button>
@@ -7019,8 +7423,9 @@ function submitAddRatingItem() {
   node.items = node.items || [];
   node.items.push({
     id: uid('ri'), name,
+    later: readLater(),
     tier: pickedTier('.main-tier') || 'C',
-    upgrade: upName ? { name: upName, tier: pickedTier('.up-tier') || 'A' } : null
+    upgrade: upName ? { name: upName, tier: pickedTier('.up-tier') || 'A', price: parseInt(document.getElementById('ri-up-price').value) || 0 } : null
   });
   closeModal(); save(); renderRatingDetail();
   toast(`"${name}" rated.`);
@@ -7033,11 +7438,13 @@ function openEditRatingItem(itemId) {
   openModal(`
     <h3>${escapeHtml(it.name)}</h3>
     <div class="form-row"><label>What is it?</label><input id="ri-name" value="${escapeHtml(it.name)}"/></div>
+    ${laterToggle(!!it.later)}
     <div class="form-row"><label>Rate what you use now</label></div>
     ${tierPicker(it.tier, 'main-tier')}
     <div class="form-row"><label>The upgrade (optional)</label><input id="ri-up-name" value="${escapeHtml((it.upgrade && it.upgrade.name) || '')}"/></div>
     <div class="form-row"><label>Upgrade tier</label></div>
     ${tierPicker((it.upgrade && it.upgrade.tier) || 'A', 'up-tier')}
+    <div class="form-row"><label>Upgrade price (optional, taken from your $)</label><input type="number" id="ri-up-price" min="0" value="${(it.upgrade && it.upgrade.price) || ''}"/></div>
     <div class="row">
       <button class="pill-btn danger" onclick="deleteRatingItem('${it.id}')">Remove</button>
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
@@ -7050,9 +7457,10 @@ function submitEditRatingItem(itemId) {
   const it = node && (node.items || []).find(x => x.id === itemId);
   if (!it) return;
   it.name = (document.getElementById('ri-name').value || '').trim() || it.name;
+  it.later = readLater();
   it.tier = pickedTier('.main-tier') || it.tier;
   const upName = (document.getElementById('ri-up-name').value || '').trim();
-  it.upgrade = upName ? { name: upName, tier: pickedTier('.up-tier') || 'A' } : null;
+  it.upgrade = upName ? { name: upName, tier: pickedTier('.up-tier') || 'A', price: parseInt(document.getElementById('ri-up-price').value) || 0 } : null;
   closeModal(); save(); renderRatingDetail();
   toast('Saved.');
 }
