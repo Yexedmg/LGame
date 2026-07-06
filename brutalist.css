@@ -464,6 +464,52 @@ textarea:focus {
   text-shadow: none;
 }
 
+/* ---- Activities page (V2 categories) ---- */
+.category-block {
+  background: #181F3C !important;
+  border: 3px solid var(--b-ink) !important;
+  box-shadow: 6px 6px 0 #40E382;
+  margin-bottom: 20px !important;
+}
+
+.act-cat-name,
+.act-page-title {
+  font-family: var(--font-display) !important;
+}
+
+.act-cat-meter {
+  border: 2px solid var(--b-ink) !important;
+  background: #0C1020 !important;
+  border-radius: 0 !important;
+}
+
+.act-slot-zone {
+  border: 2px dashed rgba(242, 244, 252, 0.4) !important;
+  background: #12172B !important;
+}
+
+.act-slot-zone.act-slot-filled {
+  border-style: solid !important;
+  border-color: var(--b-ink) !important;
+  box-shadow: 3px 3px 0 #4EC8FF;
+}
+
+.act-tile {
+  margin-bottom: 12px;
+}
+
+.act-inv-empty {
+  border: 2px dashed rgba(242, 244, 252, 0.3) !important;
+  font-family: var(--font-mono) !important;
+  background: transparent !important;
+}
+
+.act-controls-label {
+  font-family: var(--font-display) !important;
+  color: var(--b-ink) !important;
+  letter-spacing: 1px;
+}
+
 /* Raster/overlay removed */
 .scanline-overlay {
   display: none !important;

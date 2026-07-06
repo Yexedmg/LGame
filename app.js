@@ -997,7 +997,7 @@ function render() {
   updateHeaderSubtitle();
   renderHeaderDate();
   if (currentPage === 'home') renderHome();
-  if (currentPage === 'activities') { renderActivities(); renderActivitiesV2(); }
+  if (currentPage === 'activities') renderActivitiesV2();
   if (currentPage === 'roster') renderRoster();
   if (currentPage === 'life') renderLife();
   if (currentPage === 'girls') renderGirls();
