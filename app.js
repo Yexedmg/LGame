@@ -98,6 +98,7 @@ const GIRL_ORIGINS = [
 
 // ── State ──
 function defaultData() {
+  const taId = uid('ta');
   return {
     player: {
       level: 1, xp: 0,
@@ -134,6 +135,12 @@ function defaultData() {
     schedule: defaultSchedule(),
     // Me page — personal stat cards with star ratings
     meStats: [],   // [{ id, title, desc, stars (1-8), createdAt }]
+    // Social world — online platforms
+    socialMedia: [],
+    // Time allocation — day types with painted time slots
+    bestTimeAlloc: [],
+    timeAllocs: [{ id: taId, name: 'Default day', slots: [] }],
+    currentTimeAllocId: taId,
   };
 }
 
@@ -6860,6 +6867,12 @@ function btaMinutes(t) {
 }
 
 function currentTimeAlloc() {
+  // Self-heal: fresh installs (empty localStorage) skip the load() migrations,
+  // so timeAllocs can be missing. Never let this throw — it kills the whole render.
+  if (!Array.isArray(D.timeAllocs) || D.timeAllocs.length === 0) {
+    D.timeAllocs = [{ id: uid('ta'), name: 'Default day', slots: Array.isArray(D.bestTimeAlloc) ? D.bestTimeAlloc : [] }];
+    D.currentTimeAllocId = D.timeAllocs[0].id;
+  }
   return D.timeAllocs.find(t => t.id === D.currentTimeAllocId) || D.timeAllocs[0];
 }
 
