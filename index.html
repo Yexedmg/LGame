@@ -85,8 +85,6 @@
 
         <div id="home-terminals"></div>
 
-        <button class="endday-btn" onclick="endDay()">END DAY</button>
-
         <div class="section-header">
           <span>RECENT</span>
           <button class="small-btn" onclick="showOverlay('months')">Months</button>
@@ -203,7 +201,7 @@
     <div id="page-social" class="page">
       <div class="page-scroll">
         <div class="overlay-header">
-          <button class="back-btn" onclick="navigateTo('portal')">← Portal</button>
+          <button class="back-btn" onclick="navigateTo('lifestyle')">← Lifestyle</button>
         </div>
         <div class="social-hero">
           <div class="social-hero-title">SOCIAL</div>
@@ -287,9 +285,38 @@
           <div class="social-hero-title">MONEY</div>
           <div class="social-hero-sub">Stack it. Track it. Make it move.</div>
         </div>
+        <div id="money-goal"></div>
         <div id="money-balance"></div>
         <div class="section-header"><span>AREAS</span></div>
         <div id="money-areas" class="hub-grid"></div>
+      </div>
+    </div>
+
+    <!-- RATINGS WORLD PAGE -->
+    <div id="page-ratings" class="page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="navigateTo('portal')">← Portal</button>
+        </div>
+        <div class="social-hero ratings-hero">
+          <div class="social-hero-title">⭐️</div>
+          <div class="social-hero-sub">Everything you run — rated S to F, pushed to its potential.</div>
+        </div>
+        <div class="section-header">
+          <span id="ratings-count">CATEGORIES</span>
+          <button class="small-btn" onclick="openAddRatingNode(null)">+ Add</button>
+        </div>
+        <div id="ratings-list"></div>
+      </div>
+    </div>
+
+    <!-- RATING DETAIL PAGE (layer 2 & 3) -->
+    <div id="page-ratingdetail" class="page">
+      <div class="page-scroll">
+        <div class="overlay-header">
+          <button class="back-btn" onclick="ratingDetailBack()">← Back</button>
+        </div>
+        <div id="ratingdetail-content"></div>
       </div>
     </div>
 
@@ -512,6 +539,11 @@
 
         <div class="section-header"><span>HUB</span></div>
         <div class="lifestyle-hub-grid">
+          <button class="hub-card social-portal" onclick="navigateTo('social')">
+            <div class="hub-icon portal-swirl">◉</div>
+            <div class="hub-body"><div class="hub-title">Social</div><div class="hub-desc">People, platforms, places</div></div>
+            <div class="hub-arrow">→</div>
+          </button>
           <button class="hub-card" onclick="navigateTo('activities')">
             <div class="hub-icon">⚡</div>
             <div class="hub-body"><div class="hub-title">Activities</div><div class="hub-desc">Manage your daily routine</div></div>
@@ -541,7 +573,15 @@
     <!-- SCHEDULE PAGE -->
     <div id="page-schedule" class="page">
       <div class="page-scroll">
-        <div class="page-title">SCHEDULE</div>
+        <div class="page-title">TIME ALLOCATION</div>
+        <div class="section-header">
+          <span>BEST TIME ALLOCATION</span>
+          <button class="small-btn" onclick="openAddTimeAlloc()">+ Add</button>
+        </div>
+        <div id="bta-tabs" class="bta-tabs"></div>
+        <div class="bta-wrap">
+          <svg id="bta-strip" viewBox="0 0 360 170" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
         <div id="schedule-content"></div>
       </div>
     </div>
@@ -595,7 +635,7 @@
     <!-- Bottom Dock -->
     <nav class="bottom-dock">
       <button class="dock-btn" data-page="lifestyle" onclick="navigateTo('lifestyle')">LIFE</button>
-      <button class="dock-btn" data-page="schedule" onclick="navigateTo('schedule')">SCHED</button>
+      <button class="dock-btn" data-page="schedule" onclick="navigateTo('schedule')">TIME</button>
       <button class="dock-btn active" data-page="home" onclick="navigateTo('home')">HOME</button>
       <button class="dock-btn" data-page="portal" onclick="navigateTo('portal')">PORTAL</button>
       <button class="dock-btn" data-page="me" onclick="navigateTo('me')">ME</button>

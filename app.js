@@ -312,6 +312,21 @@ function load() {
     if (!Array.isArray(D.meStats)) D.meStats = [];
     // Migration: social media platforms (Social world)
     if (!Array.isArray(D.socialMedia)) D.socialMedia = [];
+    // Migration: money goal + best time allocation
+    if (D.moneyGoal === undefined) D.moneyGoal = null;
+    if (!Array.isArray(D.bestTimeAlloc)) D.bestTimeAlloc = [];
+    // Migration: ratings world (⭐ S–F tiers)
+    if (!Array.isArray(D.ratings)) {
+      D.ratings = ['Hair', 'Face', 'Dental', 'Shower', 'Body towel', 'Extracosmetics', 'Clothes', 'Digital system', 'Physique']
+        .map(n => ({ id: uid('rt'), name: n, desc: '', rating: null, routine: null, children: [] }));
+    }
+    // Migration: multiple time allocations (day types)
+    if (!Array.isArray(D.timeAllocs) || D.timeAllocs.length === 0) {
+      D.timeAllocs = [{ id: uid('ta'), name: 'Default day', slots: D.bestTimeAlloc || [] }];
+    }
+    if (!D.currentTimeAllocId || !D.timeAllocs.find(t => t.id === D.currentTimeAllocId)) {
+      D.currentTimeAllocId = D.timeAllocs[0].id;
+    }
     // Migration: world/cities/boroughs
     migrateWorld();
   } catch (e) { console.warn('load failed', e); }
@@ -976,12 +991,14 @@ function render() {
   if (currentPage === 'manifestdetail') renderManifestDetail();
   if (currentPage === 'lifestyle') renderLifestylePage();
   if (currentPage === 'lifestyledetail') renderLifestyleDetail();
-  if (currentPage === 'schedule') renderSchedulePage();
+  if (currentPage === 'schedule') { renderSchedulePage(); renderBestTimeAlloc(); }
   if (currentPage === 'me') renderMePage();
   if (currentPage === 'portal') renderPortalPage();
   if (currentPage === 'social') renderSocialPage();
   if (currentPage === 'socialmedia') renderSocialMediaPage();
   if (currentPage === 'money') renderMoneyPage();
+  if (currentPage === 'ratings') renderRatingsPage();
+  if (currentPage === 'ratingdetail') renderRatingDetail();
 }
 
 function updateXPDisplay() {
@@ -6245,24 +6262,34 @@ function renderPortalPage() {
   const hl = rows => rows.map(r =>
     `<div class="world-hl"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('');
 
-  // Social world — social circle & friends live IN here
+  // Main row: LIFESTYLE (left) — MONEY (center) — ⭐️ (right). Social lives inside Lifestyle.
   let html = `
-    <button class="world-door" onclick="navigateTo('social')">
-      <div class="world-door-name">◉ SOCIAL</div>
-      ${hl([
-        ['friends', friends],
-        ['platforms', platforms],
-        ['girls', girls],
-        ...socialStats.map(s => [escapeHtml(s.title.toLowerCase()), `${clamp(s.stars || 0, 0, 25)}/25`])
-      ])}
-    </button>
-    <button class="world-door" onclick="navigateTo('money')">
-      <div class="world-door-name">$ MONEY</div>
-      ${hl([
-        ['balance', '$' + Math.round(D.player.stats.money)],
-        ...(moneyStat ? [['level', `${clamp(moneyStat.stars || 0, 0, 25)}/25`]] : [])
-      ])}
-    </button>`;
+    <div class="portal-row">
+      <button class="world-door" onclick="navigateTo('lifestyle')">
+        <div class="world-door-name">LIFESTYLE</div>
+        ${hl([
+          ['lifestyles', (D.lifestyles || []).length],
+          ['friends', friends],
+          ['platforms', platforms],
+          ...socialStats.slice(0, 2).map(s => [escapeHtml(s.title.toLowerCase()), `${clamp(s.stars || 0, 0, 25)}/25`])
+        ])}
+      </button>
+      <button class="world-door" onclick="navigateTo('money')">
+        <div class="world-door-name">$ MONEY</div>
+        ${hl([
+          ['goal', D.moneyGoal ? '$' + Number(D.moneyGoal).toLocaleString('en-US') : '–'],
+          ['balance', '$' + Math.round(D.player.stats.money)],
+          ...(moneyStat ? [['level', `${clamp(moneyStat.stars || 0, 0, 25)}/25`]] : [])
+        ])}
+      </button>
+      <button class="world-door" onclick="navigateTo('ratings')">
+        <div class="world-door-name">⭐️</div>
+        ${hl((D.ratings || []).slice(0, 4).map(r => {
+          const p = ratingPotential(r);
+          return [escapeHtml(r.name.toLowerCase()), `${r.rating || '–'}${p != null ? ` · ${p}%` : ''}`];
+        }))}
+      </button>
+    </div>`;
 
   // Remaining body-map stats — each its own world
   others.forEach(s => {
@@ -6283,10 +6310,25 @@ function renderPortalPage() {
 
 // ── MONEY WORLD ──
 function renderMoneyPage() {
+  const goal = document.getElementById('money-goal');
   const bal = document.getElementById('money-balance');
   const el = document.getElementById('money-areas');
   if (!el) return;
   const moneyStats = (D.meStats || []).filter(isMoneyStat);
+
+  if (goal) {
+    goal.innerHTML = D.moneyGoal
+      ? `<div class="money-goal" onclick="openMoneyGoalModal()">
+          <div class="money-goal-k">THE GOAL</div>
+          <div class="money-goal-num">$${Number(D.moneyGoal).toLocaleString('en-US')}</div>
+          <div class="money-goal-sub">$${Math.round(D.player.stats.money).toLocaleString('en-US')} stacked — tap to change</div>
+        </div>`
+      : `<div class="money-goal" onclick="openMoneyGoalModal()">
+          <div class="money-goal-k">THE GOAL</div>
+          <div class="money-goal-num dim">$ ?</div>
+          <div class="money-goal-sub">What number are you chasing? Tap to set it.</div>
+        </div>`;
+  }
 
   if (bal) {
     bal.innerHTML = `
@@ -6324,6 +6366,578 @@ function renderMoneyPage() {
           </div>`).join('')}
       </div>`;
   }
+}
+
+function openMoneyGoalModal() {
+  openModal(`
+    <h3>The number</h3>
+    <div class="form-row"><label>How much are you chasing?</label>
+      <input type="number" id="money-goal-input" min="0" step="100" placeholder="e.g. 100000" value="${D.moneyGoal || ''}"/>
+    </div>
+    <div class="row">
+      ${D.moneyGoal ? '<button class="pill-btn danger" onclick="clearMoneyGoal()">Drop it</button>' : ''}
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitMoneyGoal()">Lock it in</button>
+    </div>`);
+}
+
+function submitMoneyGoal() {
+  const v = parseInt(document.getElementById('money-goal-input').value);
+  if (!v || v <= 0) { toast('Put a real number in.'); return; }
+  D.moneyGoal = v;
+  closeModal(); save(); renderMoneyPage();
+  toast(`Chasing $${v.toLocaleString('en-US')}.`);
+}
+
+function clearMoneyGoal() {
+  D.moneyGoal = null;
+  closeModal(); save(); renderMoneyPage();
+}
+
+// ── BEST TIME ALLOCATION (Time Allocation page) ──
+const BTA_COLORS = ['#4EC8FF', '#40E382', '#FFCB1C', '#FF3366', '#C852FF', '#FF7B00'];
+
+function btaMinutes(t) {
+  const [h, m] = (t || '0:00').split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+function currentTimeAlloc() {
+  return D.timeAllocs.find(t => t.id === D.currentTimeAllocId) || D.timeAllocs[0];
+}
+
+function switchTimeAlloc(id) {
+  D.currentTimeAllocId = id;
+  save();
+  renderBestTimeAlloc();
+}
+
+function renderTimeAllocTabs() {
+  const el = document.getElementById('bta-tabs');
+  if (!el) return;
+  const cur = currentTimeAlloc();
+  el.innerHTML = D.timeAllocs.map(t => `
+    <button class="bta-tab${t.id === cur.id ? ' active' : ''}" onclick="switchTimeAlloc('${t.id}')">${escapeHtml(t.name)}</button>
+  `).join('') + `
+    <button class="bta-tab bta-tab-add" onclick="openAddTimeAllocDay()">+ Day</button>
+    <button class="bta-tab bta-tab-edit" onclick="openEditTimeAllocDay()">✎</button>`;
+}
+
+function openAddTimeAllocDay() {
+  openModal(`
+    <h3>New kind of day</h3>
+    <div class="form-row"><label>What do you call it?</label><input id="ta-day-name" placeholder="Work day, weekend, monk day..."/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Never mind</button>
+      <button class="pill-btn good" onclick="submitAddTimeAllocDay()">Create it</button>
+    </div>`);
+}
+
+function submitAddTimeAllocDay() {
+  const name = (document.getElementById('ta-day-name').value || '').trim();
+  if (!name) { toast('Give it a name first.'); return; }
+  const t = { id: uid('ta'), name, slots: [] };
+  D.timeAllocs.push(t);
+  D.currentTimeAllocId = t.id;
+  closeModal(); save(); renderBestTimeAlloc();
+  toast(`"${name}" — new day to paint.`);
+}
+
+function openEditTimeAllocDay() {
+  const cur = currentTimeAlloc();
+  openModal(`
+    <h3>${escapeHtml(cur.name)}</h3>
+    <div class="form-row"><label>Rename this day</label><input id="ta-day-name" value="${escapeHtml(cur.name)}"/></div>
+    <div class="row">
+      ${D.timeAllocs.length > 1 ? `<button class="pill-btn danger" onclick="deleteTimeAllocDay('${cur.id}')">Delete day</button>` : ''}
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditTimeAllocDay('${cur.id}')">Save</button>
+    </div>`);
+}
+
+function submitEditTimeAllocDay(id) {
+  const t = D.timeAllocs.find(x => x.id === id);
+  if (!t) return;
+  t.name = (document.getElementById('ta-day-name').value || '').trim() || t.name;
+  closeModal(); save(); renderBestTimeAlloc();
+  toast('Saved.');
+}
+
+function deleteTimeAllocDay(id) {
+  if (!confirm('Delete this day and everything painted on it?')) return;
+  D.timeAllocs = D.timeAllocs.filter(x => x.id !== id);
+  if (D.timeAllocs.length === 0) D.timeAllocs = [{ id: uid('ta'), name: 'Default day', slots: [] }];
+  D.currentTimeAllocId = D.timeAllocs[0].id;
+  closeModal(); save(); renderBestTimeAlloc();
+  toast('Day deleted.');
+}
+
+function renderBestTimeAlloc() {
+  renderTimeAllocTabs();
+  const svg = document.getElementById('bta-strip');
+  if (!svg) return;
+  const items = (currentTimeAlloc().slots || []).slice().sort((a, b) => btaMinutes(a.start) - btaMinutes(b.start));
+
+  // Geometry: strip from x=10..350, y=118..146. Labels staggered above with pointer lines.
+  const X0 = 10, X1 = 350, Y0 = 118, Y1 = 146;
+  const xFor = min => X0 + (min / 1440) * (X1 - X0);
+
+  let out = `<rect x="${X0}" y="${Y0}" width="${X1 - X0}" height="${Y1 - Y0}" fill="rgba(12,16,32,.9)" stroke="rgba(242,244,252,.5)" stroke-width="1.5"/>`;
+
+  // Hour ticks + x-axis labels
+  for (let h = 0; h <= 24; h += 6) {
+    const x = xFor(h * 60);
+    out += `<line x1="${x}" y1="${Y1}" x2="${x}" y2="${Y1 + 5}" stroke="rgba(242,244,252,.5)" stroke-width="1"/>
+      <text x="${x}" y="${Y1 + 16}" text-anchor="middle" class="bta-tick">${h === 24 ? '23:59' : h + ':00'}</text>`;
+  }
+  for (let h = 3; h < 24; h += 3) {
+    const x = xFor(h * 60);
+    out += `<line x1="${x}" y1="${Y1 - 4}" x2="${x}" y2="${Y1}" stroke="rgba(242,244,252,.25)" stroke-width="1"/>`;
+  }
+
+  if (items.length === 0) {
+    out += `<text x="180" y="60" text-anchor="middle" class="bta-hint">Empty day — tap "+ Add" and paint your perfect one.</text>`;
+    svg.innerHTML = out;
+    return;
+  }
+
+  // Colored blocks + staggered pointer labels
+  items.forEach((it, i) => {
+    const s = btaMinutes(it.start), e = Math.max(btaMinutes(it.end), s + 15);
+    const x = xFor(s), w = Math.max(xFor(e) - x, 3);
+    const color = it.color || BTA_COLORS[i % BTA_COLORS.length];
+    const cx = x + w / 2;
+    const ly = 18 + (i % 3) * 32; // stagger label rows
+    const anchor = cx < 60 ? 'start' : (cx > 300 ? 'end' : 'middle');
+    out += `
+      <g class="bta-item" onclick="openEditTimeAlloc('${it.id}')">
+        <rect x="${x}" y="${Y0}" width="${w}" height="${Y1 - Y0}" fill="${color}" opacity="0.9"/>
+        <polyline points="${cx},${Y0} ${cx},${ly + 12}" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.8"/>
+        <circle cx="${cx}" cy="${ly + 12}" r="2.5" fill="${color}"/>
+        <text x="${cx}" y="${ly}" text-anchor="${anchor}" class="bta-label" fill="${color}">${escapeHtml((it.title || '').toUpperCase().slice(0, 20))}</text>
+        <text x="${cx}" y="${ly + 9}" text-anchor="${anchor}" class="bta-time">${escapeHtml(it.start)}–${escapeHtml(it.end)}</text>
+      </g>`;
+  });
+
+  svg.innerHTML = out;
+}
+
+function btaColorPicker(selected) {
+  return `<div class="bta-colors" id="bta-colors">
+    ${BTA_COLORS.map(c => `
+      <span class="bta-swatch${c === selected ? ' sel' : ''}" data-color="${c}" style="background:${c}"
+        onclick="document.querySelectorAll('.bta-swatch').forEach(s=>s.classList.remove('sel'));this.classList.add('sel')"></span>`).join('')}
+  </div>`;
+}
+
+function openAddTimeAlloc() {
+  openModal(`
+    <h3>Paint a time slot</h3>
+    <div class="form-row"><label>What happens here?</label><input id="bta-title" placeholder="Deep work, gym, sleep..."/></div>
+    <div class="form-row"><label>From</label><input type="time" id="bta-start" value="09:00"/></div>
+    <div class="form-row"><label>Until</label><input type="time" id="bta-end" value="12:00"/></div>
+    <div class="form-row"><label>Color</label></div>
+    ${btaColorPicker(BTA_COLORS[(currentTimeAlloc().slots || []).length % BTA_COLORS.length])}
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Never mind</button>
+      <button class="pill-btn good" onclick="submitAddTimeAlloc()">Paint it</button>
+    </div>`);
+}
+
+function btaReadForm() {
+  const title = (document.getElementById('bta-title').value || '').trim();
+  const start = document.getElementById('bta-start').value;
+  const end = document.getElementById('bta-end').value;
+  const sel = document.querySelector('.bta-swatch.sel');
+  const color = sel ? sel.dataset.color : BTA_COLORS[0];
+  if (!title) { toast('Give it a name first.'); return null; }
+  if (!start || !end) { toast('Pick the times.'); return null; }
+  if (btaMinutes(end) <= btaMinutes(start)) { toast('End must come after start.'); return null; }
+  return { title, start, end, color };
+}
+
+function submitAddTimeAlloc() {
+  const v = btaReadForm();
+  if (!v) return;
+  currentTimeAlloc().slots.push({ id: uid('bta'), ...v });
+  closeModal(); save(); renderBestTimeAlloc();
+  toast(`"${v.title}" painted in.`);
+}
+
+function openEditTimeAlloc(id) {
+  const it = (currentTimeAlloc().slots || []).find(x => x.id === id);
+  if (!it) return;
+  openModal(`
+    <h3>${escapeHtml(it.title)}</h3>
+    <div class="form-row"><label>What happens here?</label><input id="bta-title" value="${escapeHtml(it.title)}"/></div>
+    <div class="form-row"><label>From</label><input type="time" id="bta-start" value="${escapeHtml(it.start)}"/></div>
+    <div class="form-row"><label>Until</label><input type="time" id="bta-end" value="${escapeHtml(it.end)}"/></div>
+    <div class="form-row"><label>Color</label></div>
+    ${btaColorPicker(it.color)}
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteTimeAlloc('${id}')">Wipe it</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditTimeAlloc('${id}')">Save</button>
+    </div>`);
+}
+
+function submitEditTimeAlloc(id) {
+  const it = (currentTimeAlloc().slots || []).find(x => x.id === id);
+  if (!it) return;
+  const v = btaReadForm();
+  if (!v) return;
+  Object.assign(it, v);
+  closeModal(); save(); renderBestTimeAlloc();
+  toast('Saved.');
+}
+
+function deleteTimeAlloc(id) {
+  if (!confirm('Wipe this slot off the day?')) return;
+  const cur = currentTimeAlloc();
+  cur.slots = cur.slots.filter(x => x.id !== id);
+  closeModal(); save(); renderBestTimeAlloc();
+  toast('Wiped.');
+}
+
+// ── ⭐ RATINGS WORLD (S–F tiers, 3 layers, potential %) ──
+const TIERS = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
+const TIER_VAL = { S: 6, A: 5, B: 4, C: 3, D: 2, E: 1, F: 0 };
+const TIER_COLOR = { S: '#FFCB1C', A: '#C852FF', B: '#4EC8FF', C: '#40E382', D: '#FFE81A', E: '#FF7B00', F: '#FF3B30' };
+
+let currentRatingL1 = null;
+let currentRatingL2 = null;
+
+function tierBadge(t) {
+  if (!t) return '<span class="tier-badge none">–</span>';
+  return `<span class="tier-badge" style="--tc:${TIER_COLOR[t]}">${t}</span>`;
+}
+
+// % of potential: items vs all-S, or average of children
+function ratingPotential(node) {
+  if (node.items && node.items.length) {
+    const sum = node.items.reduce((s, i) => s + (TIER_VAL[i.tier] ?? 0), 0);
+    return Math.round((sum / (node.items.length * 6)) * 100);
+  }
+  if (node.children && node.children.length) {
+    const ps = node.children.map(ratingPotential).filter(p => p != null);
+    if (!ps.length) return null;
+    return Math.round(ps.reduce((a, b) => a + b, 0) / ps.length);
+  }
+  return null;
+}
+
+function potBar(p) {
+  if (p == null) return '';
+  return `
+    <div class="pot-row">
+      <div class="pot-bar"><i style="width:${p}%"></i></div>
+      <span class="pot-pct">${p}% of potential</span>
+    </div>`;
+}
+
+function routineChip(node) {
+  if (!node.routine || !node.routine.is) return '';
+  return `<span class="routine-chip">⏱ ${node.routine.minutes || 0} min routine</span>`;
+}
+
+function ratingNodeById(l1Id, l2Id) {
+  const l1 = D.ratings.find(r => r.id === l1Id);
+  if (!l1) return null;
+  if (!l2Id) return l1;
+  return (l1.children || []).find(c => c.id === l2Id) || null;
+}
+
+function renderRatingsPage() {
+  const el = document.getElementById('ratings-list');
+  if (!el) return;
+  document.getElementById('ratings-count').textContent = `CATEGORIES (${D.ratings.length})`;
+  if (!D.ratings.length) {
+    el.innerHTML = '<div class="empty-state">Nothing rated yet. Add hair, shower, clothes — anything you run.</div>';
+    return;
+  }
+  el.innerHTML = D.ratings.map(r => {
+    const p = ratingPotential(r);
+    return `
+      <div class="rating-card" onclick="openRatingNode('${r.id}', null)">
+        <div class="rating-card-head">
+          ${tierBadge(r.rating)}
+          <div class="rating-card-name">${escapeHtml(r.name)}</div>
+          <div class="rating-card-meta">${(r.children || []).length} inside</div>
+        </div>
+        ${r.desc ? `<div class="rating-card-desc">${escapeHtml(r.desc)}</div>` : ''}
+        ${routineChip(r)}
+        ${potBar(p)}
+      </div>`;
+  }).join('');
+}
+
+function openRatingNode(l1Id, l2Id) {
+  currentRatingL1 = l1Id;
+  currentRatingL2 = l2Id;
+  navigateTo('ratingdetail');
+}
+
+function ratingDetailBack() {
+  if (currentRatingL2) { currentRatingL2 = null; navigateTo('ratingdetail'); }
+  else navigateTo('ratings');
+}
+
+function renderRatingDetail() {
+  const el = document.getElementById('ratingdetail-content');
+  if (!el) return;
+  const node = ratingNodeById(currentRatingL1, currentRatingL2);
+  if (!node) { navigateTo('ratings'); return; }
+  const isL1 = !currentRatingL2;
+  const p = ratingPotential(node);
+
+  let html = `
+    <div class="rating-hero">
+      ${tierBadge(node.rating)}
+      <div class="rating-hero-name">${escapeHtml(node.name.toUpperCase())}</div>
+      <button class="small-btn" onclick="openEditRatingNode()">✎ Edit</button>
+    </div>
+    ${node.desc ? `<div class="rating-card-desc" style="margin-bottom:10px">${escapeHtml(node.desc)}</div>` : ''}
+    ${routineChip(node)}
+    ${potBar(p)}`;
+
+  if (isL1) {
+    // Layer 2 list
+    html += `
+      <div class="section-header" style="margin-top:20px">
+        <span>INSIDE ${escapeHtml(node.name.toUpperCase())} (${(node.children || []).length})</span>
+        <button class="small-btn" onclick="openAddRatingNode('${node.id}')">+ Add</button>
+      </div>`;
+    html += (node.children || []).length
+      ? node.children.map(c => {
+        const cp = ratingPotential(c);
+        return `
+          <div class="rating-card" onclick="openRatingNode('${node.id}', '${c.id}')">
+            <div class="rating-card-head">
+              ${tierBadge(c.rating)}
+              <div class="rating-card-name">${escapeHtml(c.name)}</div>
+              <div class="rating-card-meta">${(c.items || []).length} item${(c.items || []).length === 1 ? '' : 's'}</div>
+            </div>
+            ${c.desc ? `<div class="rating-card-desc">${escapeHtml(c.desc)}</div>` : ''}
+            ${routineChip(c)}
+            ${potBar(cp)}
+          </div>`;
+      }).join('')
+      : '<div class="empty-state">Nothing inside yet — add a routine or a rating.</div>';
+  } else {
+    // Layer 3 items
+    html += `
+      <div class="section-header" style="margin-top:20px">
+        <span>ITEMS (${(node.items || []).length})</span>
+        <button class="small-btn" onclick="openAddRatingItem()">+ Item</button>
+      </div>`;
+    html += (node.items || []).length
+      ? node.items.map(it => `
+        <div class="rating-item" onclick="openEditRatingItem('${it.id}')">
+          ${tierBadge(it.tier)}
+          <div class="rating-item-body">
+            <div class="rating-item-name">${escapeHtml(it.name)}</div>
+            ${it.upgrade && it.upgrade.name
+              ? `<div class="rating-item-upgrade">upgrade → ${escapeHtml(it.upgrade.name)} ${tierBadge(it.upgrade.tier)}</div>`
+              : ''}
+          </div>
+        </div>`).join('')
+      : '<div class="empty-state">No items yet. Shampoo, conditioner, face wash — rate each one.</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+// ---- pickers ----
+function tierPicker(sel, cls) {
+  return `<div class="tier-picker ${cls || ''}">
+    ${TIERS.map(t => `
+      <span class="tier-pick${t === sel ? ' sel' : ''}" data-t="${t}" style="--tc:${TIER_COLOR[t]}"
+        onclick="this.parentElement.querySelectorAll('.tier-pick').forEach(x=>x.classList.remove('sel'));this.classList.add('sel')">${t}</span>`).join('')}
+  </div>`;
+}
+
+function pickedTier(scope) {
+  const s = document.querySelector(`${scope} .tier-pick.sel`);
+  return s ? s.dataset.t : null;
+}
+
+function routineFields(node) {
+  const is = !!(node && node.routine && node.routine.is);
+  const mins = (node && node.routine && node.routine.minutes) || '';
+  return `
+    <div class="form-row"><label>Is this a routine?</label>
+      <div class="bta-tabs">
+        <button type="button" class="bta-tab${is ? ' active' : ''}" id="rt-yes"
+          onclick="this.classList.add('active');document.getElementById('rt-no').classList.remove('active');document.getElementById('rt-mins-row').style.display='block'">Yes</button>
+        <button type="button" class="bta-tab${is ? '' : ' active'}" id="rt-no"
+          onclick="this.classList.add('active');document.getElementById('rt-yes').classList.remove('active');document.getElementById('rt-mins-row').style.display='none'">No</button>
+      </div>
+    </div>
+    <div class="form-row" id="rt-mins-row" style="display:${is ? 'block' : 'none'}">
+      <label>How long does it take? (minutes)</label>
+      <input type="number" id="rt-mins" min="1" value="${mins}" placeholder="15"/>
+    </div>`;
+}
+
+function readRoutine() {
+  const is = document.getElementById('rt-yes').classList.contains('active');
+  return is ? { is: true, minutes: parseInt(document.getElementById('rt-mins').value) || 0 } : null;
+}
+
+// ---- node CRUD (layer 1 & 2) ----
+let pendingRatingParent = null;
+
+function openAddRatingNode(parentId) {
+  pendingRatingParent = parentId;
+  openModal(`
+    <h3>${parentId ? 'Add inside' : 'New category'}</h3>
+    <div class="form-row"><label>Name it</label><input id="rn-name" placeholder="${parentId ? 'Hair routine, haircare...' : 'Hair, shower, clothes...'}"/></div>
+    <div class="form-row"><label>A few words (optional)</label><textarea id="rn-desc" rows="2" placeholder="What's the current setup?"></textarea></div>
+    <div class="form-row"><label>Rate it</label></div>
+    ${tierPicker(null, 'main-tier')}
+    ${routineFields(null)}
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Never mind</button>
+      <button class="pill-btn good" onclick="submitAddRatingNode()">Add it</button>
+    </div>`);
+}
+
+function submitAddRatingNode() {
+  const name = (document.getElementById('rn-name').value || '').trim();
+  if (!name) { toast('Give it a name first.'); return; }
+  const node = {
+    id: uid('rt'), name,
+    desc: (document.getElementById('rn-desc').value || '').trim(),
+    rating: pickedTier('.main-tier'),
+    routine: readRoutine()
+  };
+  if (pendingRatingParent) {
+    const l1 = D.ratings.find(r => r.id === pendingRatingParent);
+    if (!l1) return;
+    node.items = [];
+    l1.children = l1.children || [];
+    l1.children.push(node);
+  } else {
+    node.children = [];
+    D.ratings.push(node);
+  }
+  closeModal(); save(); render();
+  toast(`"${name}" is on the board.`);
+}
+
+function openEditRatingNode() {
+  const node = ratingNodeById(currentRatingL1, currentRatingL2);
+  if (!node) return;
+  openModal(`
+    <h3>${escapeHtml(node.name)}</h3>
+    <div class="form-row"><label>Name</label><input id="rn-name" value="${escapeHtml(node.name)}"/></div>
+    <div class="form-row"><label>A few words</label><textarea id="rn-desc" rows="2">${escapeHtml(node.desc || '')}</textarea></div>
+    <div class="form-row"><label>Rate it</label></div>
+    ${tierPicker(node.rating, 'main-tier')}
+    ${routineFields(node)}
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteRatingNode()">Delete</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditRatingNode()">Save</button>
+    </div>`);
+}
+
+function submitEditRatingNode() {
+  const node = ratingNodeById(currentRatingL1, currentRatingL2);
+  if (!node) return;
+  node.name = (document.getElementById('rn-name').value || '').trim() || node.name;
+  node.desc = (document.getElementById('rn-desc').value || '').trim();
+  node.rating = pickedTier('.main-tier');
+  node.routine = readRoutine();
+  closeModal(); save(); renderRatingDetail();
+  toast('Saved.');
+}
+
+function deleteRatingNode() {
+  if (!confirm('Delete this and everything inside it?')) return;
+  if (currentRatingL2) {
+    const l1 = D.ratings.find(r => r.id === currentRatingL1);
+    l1.children = l1.children.filter(c => c.id !== currentRatingL2);
+    currentRatingL2 = null;
+  } else {
+    D.ratings = D.ratings.filter(r => r.id !== currentRatingL1);
+    currentRatingL1 = null;
+  }
+  closeModal(); save();
+  currentRatingL1 ? navigateTo('ratingdetail') : navigateTo('ratings');
+  toast('Gone.');
+}
+
+// ---- item CRUD (layer 3) ----
+function openAddRatingItem() {
+  openModal(`
+    <h3>Add an item</h3>
+    <div class="form-row"><label>What is it?</label><input id="ri-name" placeholder="Shampoo, conditioner, face wash..."/></div>
+    <div class="form-row"><label>Rate what you use now</label></div>
+    ${tierPicker('C', 'main-tier')}
+    <div class="form-row"><label>The upgrade (optional)</label><input id="ri-up-name" placeholder="Shampoo+ ..."/></div>
+    <div class="form-row"><label>Upgrade tier</label></div>
+    ${tierPicker('A', 'up-tier')}
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Never mind</button>
+      <button class="pill-btn good" onclick="submitAddRatingItem()">Add it</button>
+    </div>`);
+}
+
+function submitAddRatingItem() {
+  const node = ratingNodeById(currentRatingL1, currentRatingL2);
+  if (!node) return;
+  const name = (document.getElementById('ri-name').value || '').trim();
+  if (!name) { toast('Give it a name first.'); return; }
+  const upName = (document.getElementById('ri-up-name').value || '').trim();
+  node.items = node.items || [];
+  node.items.push({
+    id: uid('ri'), name,
+    tier: pickedTier('.main-tier') || 'C',
+    upgrade: upName ? { name: upName, tier: pickedTier('.up-tier') || 'A' } : null
+  });
+  closeModal(); save(); renderRatingDetail();
+  toast(`"${name}" rated.`);
+}
+
+function openEditRatingItem(itemId) {
+  const node = ratingNodeById(currentRatingL1, currentRatingL2);
+  const it = node && (node.items || []).find(x => x.id === itemId);
+  if (!it) return;
+  openModal(`
+    <h3>${escapeHtml(it.name)}</h3>
+    <div class="form-row"><label>What is it?</label><input id="ri-name" value="${escapeHtml(it.name)}"/></div>
+    <div class="form-row"><label>Rate what you use now</label></div>
+    ${tierPicker(it.tier, 'main-tier')}
+    <div class="form-row"><label>The upgrade (optional)</label><input id="ri-up-name" value="${escapeHtml((it.upgrade && it.upgrade.name) || '')}"/></div>
+    <div class="form-row"><label>Upgrade tier</label></div>
+    ${tierPicker((it.upgrade && it.upgrade.tier) || 'A', 'up-tier')}
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteRatingItem('${it.id}')">Remove</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditRatingItem('${it.id}')">Save</button>
+    </div>`);
+}
+
+function submitEditRatingItem(itemId) {
+  const node = ratingNodeById(currentRatingL1, currentRatingL2);
+  const it = node && (node.items || []).find(x => x.id === itemId);
+  if (!it) return;
+  it.name = (document.getElementById('ri-name').value || '').trim() || it.name;
+  it.tier = pickedTier('.main-tier') || it.tier;
+  const upName = (document.getElementById('ri-up-name').value || '').trim();
+  it.upgrade = upName ? { name: upName, tier: pickedTier('.up-tier') || 'A' } : null;
+  closeModal(); save(); renderRatingDetail();
+  toast('Saved.');
+}
+
+function deleteRatingItem(itemId) {
+  if (!confirm('Remove this item?')) return;
+  const node = ratingNodeById(currentRatingL1, currentRatingL2);
+  if (!node) return;
+  node.items = node.items.filter(x => x.id !== itemId);
+  closeModal(); save(); renderRatingDetail();
+  toast('Removed.');
 }
 
 // ── SOCIAL WORLD ──

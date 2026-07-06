@@ -89,7 +89,11 @@ body,
 .act-page-hero,
 .bodymap-wrap,
 .sm-card,
-.world-door {
+.world-door,
+.bta-wrap,
+.money-goal,
+.rating-card,
+.rating-item {
   background: var(--b-bg) !important;
   border: 3px solid var(--b-ink) !important;
   box-shadow: var(--b-shadow-cyan);
@@ -418,6 +422,46 @@ textarea:focus {
   position: absolute;
   inset: 0;
   background: repeating-linear-gradient(45deg, #FFCB1C 0 8px, #E0B010 8px 16px);
+}
+
+/* Terminal panels — brutalist blocks like everything else */
+.term-sect {
+  background: #181F3C !important;
+  border: 3px solid var(--b-ink) !important;
+  box-shadow: 6px 6px 0 #4EC8FF;
+  padding: 16px !important;
+  margin-bottom: 20px !important;
+}
+
+.term-title {
+  font-family: var(--font-display) !important;
+  font-size: 13px !important;
+  color: var(--b-ink) !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase;
+}
+
+.term-title::before {
+  color: #4EC8FF;
+}
+
+.term-row {
+  border-bottom: 2px dashed rgba(242, 244, 252, 0.25);
+  padding: 8px 0 !important;
+}
+
+.term-row:last-child {
+  border-bottom: 0;
+}
+
+/* Money goal — big brutalist number */
+.money-goal-num {
+  font-family: var(--font-display) !important;
+  text-shadow: 4px 4px 0 #FF3366;
+}
+
+.money-goal-num.dim {
+  text-shadow: none;
 }
 
 /* End day */
