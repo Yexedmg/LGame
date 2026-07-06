@@ -7303,6 +7303,26 @@ body {
   border-style: dashed !important;
 }
 
+.rating-item-next {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  opacity: 0.4;
+}
+
+.rating-item-next .ri-arrow {
+  font-size: 26px;
+  line-height: 1;
+  color: var(--gold);
+}
+
+.rating-item-next .tier-badge {
+  width: 26px;
+  height: 26px;
+  font-size: 13px;
+}
+
 .rating-item-edit {
   flex-shrink: 0;
   color: var(--text-muted);

@@ -7179,10 +7179,12 @@ function renderRatingDetail() {
         <div class="rating-item-body">
           <div class="rating-item-name">${escapeHtml(it.name)}</div>
           ${it.later ? '<div class="rating-item-upgrade">not in the stack yet — planned</div>' : ''}
-          ${it.upgrade && it.upgrade.name
-            ? `<div class="rating-item-upgrade">upgrade → ${escapeHtml(it.upgrade.name)} ${tierBadge(it.upgrade.tier)}</div>`
-            : ''}
         </div>
+        ${it.upgrade && it.upgrade.name ? `
+          <div class="rating-item-next">
+            <span class="ri-arrow">➜</span>
+            ${tierBadge(it.upgrade.tier)}
+          </div>` : ''}
         <span class="rating-item-edit" onclick="event.stopPropagation();openEditRatingItem('${it.id}')">✎</span>
       </div>`;
     html += `
