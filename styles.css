@@ -7136,6 +7136,13 @@ body {
 
 .bta-item {
   cursor: pointer;
+  pointer-events: all;
+  touch-action: manipulation;
+}
+
+.bta-tab,
+.bta-wrap svg {
+  touch-action: manipulation;
 }
 
 .bta-label {
