@@ -6443,6 +6443,57 @@ function renderMoneyPage() {
   }
 }
 
+// ---- income streams ----
+function openAddIncome() {
+  openModal(`
+    <h3>New income stream</h3>
+    <div class="form-row"><label>Where's it from?</label><input id="inc-title" placeholder="Job, studio, side hustle..."/></div>
+    <div class="form-row"><label>How much per month?</label><input type="number" id="inc-amount" min="0" placeholder="1500"/></div>
+    <div class="row">
+      <button class="pill-btn" onclick="closeModal()">Never mind</button>
+      <button class="pill-btn good" onclick="submitAddIncome()">Add it</button>
+    </div>`);
+}
+
+function submitAddIncome() {
+  const title = (document.getElementById('inc-title').value || '').trim();
+  if (!title) { toast('Give it a name first.'); return; }
+  const amount = parseInt(document.getElementById('inc-amount').value) || 0;
+  D.incomes.push({ id: uid('inc'), title, amount, createdAt: Date.now() });
+  closeModal(); save(); renderMoneyPage();
+  toast(`"${title}" flowing in.`);
+}
+
+function openEditIncome(id) {
+  const i = D.incomes.find(x => x.id === id);
+  if (!i) return;
+  openModal(`
+    <h3>${escapeHtml(i.title)}</h3>
+    <div class="form-row"><label>Where's it from?</label><input id="inc-title" value="${escapeHtml(i.title)}"/></div>
+    <div class="form-row"><label>How much per month?</label><input type="number" id="inc-amount" min="0" value="${i.amount || 0}"/></div>
+    <div class="row">
+      <button class="pill-btn danger" onclick="deleteIncome('${id}')">Cut it</button>
+      <button class="pill-btn" onclick="closeModal()">Cancel</button>
+      <button class="pill-btn good" onclick="submitEditIncome('${id}')">Save</button>
+    </div>`);
+}
+
+function submitEditIncome(id) {
+  const i = D.incomes.find(x => x.id === id);
+  if (!i) return;
+  i.title = (document.getElementById('inc-title').value || '').trim() || i.title;
+  i.amount = parseInt(document.getElementById('inc-amount').value) || 0;
+  closeModal(); save(); renderMoneyPage();
+  toast('Saved.');
+}
+
+function deleteIncome(id) {
+  if (!confirm('Cut this income stream?')) return;
+  D.incomes = D.incomes.filter(x => x.id !== id);
+  closeModal(); save(); renderMoneyPage();
+  toast('Cut.');
+}
+
 function openMoneyGoalModal() {
   openModal(`
     <h3>The number</h3>
