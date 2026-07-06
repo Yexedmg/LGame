@@ -6361,6 +6361,21 @@ function renderPortalPage() {
       </button>
     </div>`;
 
+  // Digital system — door into its ⭐️ category
+  const digi = (D.ratings || []).find(r => /digital/i.test(r.name));
+  if (digi) {
+    const dp = ratingPotential(digi);
+    html += `
+      <button class="world-door" onclick="openRatingNode('${digi.id}', null)">
+        <div class="world-door-name">⌘ DIGITAL SYSTEM</div>
+        ${hl([
+          ['rating', digi.rating || '–'],
+          ['potential', dp != null ? dp + '%' : '–'],
+          ['inside', (digi.children || []).length]
+        ])}
+      </button>`;
+  }
+
   // Remaining body-map stats — each its own world
   others.forEach(s => {
     const t = (s.title || '').toLowerCase();
