@@ -319,6 +319,9 @@ function load() {
     if (!Array.isArray(D.meStats)) D.meStats = [];
     // Migration: social media platforms (Social world)
     if (!Array.isArray(D.socialMedia)) D.socialMedia = [];
+    // Migration: level-up moves on stat elements
+    D.meStats.forEach(s => { if (!Array.isArray(s.levelUp)) s.levelUp = []; });
+    D.socialMedia.forEach(p => { if (!Array.isArray(p.levelUp)) p.levelUp = []; });
     // Migration: money goal + best time allocation
     if (D.moneyGoal === undefined) D.moneyGoal = null;
     if (!Array.isArray(D.incomes)) D.incomes = [];
@@ -5830,6 +5833,7 @@ function renderScheduleEntry(entry, dayKey, editFn, deleteFn) {
       <div class="sched-entry-body">
         <div class="sched-entry-name">${displayName}${durationStr}</div>
         ${catName ? `<div class="sched-entry-cat">${escapeHtml(catName)}</div>` : ''}
+        ${entry.levelUpRef && findLevelUpStat(entry.levelUpRef.statId) ? `<div class="sched-entry-cat levelup-tag">⤴ levels up ${escapeHtml(findLevelUpStat(entry.levelUpRef.statId).title)}</div>` : ''}
       </div>
       <div class="sched-entry-actions">
         <button class="tile-btn" onclick="${editFn}">✎</button>
@@ -5896,6 +5900,9 @@ function openAddScheduleEntry(day, scheduleTarget) {
     });
   }
 
+  const luOpts = levelUpOptionsHtml('lu::');
+  if (luOpts) actOpts.push(`<optgroup label="⤴ Level-up moves">${luOpts}</optgroup>`);
+
   const submitFn = target === 'global'
     ? `submitAddScheduleEntry('${day}')`
     : `submitAddLsScheduleEntry('${lsId}','${day}')`;
@@ -5944,6 +5951,12 @@ function buildScheduleEntry(actVal) {
   const timeStart = document.getElementById('se-time-start')?.value || '';
   const timeEnd = document.getElementById('se-time-end')?.value || '';
   const time = buildTimeStr(timeStart, timeEnd);
+  if (actVal && actVal.startsWith('lu::')) {
+    const [, statId, moveId] = actVal.split('::');
+    const move = findLevelUpMove(statId, moveId);
+    if (!move) { toast('That move is gone.'); return null; }
+    return { id: uid('se'), time, name: move.text, catId: null, activityItemId: null, levelUpRef: { statId, moveId } };
+  }
   if (actVal) {
     const [catId, itemId] = actVal.split('::');
     const cat = findActivityCatAnywhere(catId);
@@ -6250,6 +6263,113 @@ function initBodyMapDrag(svg) {
   });
 }
 
+// ── LEVEL UP CORE ──
+// Every stat element (body-map stats, social platforms) carries levelUp: [{id, text}].
+// These moves live in the core registry below so other systems (Schedule,
+// Time Allocation) can link to them by {statId, moveId}.
+
+function levelUpStats() {
+  return [
+    ...(D.meStats || []).map(s => ({ kind: 'mestat', stat: s })),
+    ...(D.socialMedia || []).map(p => ({ kind: 'social', stat: p })),
+  ];
+}
+
+function findLevelUpStat(statId) {
+  return levelUpStats().find(x => x.stat.id === statId)?.stat || null;
+}
+
+function allLevelUpMoves() {
+  const out = [];
+  levelUpStats().forEach(({ stat }) => {
+    (stat.levelUp || []).forEach(m => {
+      out.push({ statId: stat.id, statTitle: stat.title, moveId: m.id, text: m.text });
+    });
+  });
+  return out;
+}
+
+function findLevelUpMove(statId, moveId) {
+  const stat = findLevelUpStat(statId);
+  const move = (stat?.levelUp || []).find(m => m.id === moveId);
+  return move ? { statId, statTitle: stat.title, moveId, text: move.text } : null;
+}
+
+// Where is this move used? Counts global schedule, lifestyle schedules, and time-alloc slots.
+function levelUpUsage(statId, moveId) {
+  const hit = r => r && r.statId === statId && r.moveId === moveId;
+  let sched = 0, painted = 0;
+  ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => {
+    (D.schedule?.[d] || []).forEach(e => { if (hit(e.levelUpRef)) sched++; });
+    (D.lifestyles || []).forEach(ls => (ls.schedule?.[d] || []).forEach(e => { if (hit(e.levelUpRef)) sched++; }));
+  });
+  (D.timeAllocs || []).forEach(t => (t.slots || []).forEach(s => { if (hit(s.levelUpRef)) painted++; }));
+  return { sched, painted };
+}
+
+function levelUpSectionHtml(statId) {
+  const stat = findLevelUpStat(statId);
+  if (!stat) return '';
+  const moves = stat.levelUp || [];
+  const rows = moves.map(m => {
+    const u = levelUpUsage(statId, m.id);
+    const chips = [
+      u.sched ? `<span class="levelup-use">◷ schedule ×${u.sched}</span>` : '',
+      u.painted ? `<span class="levelup-use">▮ time alloc ×${u.painted}</span>` : '',
+    ].join('');
+    return `
+      <div class="levelup-row">
+        <div class="levelup-row-main">
+          <span class="levelup-text">${escapeHtml(m.text)}</span>
+          ${chips ? `<div class="levelup-uses">${chips}</div>` : ''}
+        </div>
+        <button class="levelup-del" onclick="deleteLevelUpMove('${statId}','${m.id}')">×</button>
+      </div>`;
+  }).join('');
+  return `
+    <div class="levelup-sect" id="levelup-sect">
+      <div class="levelup-head">⤴ LEVEL UP</div>
+      ${moves.length ? rows : '<div class="levelup-empty">What exactly gets this to the next level? Write the moves.</div>'}
+      <div class="levelup-add-row">
+        <input id="levelup-new" placeholder="e.g. Train 3× a week" onkeydown="if(event.key==='Enter')addLevelUpMove('${statId}')"/>
+        <button class="small-btn" onclick="addLevelUpMove('${statId}')">+ Add</button>
+      </div>
+      <div class="levelup-hint">These moves become pickable in Schedule and Time Allocation.</div>
+    </div>`;
+}
+
+function addLevelUpMove(statId) {
+  const stat = findLevelUpStat(statId);
+  if (!stat) return;
+  const input = document.getElementById('levelup-new');
+  const text = (input?.value || '').trim();
+  if (!text) { toast('Write the move first.'); return; }
+  if (!Array.isArray(stat.levelUp)) stat.levelUp = [];
+  stat.levelUp.push({ id: uid('lum'), text });
+  save();
+  const sect = document.getElementById('levelup-sect');
+  if (sect) { sect.outerHTML = levelUpSectionHtml(statId); document.getElementById('levelup-new')?.focus(); }
+}
+
+function deleteLevelUpMove(statId, moveId) {
+  const stat = findLevelUpStat(statId);
+  if (!stat) return;
+  stat.levelUp = (stat.levelUp || []).filter(m => m.id !== moveId);
+  save();
+  const sect = document.getElementById('levelup-sect');
+  if (sect) sect.outerHTML = levelUpSectionHtml(statId);
+}
+
+// <option> list for linking a move elsewhere (schedule select, time-alloc select)
+function levelUpOptionsHtml(prefix, selectedRef) {
+  const moves = allLevelUpMoves();
+  if (!moves.length) return '';
+  return moves.map(m => {
+    const sel = selectedRef && selectedRef.statId === m.statId && selectedRef.moveId === m.moveId;
+    return `<option value="${prefix}${m.statId}::${m.moveId}"${sel ? ' selected' : ''}>⤴ ${escapeHtml(m.statTitle)} — ${escapeHtml(m.text)}</option>`;
+  }).join('');
+}
+
 function openAddMeStat() {
   openModal(`
     <h3>Add to your body map</h3>
@@ -6273,7 +6393,7 @@ function submitAddMeStat() {
   const desc = (document.getElementById('me-stat-desc').value || '').trim();
   const val = parseInt(document.getElementById('me-stat-val').value) || 0;
   D.meStats.push({
-    id: uid('mst'), title, desc, stars: clamp(val, 0, 25), createdAt: Date.now()
+    id: uid('mst'), title, desc, stars: clamp(val, 0, 25), levelUp: [], createdAt: Date.now()
   });
   closeModal(); save();
   render();
@@ -6295,6 +6415,7 @@ function openEditMeStat(id) {
         oninput="document.getElementById('me-stat-val-out').textContent = this.value + ' / 25'"/>
       <span class="bm-range-out" id="me-stat-val-out">${v} / 25</span>
     </div>
+    ${levelUpSectionHtml(id)}
     <div class="row">
       <button class="pill-btn danger" onclick="deleteMeStat('${id}')">Take it off</button>
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
@@ -6984,7 +7105,7 @@ function renderBestTimeAlloc() {
         <rect x="${x}" y="${Y0}" width="${w}" height="${Y1 - Y0}" fill="${color}" opacity="0.9"/>
         <polyline points="${cx},${Y0} ${cx},${ly + 12}" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.8"/>
         <circle cx="${cx}" cy="${ly + 12}" r="2.5" fill="${color}"/>
-        <text x="${cx}" y="${ly}" text-anchor="${anchor}" class="bta-label" fill="${color}">${escapeHtml((it.title || '').toUpperCase().slice(0, 20))}</text>
+        <text x="${cx}" y="${ly}" text-anchor="${anchor}" class="bta-label" fill="${color}">${it.levelUpRef ? '⤴ ' : ''}${escapeHtml((it.title || '').toUpperCase().slice(0, 20))}</text>
         <text x="${cx}" y="${ly + 9}" text-anchor="${anchor}" class="bta-time">${escapeHtml(it.start)}–${escapeHtml(it.end)}</text>
       </g>`;
   });
@@ -7000,10 +7121,31 @@ function btaColorPicker(selected) {
   </div>`;
 }
 
+function btaLevelUpSelectHtml(selectedRef) {
+  const opts = levelUpOptionsHtml('', selectedRef);
+  if (!opts) return '';
+  return `
+    <div class="form-row"><label>⤴ Level-up move (optional)</label>
+      <select id="bta-levelup" onchange="btaLevelUpPicked(this)">
+        <option value="">— none, just a slot —</option>
+        ${opts}
+      </select>
+    </div>`;
+}
+
+function btaLevelUpPicked(sel) {
+  if (!sel.value) return;
+  const [statId, moveId] = sel.value.split('::');
+  const move = findLevelUpMove(statId, moveId);
+  const title = document.getElementById('bta-title');
+  if (move && title && !title.value.trim()) title.value = move.text;
+}
+
 function openAddTimeAlloc() {
   openModal(`
     <h3>Paint a time slot</h3>
     <div class="form-row"><label>What happens here?</label><input id="bta-title" placeholder="Deep work, gym, sleep..."/></div>
+    ${btaLevelUpSelectHtml(null)}
     <div class="form-row"><label>From</label><input type="time" id="bta-start" value="09:00"/></div>
     <div class="form-row"><label>Until</label><input type="time" id="bta-end" value="12:00"/></div>
     <div class="form-row"><label>Color</label></div>
@@ -7023,7 +7165,13 @@ function btaReadForm() {
   if (!title) { toast('Give it a name first.'); return null; }
   if (!start || !end) { toast('Pick the times.'); return null; }
   if (btaMinutes(end) <= btaMinutes(start)) { toast('End must come after start.'); return null; }
-  return { title, start, end, color };
+  const luSel = document.getElementById('bta-levelup');
+  let levelUpRef = null;
+  if (luSel && luSel.value) {
+    const [statId, moveId] = luSel.value.split('::');
+    if (findLevelUpMove(statId, moveId)) levelUpRef = { statId, moveId };
+  }
+  return { title, start, end, color, levelUpRef };
 }
 
 function submitAddTimeAlloc() {
@@ -7040,6 +7188,7 @@ function openEditTimeAlloc(id) {
   openModal(`
     <h3>${escapeHtml(it.title)}</h3>
     <div class="form-row"><label>What happens here?</label><input id="bta-title" value="${escapeHtml(it.title)}"/></div>
+    ${btaLevelUpSelectHtml(it.levelUpRef)}
     <div class="form-row"><label>From</label><input type="time" id="bta-start" value="${escapeHtml(it.start)}"/></div>
     <div class="form-row"><label>Until</label><input type="time" id="bta-end" value="${escapeHtml(it.end)}"/></div>
     <div class="form-row"><label>Color</label></div>
@@ -7601,7 +7750,7 @@ function submitAddSocialMedia() {
   if (!title) { toast('Give it a name first.'); return; }
   const desc = (document.getElementById('sm-desc').value || '').trim();
   const level = clamp(parseInt(document.getElementById('sm-val').value) || 0, 0, 25);
-  D.socialMedia.push({ id: uid('smp'), title, desc, level, createdAt: Date.now() });
+  D.socialMedia.push({ id: uid('smp'), title, desc, level, levelUp: [], createdAt: Date.now() });
   syncOnlinePresenceFeeds();
   closeModal(); save();
   renderSocialMediaPage();
@@ -7622,6 +7771,7 @@ function openEditSocialMedia(id) {
         oninput="document.getElementById('sm-val-out').textContent = this.value + ' / 25'"/>
       <span class="bm-range-out" id="sm-val-out">${v} / 25</span>
     </div>
+    ${levelUpSectionHtml(id)}
     <div class="row">
       <button class="pill-btn danger" onclick="deleteSocialMedia('${id}')">Remove</button>
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
