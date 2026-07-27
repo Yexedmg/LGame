@@ -7635,3 +7635,86 @@ body {
 .sched-entry-cat.levelup-tag {
   color: var(--cyan);
 }
+
+/* ===== PAST UPGRADES (stat history) ===== */
+.hist-sect {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.hist-head {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+
+.hist-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.hist-row:last-of-type {
+  border-bottom: none;
+}
+
+.hist-date {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  flex-shrink: 0;
+  width: 74px;
+}
+
+.hist-change {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.hist-change b {
+  color: var(--text-primary);
+}
+
+.hist-delta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  border-radius: 6px;
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+
+.hist-delta.up {
+  color: var(--green);
+  background: rgba(64, 227, 130, 0.1);
+  border: 1px solid rgba(64, 227, 130, 0.25);
+}
+
+.hist-delta.down {
+  color: var(--red);
+  background: rgba(255, 59, 48, 0.1);
+  border: 1px solid rgba(255, 59, 48, 0.25);
+}
+
+.hist-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+
+.hist-more {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}

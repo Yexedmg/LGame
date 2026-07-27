@@ -322,6 +322,9 @@ function load() {
     // Migration: level-up moves on stat elements
     D.meStats.forEach(s => { if (!Array.isArray(s.levelUp)) s.levelUp = []; });
     D.socialMedia.forEach(p => { if (!Array.isArray(p.levelUp)) p.levelUp = []; });
+    // Migration: upgrade history on stat elements
+    D.meStats.forEach(s => { if (!Array.isArray(s.history)) s.history = []; });
+    D.socialMedia.forEach(p => { if (!Array.isArray(p.history)) p.history = []; });
     // Migration: money goal + best time allocation
     if (D.moneyGoal === undefined) D.moneyGoal = null;
     if (!Array.isArray(D.incomes)) D.incomes = [];
@@ -6360,6 +6363,45 @@ function deleteLevelUpMove(statId, moveId) {
   if (sect) sect.outerHTML = levelUpSectionHtml(statId);
 }
 
+// ── Upgrade history: every level change on a stat element is recorded ──
+function recordStatUpgrade(stat, from, to) {
+  if (from === to) return;
+  if (!Array.isArray(stat.history)) stat.history = [];
+  stat.history.push({ t: Date.now(), from, to });
+}
+
+function fmtHistDate(t) {
+  const d = new Date(t);
+  return d.getDate() + ' ' + ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'][d.getMonth()] + ' ' + String(d.getFullYear()).slice(2);
+}
+
+function lastUpgrade(stat) {
+  const h = stat.history || [];
+  return h.length ? h[h.length - 1] : null;
+}
+
+function statHistoryHtml(statId) {
+  const stat = findLevelUpStat(statId);
+  if (!stat) return '';
+  const h = (stat.history || []).slice().reverse();
+  const rows = h.slice(0, 10).map(e => {
+    const delta = e.to - (e.from == null ? 0 : e.from);
+    const up = delta >= 0;
+    return `
+      <div class="hist-row">
+        <span class="hist-date">${fmtHistDate(e.t)}</span>
+        <span class="hist-change">${e.from == null ? 'started at' : e.from + ' →'} <b>${e.to}</b> / 25</span>
+        ${e.from == null ? '' : `<span class="hist-delta ${up ? 'up' : 'down'}">${up ? '▲ +' : '▼ '}${delta}</span>`}
+      </div>`;
+  }).join('');
+  return `
+    <div class="hist-sect">
+      <div class="hist-head">◆ PAST UPGRADES</div>
+      ${h.length ? rows : '<div class="hist-empty">No upgrades yet — every level change lands here.</div>'}
+      ${h.length > 10 ? `<div class="hist-more">+ ${h.length - 10} earlier</div>` : ''}
+    </div>`;
+}
+
 // <option> list for linking a move elsewhere (schedule select, time-alloc select)
 function levelUpOptionsHtml(prefix, selectedRef) {
   const moves = allLevelUpMoves();
@@ -6393,7 +6435,8 @@ function submitAddMeStat() {
   const desc = (document.getElementById('me-stat-desc').value || '').trim();
   const val = parseInt(document.getElementById('me-stat-val').value) || 0;
   D.meStats.push({
-    id: uid('mst'), title, desc, stars: clamp(val, 0, 25), levelUp: [], createdAt: Date.now()
+    id: uid('mst'), title, desc, stars: clamp(val, 0, 25), levelUp: [],
+    history: [{ t: Date.now(), from: null, to: clamp(val, 0, 25) }], createdAt: Date.now()
   });
   closeModal(); save();
   render();
@@ -6416,6 +6459,7 @@ function openEditMeStat(id) {
       <span class="bm-range-out" id="me-stat-val-out">${v} / 25</span>
     </div>
     ${levelUpSectionHtml(id)}
+    ${statHistoryHtml(id)}
     <div class="row">
       <button class="pill-btn danger" onclick="deleteMeStat('${id}')">Take it off</button>
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
@@ -6428,7 +6472,9 @@ function submitEditMeStat(id) {
   if (!s) return;
   s.title = (document.getElementById('me-stat-title').value || '').trim() || s.title;
   s.desc = (document.getElementById('me-stat-desc').value || '').trim();
-  s.stars = clamp(parseInt(document.getElementById('me-stat-val').value) || 0, 0, 25);
+  const newStars = clamp(parseInt(document.getElementById('me-stat-val').value) || 0, 0, 25);
+  recordStatUpgrade(s, clamp(s.stars || 0, 0, 25), newStars);
+  s.stars = newStars;
   closeModal(); save();
   render();
   toast('Saved.');
@@ -6510,6 +6556,8 @@ function renderPortalPage() {
     const v = clamp(s.stars || 0, 0, 25);
     const click = t.includes('health') ? `openStatPage('health')` : `openEditMeStat('${s.id}')`;
     const rows = [['level', `${v}/25`]];
+    const lu = lastUpgrade(s);
+    if (lu && lu.from != null) rows.push(['last ↑', `${lu.to - lu.from >= 0 ? '+' : ''}${lu.to - lu.from} · ${fmtHistDate(lu.t)}`]);
     if (s.desc) rows.push(['note', escapeHtml(s.desc.slice(0, 16))]);
     html += `
       <button class="world-door" onclick="${click}">
@@ -7750,7 +7798,7 @@ function submitAddSocialMedia() {
   if (!title) { toast('Give it a name first.'); return; }
   const desc = (document.getElementById('sm-desc').value || '').trim();
   const level = clamp(parseInt(document.getElementById('sm-val').value) || 0, 0, 25);
-  D.socialMedia.push({ id: uid('smp'), title, desc, level, levelUp: [], createdAt: Date.now() });
+  D.socialMedia.push({ id: uid('smp'), title, desc, level, levelUp: [], history: [{ t: Date.now(), from: null, to: level }], createdAt: Date.now() });
   syncOnlinePresenceFeeds();
   closeModal(); save();
   renderSocialMediaPage();
@@ -7772,6 +7820,7 @@ function openEditSocialMedia(id) {
       <span class="bm-range-out" id="sm-val-out">${v} / 25</span>
     </div>
     ${levelUpSectionHtml(id)}
+    ${statHistoryHtml(id)}
     <div class="row">
       <button class="pill-btn danger" onclick="deleteSocialMedia('${id}')">Remove</button>
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
@@ -7784,7 +7833,9 @@ function submitEditSocialMedia(id) {
   if (!p) return;
   p.title = (document.getElementById('sm-title').value || '').trim() || p.title;
   p.desc = (document.getElementById('sm-desc').value || '').trim();
-  p.level = clamp(parseInt(document.getElementById('sm-val').value) || 0, 0, 25);
+  const newLevel = clamp(parseInt(document.getElementById('sm-val').value) || 0, 0, 25);
+  recordStatUpgrade(p, clamp(p.level || 0, 0, 25), newLevel);
+  p.level = newLevel;
   syncOnlinePresenceFeeds();
   closeModal(); save();
   renderSocialMediaPage();
