@@ -135,6 +135,11 @@ function defaultData() {
     schedule: defaultSchedule(),
     // Me page — personal stat cards with star ratings
     meStats: [],   // [{ id, title, desc, stars (1-8), createdAt }]
+    // Ratings world (⭐ S–F tiers)
+    ratings: defaultRatings(),
+    // Money world
+    moneyGoal: null,
+    incomes: [],
     // Social world — online platforms
     socialMedia: [],
     // Time allocation — day types with painted time slots
@@ -220,6 +225,11 @@ function defaultBorough(name) {
 
 function defaultSchedule() {
   return { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] };
+}
+
+function defaultRatings() {
+  return ['Hair', 'Face', 'Dental', 'Shower', 'Body towel', 'Extracosmetics', 'Clothes', 'Digital system', 'Physique']
+    .map(n => ({ id: uid('rt'), name: n, desc: '', rating: null, routine: null, children: [] }));
 }
 
 // Gain % lookup: difficulty × ROI → gainPct contribution
@@ -336,10 +346,12 @@ function load() {
     });
     if (!Array.isArray(D.bestTimeAlloc)) D.bestTimeAlloc = [];
     // Migration: ratings world (⭐ S–F tiers)
-    if (!Array.isArray(D.ratings)) {
-      D.ratings = ['Hair', 'Face', 'Dental', 'Shower', 'Body towel', 'Extracosmetics', 'Clothes', 'Digital system', 'Physique']
-        .map(n => ({ id: uid('rt'), name: n, desc: '', rating: null, routine: null, children: [] }));
-    }
+    if (!Array.isArray(D.ratings)) D.ratings = defaultRatings();
+    // Migration: upgrade history on rating items
+    (D.ratings || []).forEach(r => {
+      (r.items || []).forEach(it => { if (!Array.isArray(it.upgrades)) it.upgrades = []; });
+      (r.children || []).forEach(c => (c.items || []).forEach(it => { if (!Array.isArray(it.upgrades)) it.upgrades = []; }));
+    });
     // Migration: multiple time allocations (day types)
     if (!Array.isArray(D.timeAllocs) || D.timeAllocs.length === 0) {
       D.timeAllocs = [{ id: uid('ta'), name: 'Default day', slots: D.bestTimeAlloc || [] }];
@@ -7581,6 +7593,7 @@ function openItemUpgradeView(itemId) {
         <span class="upg-price ${canAfford ? '' : 'cant'}">$${price.toLocaleString('en-US')}</span>
         <span class="upg-owned">you have $${money.toLocaleString('en-US')}</span>
       </div>` : ''}
+    ${itemUpgradeHistoryHtml(it)}
     <div class="row">
       <button class="pill-btn" onclick="closeModal()">Back</button>
       <button class="pill-btn good" ${price > 0 && !canAfford ? 'disabled style="opacity:.4"' : ''}
@@ -7597,7 +7610,9 @@ function doItemUpgrade(itemId) {
     if (D.player.stats.money < price) { toast('Not enough $.'); return; }
     D.player.stats.money -= price;
   }
-  const oldName = it.name;
+  const oldName = it.name, oldTier = it.tier;
+  if (!Array.isArray(it.upgrades)) it.upgrades = [];
+  it.upgrades.push({ t: Date.now(), fromName: oldName, fromTier: oldTier, toName: it.upgrade.name, toTier: it.upgrade.tier, price });
   it.name = it.upgrade.name;
   it.tier = it.upgrade.tier;
   it.later = false;
@@ -7605,6 +7620,25 @@ function doItemUpgrade(itemId) {
   addLog(`Upgraded ${oldName} → ${it.name} (${it.tier} tier)${price ? ` for $${price}` : ''}.`, 'upgrade');
   closeModal(); save(); renderRatingDetail();
   toast(`${it.name} — upgraded.`);
+}
+
+// Past upgrades on a rating item — every completed upgrade is kept on the item
+function itemUpgradeHistoryHtml(it) {
+  const h = (it.upgrades || []).slice().reverse();
+  if (!h.length) return '';
+  const tl = t => `<b style="color:${TIER_COLOR[t] || 'inherit'}">${t}</b>`;
+  const rows = h.slice(0, 10).map(u => `
+    <div class="hist-row">
+      <span class="hist-date">${fmtHistDate(u.t)}</span>
+      <span class="hist-change">${escapeHtml(u.fromName)} (${tl(u.fromTier)}) ➜ ${escapeHtml(u.toName)} (${tl(u.toTier)})</span>
+      ${u.price ? `<span class="hist-delta spend">$${Number(u.price).toLocaleString('en-US')}</span>` : ''}
+    </div>`).join('');
+  return `
+    <div class="hist-sect">
+      <div class="hist-head">◆ PAST UPGRADES</div>
+      ${rows}
+      ${h.length > 10 ? `<div class="hist-more">+ ${h.length - 10} earlier</div>` : ''}
+    </div>`;
 }
 
 // ---- item CRUD (layer 3) ----
@@ -7672,6 +7706,7 @@ function openEditRatingItem(itemId) {
     <div class="form-row"><label>Upgrade tier</label></div>
     ${tierPicker((it.upgrade && it.upgrade.tier) || 'A', 'up-tier')}
     <div class="form-row"><label>Upgrade price (optional, taken from your $)</label><input type="number" id="ri-up-price" min="0" value="${(it.upgrade && it.upgrade.price) || ''}"/></div>
+    ${itemUpgradeHistoryHtml(it)}
     <div class="row">
       <button class="pill-btn danger" onclick="deleteRatingItem('${it.id}')">Remove</button>
       <button class="pill-btn" onclick="closeModal()">Cancel</button>
