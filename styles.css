@@ -7718,3 +7718,9 @@ body {
   color: var(--text-muted);
   margin-top: 6px;
 }
+
+.hist-delta.spend {
+  color: var(--gold);
+  background: rgba(255, 203, 28, 0.1);
+  border: 1px solid rgba(255, 203, 28, 0.25);
+}
