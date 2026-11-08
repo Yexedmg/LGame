@@ -37,6 +37,10 @@ const STAT_DESC = {
   vibe: 'The Entity — one thing composed of Vibe, Lead Generation, Social Proof, Style, and Energy. All parts equal. Tap to see the big picture.'
 };
 
+// One history point per in-game day. 730 days is roughly two in-game years and
+// costs ~50KB serialized, which is cheap next to the rest of the save.
+const STAT_HISTORY_CAP = 730;
+
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS_PER_MONTH = 30;
 const START_MONTH_INDEX = 3; // April
@@ -134,7 +138,10 @@ function defaultData() {
     // Weekly schedule
     schedule: defaultSchedule(),
     // Me page — personal stat cards with star ratings
-    meStats: [],   // [{ id, title, desc, stars (1-8), createdAt }]
+    meStats: [],
+    // Daily stat trace. Stored positionally against STAT_KEYS rather than as
+    // objects — the key names would otherwise dwarf the values.
+    statHistory: [],   // [{ d: day, t: ms, l: level, x: xp, s: [..STAT_KEYS order] }]   // [{ id, title, desc, stars (1-8), createdAt }]
     // Ratings world (⭐ S–F tiers)
     ratings: defaultRatings(),
     // Money world
@@ -258,17 +265,254 @@ let currentRosterTab = 'girls';
 let currentMonthKey = null;
 
 // ── Persistence ──
+// Everything lives in one localStorage key, and mobile browsers evict that key
+// when storage is tight or the site sits unused. So: writes are verified, a
+// rotating ring of snapshots sits alongside the live save, and load() falls back
+// to the newest readable snapshot if the live key is gone or corrupt.
 const SAVE_KEY = 'life-rpg-data';
+const META_KEY = 'life-rpg-meta';
+const BACKUP_PREFIX = 'life-rpg-backup-';
+const BACKUP_SLOTS = 6;
+const SNAPSHOT_INTERVAL_MS = 60 * 60 * 1000; // at most one time-based snapshot per hour
+
+// Health of the last write, surfaced on the Save/Load page.
+let storageState = { ok: true, error: null, lastSaveAt: null, bytes: 0, persisted: null };
+let recoveredFrom = null;
+function lsGet(key) {
+  try { return localStorage.getItem(key); } catch (e) { return null; }
+}
+function lsSet(key, val) {
+  try { localStorage.setItem(key, val); return true; } catch (e) { return false; }
+}
+function lsRemove(key) {
+  try { localStorage.removeItem(key); } catch (e) { }
+}
+
+function readMeta() {
+  try { return JSON.parse(lsGet(META_KEY) || '{}') || {}; } catch (e) { return {}; }
+}
+function writeMeta(meta) {
+  lsSet(META_KEY, JSON.stringify(meta));
+}
+
+// Serialize D, refusing to hand back anything that isn't a complete save. A
+// stringify that throws, or a D that lost its player, must never clobber a good
+// save with a partial one. writeSave's read-back proves the rest.
+function serializeSave() {
+  if (!D || !D.player || typeof D.day !== 'number') {
+    throw new Error('refusing to write a save with no player state');
+  }
+  const json = JSON.stringify(D);
+  if (!json || json.length < 20 || json.charCodeAt(0) !== 123 /* { */) {
+    throw new Error('save serialized to something unusable');
+  }
+  return json;
+}
+
+// Write, then read back to confirm it landed. If the quota is blown, reclaim
+// space from things that are regenerable — old snapshots, then the log tail —
+// rather than losing the write silently.
+function writeSave(json) {
+  if (lsSet(SAVE_KEY, json) && lsGet(SAVE_KEY) === json) return json;
+
+  const ring = listBackups().sort((a, b) => a.savedAt - b.savedAt);
+  for (const b of ring) {
+    lsRemove(b.key);
+    if (lsSet(SAVE_KEY, json) && lsGet(SAVE_KEY) === json) return json;
+  }
+
+  if (Array.isArray(D.log) && D.log.length > 60) {
+    D.log = D.log.slice(-60);
+    const trimmed = JSON.stringify(D);
+    if (lsSet(SAVE_KEY, trimmed) && lsGet(SAVE_KEY) === trimmed) return trimmed;
+  }
+  throw new Error('storage full — save not written');
+}
+
+// Capture the current stats as today's history point. Called from save(), so
+// the newest point always reflects the latest action rather than lagging until
+// the day is ended.
+function recordStatHistory() {
+  if (!Array.isArray(D.statHistory)) D.statHistory = [];
+  if (!D.player || !D.player.stats) return;
+
+  // Restoring an older snapshot rewinds the clock — drop the future it no
+  // longer has, or the series would run backwards.
+  while (D.statHistory.length && D.statHistory[D.statHistory.length - 1].d > D.day) {
+    D.statHistory.pop();
+  }
+
+  const entry = {
+    d: D.day,
+    t: Date.now(),
+    l: D.player.level,
+    x: D.player.xp,
+    s: STAT_KEYS.map(k => Math.round((D.player.stats[k] || 0) * 100) / 100)
+  };
+  const last = D.statHistory[D.statHistory.length - 1];
+  if (last && last.d === D.day) D.statHistory[D.statHistory.length - 1] = entry;
+  else D.statHistory.push(entry);
+
+  if (D.statHistory.length > STAT_HISTORY_CAP) {
+    D.statHistory = D.statHistory.slice(-STAT_HISTORY_CAP);
+  }
+}
 
 function save() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(D)); } catch (e) { }
+  recordStatHistory();
+  try {
+    const json = writeSave(serializeSave());
+    storageState = {
+      ok: true, error: null, lastSaveAt: Date.now(), bytes: json.length,
+      persisted: storageState.persisted
+    };
+    maybeSnapshot(json);
+  } catch (e) {
+    storageState = {
+      ok: false, error: e && e.message ? e.message : String(e),
+      lastSaveAt: storageState.lastSaveAt, bytes: storageState.bytes,
+      persisted: storageState.persisted
+    };
+    console.warn('save failed', e);
+    toast('⚠ Save failed — export your file');
+  }
+  if (currentPage === 'saveload') renderSaveload();
+}
+
+// ── Snapshot ring ──
+// Six rotating slots. A snapshot is taken when the in-game day changes, when the
+// level changes, or once an hour of wall time — so the ring spans both a mistake
+// made a minute ago and a state from several sessions back.
+function backupKey(slot) { return BACKUP_PREFIX + slot; }
+
+function listBackups() {
+  const out = [];
+  for (let i = 0; i < BACKUP_SLOTS; i++) {
+    const raw = lsGet(backupKey(i));
+    if (!raw) continue;
+    try {
+      const b = JSON.parse(raw);
+      if (!b || !b.data) continue;
+      out.push({
+        key: backupKey(i), slot: i, savedAt: b.savedAt || 0, reason: b.reason || '',
+        day: b.day || 0, level: b.level || 0, bytes: raw.length
+      });
+    } catch (e) { lsRemove(backupKey(i)); }
+  }
+  return out;
+}
+
+function snapshotNow(reason, json) {
+  try {
+    const payload = JSON.stringify({
+      savedAt: Date.now(), reason, day: D.day, level: D.player.level,
+      data: JSON.parse(json || serializeSave())
+    });
+    // Fill an empty slot first, otherwise overwrite the oldest.
+    const used = listBackups();
+    let slot = -1;
+    for (let i = 0; i < BACKUP_SLOTS; i++) {
+      if (!used.find(b => b.slot === i)) { slot = i; break; }
+    }
+    if (slot === -1) slot = used.sort((a, b) => a.savedAt - b.savedAt)[0].slot;
+    if (!lsSet(backupKey(slot), payload)) return false;
+    const meta = readMeta();
+    meta.lastSnapshotAt = Date.now();
+    meta.lastSnapshotDay = D.day;
+    meta.lastSnapshotLevel = D.player.level;
+    writeMeta(meta);
+    return true;
+  } catch (e) { return false; }
+}
+
+function maybeSnapshot(json) {
+  const meta = readMeta();
+  const now = Date.now();
+  let reason = null;
+  if (!meta.lastSnapshotAt) reason = 'first run';
+  else if (meta.lastSnapshotDay !== D.day) reason = 'day ' + D.day;
+  else if (meta.lastSnapshotLevel !== D.player.level) reason = 'level ' + D.player.level;
+  else if (now - meta.lastSnapshotAt > SNAPSHOT_INTERVAL_MS) reason = 'hourly';
+  if (reason) snapshotNow(reason, json);
+}
+
+function restoreBackup(slot) {
+  const raw = lsGet(backupKey(slot));
+  if (!raw) { toast('Snapshot gone.'); renderSaveload(); return; }
+  let b;
+  try { b = JSON.parse(raw); } catch (e) { toast('Snapshot unreadable.'); return; }
+  if (!b || !b.data) { toast('Snapshot unreadable.'); return; }
+  const when = new Date(b.savedAt || Date.now()).toLocaleString();
+  if (!confirm('Restore the snapshot from ' + when + ' (day ' + b.day + ', level ' + b.level + ')?\n\nYour current state is snapshotted first, so this is reversible.')) return;
+  snapshotNow('pre-restore');
+  D = deepMerge(defaultData(), b.data);
+  runMigrations();
+  save();
+  render();
+  renderSaveload();
+  toast('Restored day ' + D.day + '.');
+}
+
+function manualSnapshot() {
+  if (snapshotNow('manual')) toast('Snapshot taken.');
+  else toast('Could not take a snapshot — storage may be full.');
+  renderSaveload();
+}
+
+function deleteBackup(slot) {
+  if (!confirm('Delete this snapshot? Your live save and the other snapshots are untouched.')) return;
+  lsRemove(backupKey(slot));
+  renderSaveload();
+  toast('Snapshot deleted.');
+}
+
+// Ask the browser to exempt this origin from storage eviction. Honoured by
+// Chrome and Firefox; Safari ignores it, which is exactly why the snapshot ring
+// and the export button exist.
+function requestPersistentStorage() {
+  if (!navigator.storage || !navigator.storage.persist) return;
+  navigator.storage.persisted().then(already => {
+    if (already) { storageState.persisted = true; return null; }
+    return navigator.storage.persist().then(granted => { storageState.persisted = !!granted; });
+  }).catch(() => { }).then(() => {
+    if (currentPage === 'saveload') renderSaveload();
+  });
+}
+
+// Read the live save, falling back to the newest readable snapshot so an evicted
+// or truncated key costs a snapshot interval instead of the whole run.
+function readSaveRaw() {
+  const raw = lsGet(SAVE_KEY);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.player) return parsed;
+    } catch (e) { console.warn('live save corrupt, trying snapshots', e); }
+  }
+  const ring = listBackups().sort((a, b) => b.savedAt - a.savedAt);
+  for (const b of ring) {
+    try {
+      const parsed = JSON.parse(lsGet(b.key));
+      if (parsed && parsed.data && parsed.data.player) {
+        recoveredFrom = { savedAt: b.savedAt, day: b.day, level: b.level };
+        return parsed.data;
+      }
+    } catch (e) { }
+  }
+  return null;
 }
 function load() {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    D = deepMerge(defaultData(), parsed);
+    const parsed = readSaveRaw();
+    if (parsed) D = deepMerge(defaultData(), parsed);
+  } catch (e) { console.warn('load failed', e); }
+  runMigrations();
+}
+
+// Restored snapshots and imported files can come from arbitrarily old versions,
+// so they run this same pass rather than only the live save.
+function runMigrations() {
+  try {
     // Migration: add maxGain to lead methods without it
     if (D.leadgen?.methods) {
       leadMethods().forEach(m => {
@@ -327,6 +571,8 @@ function load() {
     ['mon','tue','wed','thu','fri','sat','sun'].forEach(d => { if (!Array.isArray(D.schedule[d])) D.schedule[d] = []; });
     // Migration: meStats
     if (!Array.isArray(D.meStats)) D.meStats = [];
+    // Migration: stat history
+    if (!Array.isArray(D.statHistory)) D.statHistory = [];
     // Migration: social media platforms (Social world)
     if (!Array.isArray(D.socialMedia)) D.socialMedia = [];
     // Migration: level-up moves on stat elements
@@ -361,7 +607,7 @@ function load() {
     }
     // Migration: world/cities/boroughs
     migrateWorld();
-  } catch (e) { console.warn('load failed', e); }
+  } catch (e) { console.warn('migration failed', e); }
 }
 
 function migrateWorld() {
@@ -1047,6 +1293,7 @@ function render() {
   if (currentPage === 'incomedetail') renderIncomeDetail();
   if (currentPage === 'ratings') renderRatingsPage();
   if (currentPage === 'ratingdetail') renderRatingDetail();
+  if (currentPage === 'saveload') renderSaveload();
 }
 
 function updateXPDisplay() {
@@ -1509,40 +1756,158 @@ function closeModal() {
 
 // ── Save/Load ──
 function exportSaveData() {
-  const blob = new Blob([JSON.stringify(D, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `life-rpg-save-${new Date().toISOString().split('T')[0]}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast('Save exported.');
+  try {
+    // Wrapped in an envelope so a file carries its own provenance; importSaveData
+    // still accepts a bare save object from an older export.
+    const payload = {
+      format: 'life-rpg-save', formatVersion: 1,
+      exportedAt: new Date().toISOString(),
+      day: D.day, level: D.player.level,
+      data: JSON.parse(serializeSave())
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `life-rpg-day${D.day}-${new Date().toISOString().split('T')[0]}.json`;
+    // Safari ignores a click on an anchor that was never in the document.
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
+    const meta = readMeta();
+    meta.lastExportAt = Date.now();
+    meta.lastExportDay = D.day;
+    writeMeta(meta);
+    toast('Save exported.');
+    if (currentPage === 'saveload') renderSaveload();
+  } catch (e) {
+    console.warn('export failed', e);
+    toast('Export failed.');
+  }
 }
 
 function importSaveData(evt) {
   const file = evt.target.files[0];
   if (!file) return;
+  const input = evt.target;
   const reader = new FileReader();
+  reader.onerror = () => toast('Could not read that file.');
   reader.onload = (e) => {
     try {
-      const parsed = JSON.parse(e.target.result);
-      D = deepMerge(defaultData(), parsed);
+      const raw = JSON.parse(e.target.result);
+      // Accept both the envelope and a bare save object from older exports.
+      const incoming = (raw && raw.format === 'life-rpg-save' && raw.data) ? raw.data : raw;
+      if (!incoming || typeof incoming !== 'object' || !incoming.player || typeof incoming.day !== 'number') {
+        toast('Not a valid LIFE save file.');
+        return;
+      }
+      const label = 'day ' + incoming.day + (incoming.player.level ? ', level ' + incoming.player.level : '');
+      if (!confirm('Import this save (' + label + ')?\n\nIt replaces your current state. Your current state is snapshotted first, so this is reversible.')) return;
+      snapshotNow('pre-import');
+      D = deepMerge(defaultData(), incoming);
+      runMigrations();
       save();
+      navigateTo('home');
       render();
-      toast('Save imported.');
-    } catch (err) { toast('Import failed.'); }
+      toast('Imported day ' + D.day + '.');
+    } catch (err) {
+      console.warn('import failed', err);
+      toast('Import failed — file is not valid JSON.');
+    } finally {
+      // Let the same file be picked again after a failed attempt.
+      input.value = '';
+    }
   };
   reader.readAsText(file);
 }
 
 function resetAllData() {
-  if (!confirm('Reset ALL data? This cannot be undone.')) return;
-  localStorage.removeItem(SAVE_KEY);
+  if (!confirm('Reset ALL data?\n\nA final snapshot is kept, so you can restore from the snapshot list afterwards. Tick "wipe snapshots too" to make it permanent.')) return;
+  const wipeAll = confirm('Also delete every snapshot?\n\nOK = wipe everything permanently.\nCancel = keep snapshots so this is reversible.');
+  if (wipeAll) {
+    if (!confirm('Last check: this erases your save AND all snapshots. It cannot be undone.')) return;
+    for (let i = 0; i < BACKUP_SLOTS; i++) lsRemove(backupKey(i));
+    lsRemove(META_KEY);
+  } else {
+    snapshotNow('pre-reset');
+  }
+  lsRemove(SAVE_KEY);
   D = defaultData();
+  save();
   hideOverlay();
   navigateTo('home');
-  toast('Reset.');
+  render();
+  toast(wipeAll ? 'Everything wiped.' : 'Reset — snapshot kept.');
 }
+
+// ── Save/Load page ──
+function fmtBytes(n) {
+  if (!n) return '0 B';
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+function fmtAgo(ts) {
+  if (!ts) return 'never';
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+
+function renderSaveload() {
+  const statusEl = document.getElementById('storage-status');
+  if (statusEl) {
+    const meta = readMeta();
+    const rows = [];
+    rows.push(storageState.ok
+      ? `<div class="sl-stat"><span class="sl-k">Live save</span><span class="sl-v ok">OK · ${fmtBytes(storageState.bytes)} · ${fmtAgo(storageState.lastSaveAt)}</span></div>`
+      : `<div class="sl-stat"><span class="sl-k">Live save</span><span class="sl-v bad">FAILING — ${escapeHtml(storageState.error || 'unknown')}</span></div>`);
+    rows.push(`<div class="sl-stat"><span class="sl-k">Day / level</span><span class="sl-v">${D.day} · lvl ${D.player.level}</span></div>`);
+    rows.push(`<div class="sl-stat"><span class="sl-k">Snapshots</span><span class="sl-v">${listBackups().length} / ${BACKUP_SLOTS}</span></div>`);
+
+    const exportAgo = meta.lastExportAt ? fmtAgo(meta.lastExportAt) : 'never';
+    const exportStale = !meta.lastExportAt || (Date.now() - meta.lastExportAt) > 14 * 86400000;
+    rows.push(`<div class="sl-stat"><span class="sl-k">Last export</span><span class="sl-v ${exportStale ? 'warn' : ''}">${exportAgo}</span></div>`);
+
+    if (storageState.persisted === true) {
+      rows.push(`<div class="sl-stat"><span class="sl-k">Eviction</span><span class="sl-v ok">Protected — browser granted persistent storage</span></div>`);
+    } else if (storageState.persisted === false) {
+      rows.push(`<div class="sl-stat"><span class="sl-k">Eviction</span><span class="sl-v warn">Not protected — export regularly</span></div>`);
+    }
+
+    let warn = '';
+    if (!storageState.ok) {
+      warn = `<div class="sl-warn bad">Writes are failing. Download a save file now — in-browser data may already be at risk.</div>`;
+    } else if (exportStale) {
+      warn = `<div class="sl-warn">Browsers can clear site data on their own, and an installed home-screen app is no exception. A downloaded file is the only copy nothing can evict.</div>`;
+    }
+    statusEl.innerHTML = rows.join('') + warn;
+  }
+
+  const listEl = document.getElementById('backup-list');
+  if (listEl) {
+    const ring = listBackups().sort((a, b) => b.savedAt - a.savedAt);
+    listEl.innerHTML = ring.length
+      ? ring.map(b => `
+        <div class="backup-row">
+          <div class="backup-meta">
+            <div class="backup-when">${escapeHtml(new Date(b.savedAt).toLocaleString())}</div>
+            <div class="backup-sub">day ${b.day} · lvl ${b.level} · ${escapeHtml(b.reason)} · ${fmtBytes(b.bytes)}</div>
+          </div>
+          <div class="backup-actions">
+            <button class="small-btn" onclick="restoreBackup(${b.slot})">Restore</button>
+            <button class="small-btn danger" onclick="deleteBackup(${b.slot})">Del</button>
+          </div>
+        </div>`).join('')
+      : '<div class="empty-state">No snapshots yet. One is taken automatically each in-game day, on level-up, and hourly.</div>';
+  }
+}
+
+// ── Utility ──
 
 // ── Utility ──
 function escapeHtml(s) {
@@ -1569,6 +1934,105 @@ function openStatPage(key) {
   currentPage = 'stat';
   renderStatPage();
 }
+// ── Stat history ──
+function statSeries(key) {
+  const i = STAT_KEYS.indexOf(key);
+  if (i === -1) return [];
+  return (D.statHistory || [])
+    .filter(e => e && Array.isArray(e.s))
+    .map(e => ({ d: e.d, v: e.s[i] || 0 }));
+}
+
+// Change over the last `daysBack` in-game days, measured against the newest
+// point at or before that cutoff. Null when there is nothing to compare to.
+function statDelta(key, daysBack) {
+  const series = statSeries(key);
+  if (series.length < 2) return null;
+  const now = series[series.length - 1];
+  const cutoff = D.day - daysBack;
+  let past = null;
+  for (const p of series) {
+    if (p.d <= cutoff) past = p; else break;
+  }
+  if (!past) past = series[0];
+  if (past.d === now.d) return null;
+  return {
+    from: past.v, to: now.v,
+    delta: Math.round((now.v - past.v) * 10) / 10,
+    days: now.d - past.d
+  };
+}
+
+// For fear, falling is progress — the day tick decays it on purpose.
+function statGainIsGood(key, delta) {
+  return key === 'fear' ? delta < 0 : delta > 0;
+}
+
+function statDeltaChip(key, daysBack = 30) {
+  const d = statDelta(key, daysBack);
+  if (!d || Math.abs(d.delta) < 0.05) return '';
+  const good = statGainIsGood(key, d.delta);
+  const sign = d.delta > 0 ? '+' : '−';
+  return `<span class="st-delta ${good ? 'good' : 'bad'}">${sign}${Math.abs(d.delta)}</span>`;
+}
+
+function statTrendSvg(key) {
+  const series = statSeries(key);
+  if (series.length < 2) {
+    return '<div class="empty-state">No trend yet — one point is recorded per day. Play a few days and the line appears here.</div>';
+  }
+
+  const W = 360, H = 132, L = 38, R = 12, T = 14, B = 22;
+  const dMin = series[0].d;
+  const dMax = series[series.length - 1].d;
+  const vals = series.map(p => p.v);
+  const isMoney = key === 'money';
+
+  let lo = Math.min(...vals);
+  let hi = Math.max(...vals);
+  // A flat or near-flat series must not be magnified into noise.
+  const pad = Math.max((hi - lo) * 0.15, isMoney ? Math.max(hi * 0.05, 5) : 1);
+  lo = Math.max(0, lo - pad);
+  hi = isMoney ? hi + pad : Math.min(25, hi + pad);
+  if (hi <= lo) hi = lo + 1;
+
+  const x = d => L + ((d - dMin) / Math.max(dMax - dMin, 1)) * (W - L - R);
+  const y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  const fmt = v => isMoney
+    ? (v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'k' : Math.round(v))
+    : Math.round(v * 10) / 10;
+
+  let out = '';
+  for (let g = 0; g <= 2; g++) {
+    const v = lo + ((hi - lo) / 2) * g;
+    out += `<line x1="${L}" y1="${y(v).toFixed(1)}" x2="${W - R}" y2="${y(v).toFixed(1)}" class="st-grid"/>` +
+      `<text x="${L - 5}" y="${(y(v) + 3).toFixed(1)}" text-anchor="end" class="st-tick">${fmt(v)}</text>`;
+  }
+
+  const pl = series.map(p => `${x(p.d).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
+  out += `<polygon points="${x(dMin).toFixed(1)},${y(lo).toFixed(1)} ${pl} ${x(dMax).toFixed(1)},${y(lo).toFixed(1)}" class="st-area"/>`;
+  out += `<polyline points="${pl}" class="st-line"/>`;
+  const last = series[series.length - 1];
+  out += `<circle cx="${x(last.d).toFixed(1)}" cy="${y(last.v).toFixed(1)}" r="4" class="st-dot"/>`;
+  out += `<text x="${L}" y="${H - 6}" text-anchor="start" class="st-tick">day ${dMin}</text>`;
+  out += `<text x="${W - R}" y="${H - 6}" text-anchor="end" class="st-tick">day ${dMax}</text>`;
+
+  return `<div class="st-trend ${STAT_CSS[key]}"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${STAT_LABELS[key]} over time">${out}</svg></div>`;
+}
+
+function statChangeRow(key) {
+  const spans = [[7, '7d'], [30, '30d'], [D.day, 'all']];
+  const cells = spans.map(([n, label]) => {
+    const d = statDelta(key, n);
+    if (!d) return `<div class="st-change"><span class="st-change-k">${label}</span><span class="st-change-v dim">—</span></div>`;
+    const good = statGainIsGood(key, d.delta);
+    const cls = Math.abs(d.delta) < 0.05 ? 'dim' : (good ? 'good' : 'bad');
+    const sign = d.delta > 0 ? '+' : (d.delta < 0 ? '−' : '');
+    return `<div class="st-change"><span class="st-change-k">${label}</span><span class="st-change-v ${cls}">${sign}${Math.abs(d.delta)}</span></div>`;
+  }).join('');
+  return `<div class="st-change-row">${cells}</div>`;
+}
+
 function renderStatPage() {
   const k = currentStatKey;
   if (!k) return;
@@ -1586,6 +2050,9 @@ function renderStatPage() {
         <div class="stat-hero-desc">${STAT_DESC[k] || ''}</div>
       </div>
     </div>
+    <div class="section-header"><span>TREND</span></div>
+    ${statChangeRow(k)}
+    ${statTrendSvg(k)}
     ${k === 'social' ? `
       <div class="section-header"><span>FRIENDS (boost this stat)</span></div>
       <div class="inv-content active">
@@ -6120,7 +6587,7 @@ function renderMePage() {
         <div class="qstat-label">${STAT_EMOJI[k] || ''} ${STAT_LABELS[k]}${k === 'money' ? ' ($)' : ''}</div>
         <div class="qstat-value">${k === 'money'
           ? Math.round(D.player.stats[k])
-          : `${Math.round(clamp(D.player.stats[k], 0, 25))}<span class="qstat-max">/25</span>`}</div>
+          : `${Math.round(clamp(D.player.stats[k], 0, 25))}<span class="qstat-max">/25</span>`}${statDeltaChip(k)}</div>
       </button>
     `).join('');
   }
@@ -6134,9 +6601,9 @@ function renderMePage() {
       sp.innerHTML = '<div class="empty-state">Your roster is empty.</div>';
     } else {
       let html = '';
-      if (one) html += `<div class="slot-mini the-one"><div class="label">THE ONE</div><div class="name">${one.name}</div><div class="label">${starsHtml(one.rarity)} • ${one.affinity}%</div></div>`;
+      if (one) html += `<div class="slot-mini the-one"><div class="label">THE ONE</div><div class="name">${escapeHtml(one.name)}</div><div class="label">${starsHtml(one.rarity)} • ${one.affinity}%</div></div>`;
       commons.forEach(g => {
-        html += `<div class="slot-mini common"><div class="label">COMMON</div><div class="name">${g.name}</div><div class="label">${starsHtml(g.rarity)} • ${g.affinity}%</div></div>`;
+        html += `<div class="slot-mini common"><div class="label">COMMON</div><div class="name">${escapeHtml(g.name)}</div><div class="label">${starsHtml(g.rarity)} • ${g.affinity}%</div></div>`;
       });
       sp.innerHTML = html;
     }
@@ -7895,7 +8362,35 @@ function init() {
   save();
   navigateTo('home');
   startBirthdayTimer();
-  // Refresh current-era widget every minute so "days left" ticks over after midnight.
+  requestPersistentStorage();
+
+  // If the live key was evicted or corrupt, load() fell back to a snapshot. Say
+  // so loudly — silently resuming an older state is how progress gets lost twice.
+  if (recoveredFrom) {
+    setTimeout(() => {
+      toast('Recovered from snapshot — day ' + D.day);
+      alert('Your live save was missing or unreadable, so LIFE restored the newest snapshot:\n\n' +
+        new Date(recoveredFrom.savedAt).toLocaleString() + ' — day ' + recoveredFrom.day + ', level ' + recoveredFrom.level +
+        '\n\nAnything after that point is gone. Export a save file to keep a copy nothing can evict.');
+    }, 600);
+  }
+
+  // Mobile browsers kill backgrounded tabs without firing unload, so commit the
+  // current state the moment the page is hidden. save() is idempotent, and this
+  // also catches any code path that mutated D without saving.
+  window.addEventListener('pagehide', save);
+  window.addEventListener('beforeunload', save);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') save();
+  });
+
+  // Another tab writing the same save would otherwise be silently overwritten.
+  window.addEventListener('storage', (e) => {
+    if (e.key !== SAVE_KEY || !e.newValue) return;
+    console.warn('save changed in another tab');
+    toast('⚠ Another tab is editing this save');
+  });
+  // Refresh current-era widget so "days left" ticks over after midnight.
   setInterval(() => { if (currentPage === 'home') renderCurrentEraWidget(); }, 60 * 1000);
 }
 

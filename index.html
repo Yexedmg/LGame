@@ -6,15 +6,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <meta name="description"
     content="LIFE — a life sim RPG with jobs, sports, friends, and the shiny-bar meet-girls mechanic" />
-  <meta name="theme-color" content="#12172B" />
+  <meta name="theme-color" content="#000000" />
+  <!-- Installable: home-screen app, offline-capable via sw.js -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="LIFE" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
   <title>LIFE — Life RPG</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&family=Archivo+Black&family=Space+Grotesk:wght@500;700&display=swap"
     rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=3.0" />
-  <link rel="stylesheet" href="brutalist.css?v=3.0" />
+  <link rel="stylesheet" href="styles.css?v=3.2.0" />
+  <link rel="stylesheet" href="brutalist.css?v=3.2.0" />
 </head>
 
 <body>
@@ -499,9 +507,14 @@
         </div>
         <div class="saveload-container">
           <div class="saveload-section">
+            <div class="saveload-section-title">STORAGE</div>
+            <div class="saveload-section-desc">Where your run actually lives, and whether it is safe there.</div>
+            <div id="storage-status" class="storage-status"></div>
+          </div>
+          <div class="saveload-section">
             <div class="saveload-section-icon"></div>
             <div class="saveload-section-title">EXPORT SAVE</div>
-            <div class="saveload-section-desc">Download your save as JSON.</div>
+            <div class="saveload-section-desc">Download your save as JSON. The only copy a browser cannot clear.</div>
             <button class="saveload-btn export-btn" onclick="exportSaveData()">
               <span class="saveload-btn-icon"></span><span>Download Save File</span>
             </button>
@@ -514,6 +527,16 @@
               <span class="saveload-btn-icon"></span><span>Choose Save File</span>
               <input type="file" accept=".json" onchange="importSaveData(event)" style="display:none" />
             </label>
+          </div>
+          <div class="saveload-divider"></div>
+          <div class="saveload-section">
+            <div class="saveload-section-title">SNAPSHOTS</div>
+            <div class="saveload-section-desc">Taken automatically each in-game day, on level-up, and hourly. Six are
+              kept; the oldest is replaced. Restoring snapshots your current state first, so it is always reversible.</div>
+            <div id="backup-list" class="backup-list"></div>
+            <button class="saveload-btn" onclick="manualSnapshot()">
+              <span>Take Snapshot Now</span>
+            </button>
           </div>
           <div class="saveload-divider"></div>
           <div class="saveload-danger">
@@ -671,7 +694,29 @@
     </nav>
   </div>
 
-  <script src="app.js?v=3.0"></script>
+  <script src="app.js?v=3.2.0"></script>
+  <script>
+    // Offline + installable. Registration failure is non-fatal: the game is
+    // fully functional without a worker, it just will not run offline.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').then(reg => {
+          reg.addEventListener('updatefound', () => {
+            const sw = reg.installing;
+            if (!sw) return;
+            sw.addEventListener('statechange', () => {
+              // A new version is ready and an old one is still controlling the
+              // page. Take over on the next load rather than swapping script
+              // and markup underneath a run in progress.
+              if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+                if (typeof toast === 'function') toast('Update ready — reopen to apply');
+              }
+            });
+          });
+        }).catch(err => console.warn('sw registration failed', err));
+      });
+    }
+  </script>
 </body>
 
 </html>
