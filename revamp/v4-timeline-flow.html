@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>V4 — Timeline Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0e1118;--card:#171c26;--line:#2a3345;--text:#e8ecf4;--dim:#71809c;--blue:#4d8dff;--gold:#ffc44d;--green:#3ddc84;--pink:#ff5c8a;--mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--sans)}
+#app{max-width:414px;height:100%;margin:0 auto;display:flex;flex-direction:column;position:relative}
+.scroll{flex:1;overflow-y:auto;padding:24px 20px 100px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+.hdr{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+.lvl{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--pink));display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
+.lvl .n{font-size:20px;font-weight:800;color:#fff;line-height:1}
+.lvl .l{font-size:7px;color:rgba(255,255,255,.8);letter-spacing:2px}
+.hdr .t{font-size:18px;font-weight:800;letter-spacing:3px;font-family:var(--mono)}
+.hdr .s{font-size:11px;color:var(--dim);margin-top:2px}
+.xp{height:6px;background:var(--card);border-radius:6px;overflow:hidden;margin:12px 0 4px}
+.xp .f{height:100%;width:43%;background:linear-gradient(90deg,var(--blue),var(--pink));border-radius:6px}
+.xp-m{font-size:10px;color:var(--dim);font-family:var(--mono);margin-bottom:24px}
+/* Timeline */
+.tl{position:relative;padding-left:34px}
+.tl::before{content:'';position:absolute;left:11px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.node{position:relative;margin-bottom:22px}
+.node::before{content:'';position:absolute;left:-30px;top:4px;width:12px;height:12px;border-radius:50%;background:var(--bg);border:3px solid var(--blue)}
+.node.gold::before{border-color:var(--gold)}
+.node.green::before{border-color:var(--green)}
+.node.pink::before{border-color:var(--pink)}
+.node .when{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;margin-bottom:6px}
+.card{background:var(--card);border-radius:16px;padding:16px}
+.n-title{font-size:16px;font-weight:800}
+.n-sub{font-size:11px;color:var(--dim);margin-top:4px}
+.bar{height:6px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:12px}
+.bar .f{height:100%;border-radius:6px}
+.big-n{font-size:42px;font-weight:900;line-height:1}
+.stars{color:var(--gold);font-size:12px}
+.lead-line{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px}
+.lead-line:last-child{border:none}
+.goal-line{padding:8px 0}
+.goal-line .t{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px}
+.goal-line .pc{color:var(--green);font-weight:700;font-family:var(--mono);font-size:11px}
+.acts{display:flex;gap:8px;margin-top:4px}
+.act{flex:1;padding:12px;background:rgba(77,141,255,.1);border:1px solid rgba(77,141,255,.25);border-radius:12px;color:var(--blue);font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer}
+.act:hover{background:rgba(77,141,255,.18)}
+.log-line{display:flex;justify-content:space-between;font-size:12px;padding:6px 0;color:var(--dim)}
+.log-line .t{font-family:var(--mono);font-size:9px}
+.dock{position:absolute;bottom:0;left:0;right:0;height:60px;background:rgba(14,17,24,.95);backdrop-filter:blur(20px);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-around;z-index:100}
+.dk{background:none;border:none;color:var(--dim);font-family:var(--sans);font-size:10px;font-weight:600;cursor:pointer;padding:8px}
+.dk.on{color:var(--text)}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="scroll">
+
+  <div class="hdr">
+    <div class="lvl"><span class="n">12</span><span class="l">LVL</span></div>
+    <div><div class="t">LIFE</div><div class="s">Day 128 — taken 1 / talking 2</div></div>
+  </div>
+  <div class="xp"><div class="f"></div></div>
+  <div class="xp-m">480 / 1,122 XP — 43%</div>
+
+  <div class="tl">
+
+    <div class="node gold">
+      <div class="when">The Destination</div>
+      <div class="card">
+        <div class="n-title">Tokyo 2027 — full freedom life</div>
+        <div class="n-sub">Northstar · everything below leads here</div>
+      </div>
+    </div>
+
+    <div class="node pink">
+      <div class="when">Now — Current Era</div>
+      <div class="card">
+        <div class="n-title">MONK MODE</div>
+        <div class="n-sub">Apr 20 → Aug 1 · discipline phase</div>
+        <div class="bar"><div class="f" style="width:58%;background:var(--pink)"></div></div>
+        <div class="n-sub" style="margin-top:6px">58% complete</div>
+      </div>
+    </div>
+
+    <div class="node green">
+      <div class="when">Counting Down</div>
+      <div class="card">
+        <div class="big-n" style="color:var(--green)">214</div>
+        <div class="n-sub">days until you turn 23</div>
+      </div>
+    </div>
+
+    <div class="node">
+      <div class="when">Leads In Motion</div>
+      <div class="card">
+        <div class="lead-line"><span>Instagram</span><span class="stars">&#9733;&#9733;&#9733;&#9733;</span></div>
+        <div class="lead-line"><span>Job</span><span class="stars">&#9733;&#9733;</span></div>
+        <div class="lead-line"><span>Gym</span><span class="stars">&#9733;&#9733;&#9733;</span></div>
+      </div>
+    </div>
+
+    <div class="node green">
+      <div class="when">Manifesting</div>
+      <div class="card">
+        <div class="goal-line"><div class="t"><span>10% body fat</span><span class="pc">70%</span></div><div class="bar" style="margin:0"><div class="f" style="width:70%;background:var(--green)"></div></div></div>
+        <div class="goal-line"><div class="t"><span>Launch clothing brand</span><span class="pc">30%</span></div><div class="bar" style="margin:0"><div class="f" style="width:30%;background:var(--green)"></div></div></div>
+      </div>
+    </div>
+
+    <div class="node">
+      <div class="when">Take Action</div>
+      <div class="card">
+        <div class="acts">
+          <button class="act">ACTIVITIES</button>
+          <button class="act">ROSTER</button>
+          <button class="act">END DAY</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="node pink">
+      <div class="when">Today's Trace</div>
+      <div class="card">
+        <div class="log-line"><span>Gym Session — +2 HP +2 PWR</span><span class="t">16:40</span></div>
+        <div class="log-line"><span>Body fat -0.4%</span><span class="t">14:00</span></div>
+        <div class="log-line"><span>IG lead replied — warm</span><span class="t">11:32</span></div>
+        <div class="log-line"><span>Era day 74/128 logged</span><span class="t">09:00</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<nav class="dock">
+  <button class="dk">Lifestyle</button>
+  <button class="dk">Schedule</button>
+  <button class="dk on">Home</button>
+  <button class="dk">Girls</button>
+  <button class="dk">Me</button>
+</nav>
+</div>
+</body>
+</html>

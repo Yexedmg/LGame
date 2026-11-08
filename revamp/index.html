@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#000000" />
+  <title>LIFE — design archive</title>
+  <style>
+    :root {
+      --bg: #000;
+      --card: rgba(255, 255, 255, 0.04);
+      --card-hover: rgba(255, 255, 255, 0.08);
+      --line: rgba(255, 255, 255, 0.1);
+      --fg: #ECF0FA;
+      --dim: #6878A0;
+      --cyan: #4EC8FF;
+      --gold: #FFCB1C;
+      --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    }
+
+    body {
+      margin: 0;
+      padding: 32px 20px 64px;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--mono);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 22px;
+      letter-spacing: 3px;
+      margin: 0 0 6px;
+    }
+
+    h1 .acc {
+      color: var(--cyan);
+    }
+
+    .sub {
+      color: var(--dim);
+      font-size: 12px;
+      line-height: 1.6;
+      margin: 0 0 8px;
+      max-width: 60ch;
+    }
+
+    .back {
+      display: inline-block;
+      margin-bottom: 28px;
+      color: var(--cyan);
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+    }
+
+    .back:hover {
+      border-bottom-color: var(--cyan);
+    }
+
+    h2 {
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--dim);
+      text-transform: uppercase;
+      margin: 32px 0 4px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .note {
+      color: var(--dim);
+      font-size: 11px;
+      line-height: 1.6;
+      margin: 10px 0 14px;
+      max-width: 60ch;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 8px;
+    }
+
+    a.card {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 13px 14px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--fg);
+      text-decoration: none;
+      font-size: 13px;
+      transition: background .12s, border-color .12s;
+    }
+
+    a.card:hover {
+      background: var(--card-hover);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    a.card .v {
+      color: var(--dim);
+      font-size: 10px;
+      letter-spacing: 1px;
+      flex-shrink: 0;
+      min-width: 20px;
+    }
+
+    a.card.final {
+      border-color: rgba(255, 203, 28, 0.35);
+    }
+
+    a.card.final .v {
+      color: var(--gold);
+    }
+
+    a.card.shipped {
+      border-color: rgba(78, 200, 255, 0.45);
+      background: rgba(78, 200, 255, 0.07);
+    }
+
+    a.card.shipped .v {
+      color: var(--cyan);
+    }
+
+    .tag {
+      margin-left: auto;
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--cyan);
+      flex-shrink: 0;
+    }
+
+    footer {
+      margin-top: 44px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      color: var(--dim);
+      font-size: 10px;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h1>LIFE<span class="acc">::</span>DESIGN ARCHIVE</h1>
+    <p class="sub">Two rounds of UI exploration for the LIFE life-sim RPG, July 2026. Every file is a
+      self-contained static mockup — none of them run the game.</p>
+    <a class="back" href="../">← back to LIFE</a>
+
+    <h2>Round 1 — Aurora / Bento</h2>
+    <p class="note">Softer, glassy directions. Merged into Aurora Bento, then set aside.</p>
+    <div class="grid">
+      <a class="card" href="v1-mission-hud.html"><span class="v">V1</span>Mission HUD</a>
+      <a class="card" href="v2-zen-journal.html"><span class="v">V2</span>Zen Journal</a>
+      <a class="card" href="I%20Like/v3-cyber-samurai.html"><span class="v">V3</span>Cyber Samurai<span
+          class="tag">KEPT</span></a>
+      <a class="card" href="v4-timeline-flow.html"><span class="v">V4</span>Timeline Flow</a>
+      <a class="card" href="v5-quest-log.html"><span class="v">V5</span>Quest Log</a>
+      <a class="card" href="v6-bento-grid.html"><span class="v">V6</span>Bento Grid</a>
+      <a class="card" href="v7-luxury-noir.html"><span class="v">V7</span>Luxury Noir</a>
+      <a class="card" href="v8-aurora-glass.html"><span class="v">V8</span>Aurora Glass</a>
+      <a class="card final" href="FINAL-merged.html"><span class="v">★</span>Aurora Bento</a>
+    </div>
+
+    <h2>Round 2 — Brutalist / Terminal</h2>
+    <p class="note">Harder, monospaced directions. Brutalist Champion is the one that shipped — the live app
+      still loads <code>brutalist.css</code>.</p>
+    <div class="grid">
+      <a class="card" href="../revamp-2/v1-command-deck.html"><span class="v">V1</span>Command Deck</a>
+      <a class="card" href="../revamp-2/v2-editorial.html"><span class="v">V2</span>Editorial</a>
+      <a class="card" href="../revamp-2/v3-brutalist.html"><span class="v">V3</span>Neo-Brutalist</a>
+      <a class="card" href="../revamp-2/v4-soft-stream.html"><span class="v">V4</span>Soft Stream</a>
+      <a class="card" href="../revamp-2/v5-terminal.html"><span class="v">V5</span>Terminal</a>
+      <a class="card" href="../revamp-2/v6-rails.html"><span class="v">V6</span>Horizontal Rails</a>
+      <a class="card" href="../revamp-2/v7-focus.html"><span class="v">V7</span>Focus Zero</a>
+      <a class="card" href="../revamp-2/v8-arcade-path.html"><span class="v">V8</span>Arcade Path</a>
+      <a class="card final" href="../revamp-2/FINAL-merged.html"><span class="v">★</span>Merged Champion</a>
+      <a class="card shipped" href="../revamp-2/FINAL-brutalist.html"><span class="v">★</span>Brutalist
+        Champion<span class="tag">SHIPPED</span></a>
+    </div>
+
+    <footer>
+      Archived so the design history lives somewhere other than one folder on one laptop.<br />
+      Not linked from the game, and marked noindex.
+    </footer>
+  </div>
+</body>
+
+</html>

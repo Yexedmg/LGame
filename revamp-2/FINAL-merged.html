@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FINAL — Merged Champion</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* FINAL — v4 Soft Stream skeleton + v8 quest/boss game loop + v7 giant northstar number + v1 dense meta strip + v2 type restraint */
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0F1424;color:#EDF1FB;font-family:Inter,sans-serif;display:flex;justify-content:center}
+.app{width:100%;max-width:480px;min-height:100vh;padding:24px 18px 130px}
+/* HERO — v4 ring + v1 one-glance meta strip */
+.hero{background:linear-gradient(140deg,#1C2650,#141B38);border-radius:24px;padding:22px;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;top:-60px;right:-60px;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,rgba(78,200,255,.25),transparent 70%)}
+.hello{font-size:13px;color:#93A0C6}
+.hero h1{font-size:26px;font-weight:900;margin-top:4px}
+.hero h1 b{color:#4EC8FF}
+.ring-row{display:flex;align-items:center;gap:18px;margin-top:16px}
+.ring{width:84px;height:84px;border-radius:50%;background:conic-gradient(#4EC8FF 0 68%,rgba(255,255,255,.08) 68% 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ring i{width:66px;height:66px;border-radius:50%;background:#141B38;display:flex;flex-direction:column;align-items:center;justify-content:center;font-style:normal}
+.ring b{font-size:19px;font-weight:800}.ring span{font-size:9px;color:#93A0C6;letter-spacing:1px}
+.metastrip{display:flex;gap:6px;flex-wrap:wrap}
+.ms{font-family:'JetBrains Mono',monospace;font-size:10px;padding:5px 9px;border-radius:6px;background:rgba(255,255,255,.06);color:#B7C1DE}
+.ms b{color:#4EC8FF}
+/* NORTHSTAR — v7 focal number inside a v4 card */
+.northstar{background:#161D3B;border-radius:20px;padding:24px 20px;margin-top:20px;text-align:center;border:1px solid rgba(78,200,255,.15)}
+.northstar .k{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:3px;color:#7583AB}
+.northstar .num{font-size:76px;font-weight:900;letter-spacing:-3px;line-height:1;margin-top:10px;background:linear-gradient(180deg,#EFF3FF,#4EC8FF);-webkit-background-clip:text;background-clip:text;color:transparent}
+.northstar .cap{font-size:14px;color:#B7C1DE;margin-top:8px}
+.northstar .cap b{color:#EDF1FB}
+/* QUEST CARDS — v8 badges on v4 cards */
+.quest{background:#161D3B;border-radius:20px;padding:18px 20px;margin-top:14px;display:flex;gap:14px;align-items:flex-start}
+.qbadge{width:40px;height:40px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;background:rgba(78,200,255,.12);color:#4EC8FF;border:1px solid rgba(78,200,255,.3)}
+.qbadge.gold{background:rgba(255,203,28,.12);color:#FFCB1C;border-color:rgba(255,203,28,.3)}
+.qbadge.pink{background:rgba(255,51,102,.12);color:#FF3366;border-color:rgba(255,51,102,.3)}
+.qbody{flex:1}
+.qbody .k{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;color:#7583AB}
+.qbody .t{font-size:16px;font-weight:800;margin-top:4px}
+.qbody .s{font-size:12.5px;color:#93A0C6;margin-top:3px}
+.qbody .bar{height:8px;border-radius:4px;background:rgba(255,255,255,.07);margin-top:10px;overflow:hidden}
+.qbody .bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#4EC8FF,#40E382)}
+.qbody .bar i.gold{background:linear-gradient(90deg,#FFCB1C,#FF9A00)}
+.pair{display:flex;gap:14px;margin-top:14px}
+.pair .quest{flex:1;margin-top:0;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:18px 10px}
+.pair .num{font-size:30px;font-weight:900;color:#FFCB1C}
+.pair .num.blue{color:#4EC8FF}
+.pair .lbl{font-size:11px;color:#93A0C6}
+/* BOSS — v8 end-day boss as v4 full-width action */
+.boss{margin-top:20px;background:linear-gradient(160deg,#251639,#161D3B);border:1px solid rgba(255,51,102,.35);border-radius:20px;padding:20px;text-align:center}
+.boss .k{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:3px;color:#FF6E93}
+.boss .t{font-size:18px;font-weight:900;margin-top:6px}
+.boss .s{font-size:12.5px;color:#93A0C6;margin-top:4px}
+.bossbtn{display:block;width:100%;margin-top:14px;background:linear-gradient(135deg,#FF3366,#C852FF);border:0;color:#fff;font-weight:900;font-size:15px;letter-spacing:1.5px;border-radius:14px;padding:16px;font-family:Inter,sans-serif;box-shadow:0 8px 28px rgba(255,51,102,.35)}
+/* FEED */
+.card{background:#161D3B;border-radius:20px;padding:20px;margin-top:20px}
+.card h3{font-size:11px;letter-spacing:2px;color:#7583AB;font-family:'JetBrains Mono',monospace;display:flex;justify-content:space-between;align-items:center}
+.card h3 button{background:rgba(78,200,255,.12);border:0;color:#4EC8FF;border-radius:999px;padding:6px 14px;font-size:11px;font-weight:600}
+.feed-item{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.06);align-items:center}
+.feed-item:last-child{border:0;padding-bottom:0}
+.dot{width:34px;height:34px;border-radius:12px;background:rgba(64,227,130,.12);color:#40E382;display:flex;align-items:center;justify-content:center;font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;flex-shrink:0}
+.feed-item p{font-size:13.5px;line-height:1.45;color:#C6CFE9;flex:1}
+.feed-item time{font-size:10px;color:#5F6D96;font-family:'JetBrains Mono',monospace}
+/* DOCK */
+.dock{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;background:rgba(15,20,36,.92);backdrop-filter:blur(12px);border-radius:24px 24px 0 0;padding:8px 6px calc(8px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.06)}
+.dock button{flex:1;background:none;border:0;color:#5F6D96;font-size:10px;padding:12px 0;border-radius:14px;font-weight:600}
+.dock button.on{color:#4EC8FF;background:rgba(78,200,255,.1)}
+</style></head>
+<body><div class="app">
+  <div class="hero">
+    <div class="hello">Wednesday, July 2 · Day 94</div>
+    <h1>Level <b>7</b></h1>
+    <div class="ring-row">
+      <div class="ring"><i><b>68%</b><span>XP</span></i></div>
+      <div class="metastrip">
+        <span class="ms">XP <b>340/500</b></span>
+        <span class="ms">TAKEN <b>2</b></span>
+        <span class="ms">TALKING <b>3</b></span>
+        <span class="ms">STREAK <b>12</b></span>
+        <span class="ms">TODAY <b>+40</b></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="northstar">
+    <div class="k">NORTHSTAR</div>
+    <div class="num">412</div>
+    <div class="cap">days until <b>Lisbon — your own studio, 2027</b></div>
+  </div>
+
+  <div class="quest">
+    <div class="qbadge">⚔</div>
+    <div class="qbody">
+      <div class="k">MAIN QUEST — CURRENT ERA</div>
+      <div class="t">Monk Mode — Q3</div>
+      <div class="s">Day 12 of 90 · focus high, noise low</div>
+      <div class="bar"><i style="width:13%"></i></div>
+    </div>
+  </div>
+
+  <div class="pair">
+    <div class="quest"><div class="qbadge gold">⏳</div><div class="num">147</div><div class="lbl">days to 27</div></div>
+    <div class="quest"><div class="qbadge">♥</div><div class="num blue">3</div><div class="lbl">hot leads — gym ★★★</div></div>
+  </div>
+
+  <div class="quest">
+    <div class="qbadge gold">◆</div>
+    <div class="qbody">
+      <div class="k">SIDE QUEST — MANIFEST</div>
+      <div class="t">Studio income</div>
+      <div class="s">62% · lisbon visa 30% · stay detached</div>
+      <div class="bar"><i class="gold" style="width:62%"></i></div>
+    </div>
+  </div>
+
+  <div class="boss">
+    <div class="k">DAILY BOSS</div>
+    <div class="t">Close out Day 94</div>
+    <div class="s">+40 XP banked · gym, deep work, sofia</div>
+    <button class="bossbtn">END DAY ⚔</button>
+  </div>
+
+  <div class="card">
+    <h3>RECENT ACTIVITY <button>Months</button></h3>
+    <div class="feed-item"><div class="dot">+15</div><p>Gym session logged · Fitness ↑</p><time>07-02</time></div>
+    <div class="feed-item"><div class="dot" style="color:#FF6E93;background:rgba(255,51,102,.12)">♥</div><p>Sofia added to roster (café)</p><time>07-01</time></div>
+    <div class="feed-item"><div class="dot">+25</div><p>Deep work 3h on studio site</p><time>07-01</time></div>
+  </div>
+
+  <nav class="dock"><button>Lifestyle</button><button>Schedule</button><button class="on">Home</button><button>Girls</button><button>Me</button></nav>
+</div></body></html>

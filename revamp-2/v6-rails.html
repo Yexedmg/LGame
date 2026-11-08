@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V6 — Horizontal Rails</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;900&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
+<style>
+/* V6 HORIZONTAL RAILS — App-Store style: sections are horizontal swipe rails of cards. Vertical page stays short. */
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#101529;color:#EDF0FA;font-family:Inter,sans-serif;display:flex;justify-content:center}
+.app{width:100%;max-width:480px;min-height:100vh;padding:20px 0 110px}
+.pad{padding:0 18px}
+.top{display:flex;justify-content:space-between;align-items:center}
+.top h1{font-size:24px;font-weight:900}
+.top h1 span{color:#4EC8FF}
+.avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#4EC8FF,#C852FF);display:flex;align-items:center;justify-content:center;font-weight:900;color:#0B1020;font-size:13px}
+.xpstrip{margin:16px 18px 0;background:#171E3D;border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.xpstrip .lv{font-family:'JetBrains Mono',monospace;font-weight:600;color:#FFCB1C;font-size:13px;flex-shrink:0}
+.xpstrip .track{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}
+.xpstrip .track i{display:block;height:100%;width:68%;background:linear-gradient(90deg,#4EC8FF,#40E382)}
+.xpstrip .pct{font-size:11px;color:#8C98BE;font-family:'JetBrains Mono',monospace}
+.railhead{display:flex;justify-content:space-between;align-items:baseline;padding:0 18px;margin:26px 0 12px}
+.railhead h2{font-size:16px;font-weight:800}
+.railhead a{font-size:12px;color:#4EC8FF;text-decoration:none;font-weight:600}
+.rail{display:flex;gap:12px;overflow-x:auto;padding:0 18px 6px;scroll-snap-type:x mandatory}
+.rail::-webkit-scrollbar{display:none}
+.rc{flex:0 0 240px;scroll-snap-align:start;background:#171E3D;border-radius:18px;padding:18px;border:1px solid rgba(255,255,255,.06)}
+.rc.feature{flex:0 0 300px;background:linear-gradient(150deg,#1D2A5C,#171E3D)}
+.rc .k{font-size:10px;letter-spacing:2px;color:#7A87AF;font-family:'JetBrains Mono',monospace}
+.rc .t{font-size:17px;font-weight:800;margin-top:8px;line-height:1.3}
+.rc .s{font-size:12px;color:#8C98BE;margin-top:6px}
+.rc .bar{height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:12px;overflow:hidden}
+.rc .bar i{display:block;height:100%;background:#40E382}
+.rc .n{font-size:34px;font-weight:900;color:#FFCB1C;margin-top:6px}
+.rc.small{flex:0 0 150px;text-align:center}
+.qa .rc{flex:0 0 110px;text-align:center;padding:16px 8px}
+.qa .rc b{display:block;font-size:22px}
+.qa .rc span{font-size:11px;color:#8C98BE}
+.logrow{display:flex;gap:10px;align-items:center;background:#171E3D;border-radius:14px;padding:12px 14px;margin:0 18px 10px}
+.logrow time{font-family:'JetBrains Mono',monospace;font-size:10px;color:#5F6C99;flex-shrink:0}
+.logrow p{font-size:13px;color:#C4CDE8}
+.dock{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;background:rgba(13,17,33,.95);backdrop-filter:blur(10px);border-top:1px solid rgba(255,255,255,.07)}
+.dock button{flex:1;background:none;border:0;color:#5F6C99;font-size:10px;font-weight:700;padding:14px 0}
+.dock button.on{color:#4EC8FF}
+</style></head>
+<body><div class="app">
+  <div class="pad top"><h1>LIFE<span>::94</span></h1><div class="avatar">Y</div></div>
+  <div class="xpstrip"><span class="lv">LVL 7</span><div class="track"><i></i></div><span class="pct">340/500</span></div>
+
+  <div class="railhead"><h2>Direction</h2><a>Edit</a></div>
+  <div class="rail">
+    <div class="rc feature"><div class="k">NORTHSTAR</div><div class="t">Move to Lisbon, run my own studio by 2027</div><div class="s">412 days left · on track</div></div>
+    <div class="rc"><div class="k">CURRENT ERA</div><div class="t">Monk Mode — Q3</div><div class="s">Day 12 of 90</div><div class="bar"><i style="width:13%"></i></div></div>
+    <div class="rc small"><div class="k">BIRTHDAY</div><div class="n">147</div><div class="s">days to 27</div></div>
+  </div>
+
+  <div class="railhead"><h2>Pipeline</h2><a>Open</a></div>
+  <div class="rail">
+    <div class="rc small"><div class="k">GYM</div><div class="n" style="color:#40E382">★★★</div><div class="s">hot lead</div></div>
+    <div class="rc small"><div class="k">CAFÉ</div><div class="n" style="color:#40E382">★★</div><div class="s">warm</div></div>
+    <div class="rc small"><div class="k">IG</div><div class="n" style="color:#40E382">★★</div><div class="s">warm</div></div>
+    <div class="rc"><div class="k">MANIFEST</div><div class="t">Studio income</div><div class="bar"><i style="width:62%"></i></div><div class="s">62% · detached</div></div>
+  </div>
+
+  <div class="railhead"><h2>Actions</h2></div>
+  <div class="rail qa">
+    <div class="rc"><b>⚡</b><span>Activities</span></div>
+    <div class="rc"><b>👥</b><span>Roster</span></div>
+    <div class="rc"><b>🌍</b><span>World</span></div>
+    <div class="rc" style="border-color:#40E382"><b>🌙</b><span>End Day</span></div>
+  </div>
+
+  <div class="railhead"><h2>Recent</h2><a>Months</a></div>
+  <div class="logrow"><time>07-02</time><p>Gym session logged · +15 XP</p></div>
+  <div class="logrow"><time>07-01</time><p>Sofia added to roster (café)</p></div>
+  <div class="logrow"><time>07-01</time><p>Deep work 3h · +25 XP</p></div>
+
+  <nav class="dock"><button>Lifestyle</button><button>Sched</button><button class="on">Home</button><button>Girls</button><button>Me</button></nav>
+</div></body></html>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FINAL — Brutalist Champion</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+/* FINAL BRUTALIST — winning FINAL structure (hero+meta strip, giant northstar, quests, daily boss, feed) in full v3 neo-brutalist skin */
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#12172B;color:#F2F4FC;font-family:'Space Grotesk',sans-serif;display:flex;justify-content:center}
+.app{width:100%;max-width:480px;min-height:100vh;padding:16px 14px 120px}
+.block{border:3px solid #F2F4FC;box-shadow:6px 6px 0 #4EC8FF;padding:16px;margin-bottom:20px;background:#181F3C}
+.block.pink{box-shadow:6px 6px 0 #FF3366}
+.block.gold{box-shadow:6px 6px 0 #FFCB1C}
+.block.green{box-shadow:6px 6px 0 #40E382}
+.block.purple{box-shadow:6px 6px 0 #C852FF}
+/* HERO */
+h1{font-family:'Archivo Black',sans-serif;font-size:36px;letter-spacing:-1px}
+h1 span{color:#4EC8FF}
+.date{font-family:'JetBrains Mono',monospace;font-size:11px;color:#9AA6CC;margin-top:2px}
+.xpwrap{margin-top:12px;border:3px solid #F2F4FC;height:28px;position:relative;background:#0C1020}
+.xpwrap i{position:absolute;inset:0;width:68%;background:repeating-linear-gradient(45deg,#40E382 0 8px,#2FBF69 8px 16px)}
+.xpwrap b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;mix-blend-mode:difference}
+.metastrip{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.ms{border:2px solid #F2F4FC;background:#12172B;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:5px 8px;box-shadow:3px 3px 0 #F2F4FC33}
+.ms b{color:#4EC8FF}
+/* NORTHSTAR — giant focal number */
+.north{text-align:center;padding:24px 16px}
+.k{font-family:'Archivo Black',sans-serif;font-size:12px;letter-spacing:2px;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
+.north .k{justify-content:center;color:#4EC8FF}
+.north .num{font-family:'Archivo Black',sans-serif;font-size:88px;line-height:1;margin-top:8px;color:#FFCB1C;text-shadow:5px 5px 0 #FF3366}
+.north .cap{font-size:15px;font-weight:700;margin-top:10px}
+.north .cap em{color:#4EC8FF;font-style:normal}
+/* QUESTS */
+.quest{display:flex;gap:14px;align-items:flex-start}
+.qbadge{width:44px;height:44px;border:3px solid #F2F4FC;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;background:#12172B;box-shadow:3px 3px 0 #4EC8FF}
+.qbadge.gold{box-shadow:3px 3px 0 #FFCB1C}
+.qbadge.pink{box-shadow:3px 3px 0 #FF3366}
+.qbody{flex:1}
+.qk{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;color:#9AA6CC;font-weight:700}
+.qt{font-size:19px;font-weight:700;margin-top:3px;line-height:1.2}
+.qs{font-family:'JetBrains Mono',monospace;font-size:11px;color:#9AA6CC;margin-top:4px}
+.qbar{margin-top:10px;border:2px solid #F2F4FC;height:16px;position:relative;background:#0C1020}
+.qbar i{position:absolute;inset:0;background:repeating-linear-gradient(45deg,#4EC8FF 0 8px,#3AA8E0 8px 16px)}
+.qbar i.gold{background:repeating-linear-gradient(45deg,#FFCB1C 0 8px,#E0B010 8px 16px)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.split .block{margin-bottom:20px;text-align:center}
+.split .num{font-family:'Archivo Black',sans-serif;font-size:44px;color:#FFCB1C;line-height:1;margin-top:6px}
+.split .num.blue{color:#4EC8FF}
+.split .lbl{font-family:'JetBrains Mono',monospace;font-size:10px;color:#9AA6CC;margin-top:6px}
+/* BOSS */
+.boss{text-align:center;background:#1F1430;border-color:#FF3366}
+.boss .k{justify-content:center;color:#FF3366}
+.boss .qt{font-family:'Archivo Black',sans-serif;font-size:24px;margin-top:8px}
+.boss .qs{margin-top:6px}
+.bossbtn{display:block;width:100%;margin-top:14px;border:3px solid #F2F4FC;background:#FF3366;color:#F2F4FC;font-family:'Archivo Black',sans-serif;font-size:17px;letter-spacing:1px;padding:16px;box-shadow:5px 5px 0 #F2F4FC;cursor:pointer}
+.bossbtn:active{transform:translate(4px,4px);box-shadow:1px 1px 0 #F2F4FC}
+/* FEED */
+.label-btn{border:2px solid #F2F4FC;background:#4EC8FF;color:#12172B;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:4px 10px;box-shadow:3px 3px 0 #F2F4FC;cursor:pointer}
+.log{border-bottom:2px dashed rgba(242,244,252,.3);padding:10px 0;font-size:13px;display:flex;gap:10px;align-items:baseline}
+.log:last-child{border:0;padding-bottom:0}
+.log time{font-family:'JetBrains Mono',monospace;font-size:11px;color:#4EC8FF;font-weight:700;flex-shrink:0}
+.log b{color:#40E382;font-family:'JetBrains Mono',monospace;font-size:11px}
+/* DOCK */
+.dock{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;background:#F2F4FC;border-top:3px solid #12172B}
+.dock button{flex:1;background:#F2F4FC;color:#12172B;border:0;border-right:3px solid #12172B;font-family:'Archivo Black',sans-serif;font-size:10px;padding:16px 0;cursor:pointer}
+.dock button:last-child{border-right:0}
+.dock button.on{background:#4EC8FF}
+</style></head>
+<body><div class="app">
+
+  <div class="block">
+    <h1>LIFE<span>//7</span></h1>
+    <div class="date">WED JUL 02 · DAY 94</div>
+    <div class="xpwrap"><i></i><b>340 / 500 XP — 68%</b></div>
+    <div class="metastrip">
+      <span class="ms">TAKEN <b>2</b></span>
+      <span class="ms">TALKING <b>3</b></span>
+      <span class="ms">STREAK <b>12</b></span>
+      <span class="ms">TODAY <b>+40</b></span>
+    </div>
+  </div>
+
+  <div class="block pink north">
+    <div class="k">★ NORTHSTAR ★</div>
+    <div class="num">412</div>
+    <div class="cap">DAYS UNTIL <em>LISBON</em> — YOUR OWN STUDIO, 2027</div>
+  </div>
+
+  <div class="block gold">
+    <div class="quest">
+      <div class="qbadge">⚔</div>
+      <div class="qbody">
+        <div class="qk">MAIN QUEST — CURRENT ERA</div>
+        <div class="qt">MONK MODE — Q3</div>
+        <div class="qs">DAY 12/90 · FOCUS HIGH · NOISE LOW</div>
+        <div class="qbar"><i style="width:13%"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="split">
+    <div class="block green">
+      <div class="qk">BIRTHDAY</div>
+      <div class="num">147</div>
+      <div class="lbl">DAYS TO 27</div>
+    </div>
+    <div class="block purple">
+      <div class="qk">HOT LEADS</div>
+      <div class="num blue">3</div>
+      <div class="lbl">GYM ★★★ · CAFÉ ★★</div>
+    </div>
+  </div>
+
+  <div class="block">
+    <div class="quest">
+      <div class="qbadge gold">◆</div>
+      <div class="qbody">
+        <div class="qk">SIDE QUEST — MANIFEST</div>
+        <div class="qt">STUDIO INCOME</div>
+        <div class="qs">62% · LISBON VISA 30% · STAY DETACHED</div>
+        <div class="qbar"><i class="gold" style="width:62%"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="block pink boss">
+    <div class="k">☠ DAILY BOSS ☠</div>
+    <div class="qt">CLOSE OUT DAY 94</div>
+    <div class="qs">+40 XP BANKED · GYM · DEEP WORK · SOFIA</div>
+    <button class="bossbtn">END DAY ⚔</button>
+  </div>
+
+  <div class="block">
+    <div class="k">RECENT <button class="label-btn">LOG</button></div>
+    <div style="margin-top:10px">
+      <div class="log"><time>07-02</time>Gym session · Fitness ↑ <b>+15XP</b></div>
+      <div class="log"><time>07-01</time>Sofia added to roster (café)</div>
+      <div class="log"><time>07-01</time>Deep work 3h studio site <b>+25XP</b></div>
+    </div>
+  </div>
+
+  <nav class="dock"><button>LIFE</button><button>SCHED</button><button class="on">HOME</button><button>GIRLS</button><button>ME</button></nav>
+</div></body></html>

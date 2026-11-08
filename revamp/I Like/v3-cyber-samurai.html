@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>V3 — Cyber Samurai</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0507;--red:#e81938;--red-dim:rgba(232,25,56,.12);--white:#f2ede8;--dim:#6d5a5e;--muted:#241318;--mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--white);font-family:var(--sans)}
+#app{max-width:420px;height:100%;margin:0 auto;display:flex;flex-direction:column;position:relative}
+.scroll{flex:1;overflow-y:auto;padding:0 0 90px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+.slash{position:relative;padding:16px 20px 16px 26px;border-left:4px solid var(--red);margin:14px 16px 0;background:linear-gradient(90deg,var(--red-dim),transparent 60%)}
+.tag{font-family:var(--mono);font-size:8px;letter-spacing:4px;color:var(--red);margin-bottom:8px}
+.hero{padding:36px 20px 20px;border-bottom:1px solid var(--muted);position:relative;overflow:hidden}
+.hero::after{content:'一';position:absolute;right:-10px;top:0;font-size:140px;color:rgba(232,25,56,.06);font-weight:900;line-height:1}
+.hero h1{font-size:44px;font-weight:900;letter-spacing:-1px;line-height:.95}
+.hero h1 span{color:var(--red)}
+.hero .sub{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:10px;letter-spacing:2px}
+.hero .lvl{display:inline-block;margin-top:12px;padding:5px 16px;background:var(--red);color:#fff;font-family:var(--mono);font-size:11px;font-weight:800;letter-spacing:2px;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
+.xp-strip{display:flex;align-items:center;gap:10px;margin-top:14px}
+.xp-strip .bar{flex:1;height:6px;background:var(--muted);transform:skewX(-20deg)}
+.xp-strip .fl{height:100%;width:43%;background:var(--red);box-shadow:0 0 10px rgba(232,25,56,.4)}
+.xp-strip .txt{font-family:var(--mono);font-size:9px;color:var(--dim)}
+.north-txt{font-size:19px;font-weight:900;line-height:1.3;text-transform:uppercase;letter-spacing:.5px}
+.north-sub{font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:6px;letter-spacing:2px}
+.era-n{font-size:24px;font-weight:900;letter-spacing:2px;color:var(--red)}
+.era-d{font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:4px}
+.era-bar{height:10px;background:var(--muted);margin-top:12px;transform:skewX(-20deg);overflow:hidden}
+.era-fl{height:100%;width:58%;background:linear-gradient(90deg,#7a0d1e,var(--red))}
+.bday-row{display:flex;align-items:baseline;gap:12px}
+.bday-row .n{font-size:52px;font-weight:900;color:var(--white);line-height:1}
+.bday-row .n em{color:var(--red);font-style:normal}
+.bday-row .l{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:1px}
+.lead-strip{display:flex;gap:8px}
+.lead-c{flex:1;padding:12px 8px;background:#120a0d;border-top:2px solid var(--red);text-align:center}
+.lead-c .nm{font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--white)}
+.lead-c .st{font-size:11px;color:var(--red);margin-top:6px}
+.goal-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--muted)}
+.goal-row:last-child{border:none}
+.goal-row .nm{flex:1;font-size:13px;font-weight:700}
+.goal-row .bar{width:100px;height:6px;background:var(--muted);transform:skewX(-20deg)}
+.goal-row .fl{height:100%;background:var(--red)}
+.goal-row .pc{font-family:var(--mono);font-size:10px;color:var(--red);width:34px;text-align:right}
+.acts{display:flex;gap:8px}
+.act{flex:1;padding:16px 8px;background:transparent;border:2px solid var(--red);color:var(--red);font-family:var(--mono);font-size:11px;font-weight:800;letter-spacing:2px;cursor:pointer;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);transition:all .15s}
+.act:hover{background:var(--red);color:#fff}
+.log-row{display:flex;justify-content:space-between;font-size:11px;padding:8px 0;border-bottom:1px dashed var(--muted);color:#bfae b2}
+.log-row:last-child{border:none}
+.log-row .t{font-family:var(--mono);font-size:9px;color:var(--dim)}
+.dock{position:absolute;bottom:0;left:0;right:0;height:60px;background:#070305;border-top:2px solid var(--red);display:flex;align-items:center;justify-content:space-around;z-index:100}
+.dk{background:none;border:none;color:var(--dim);font-family:var(--mono);font-size:8px;letter-spacing:2px;cursor:pointer;padding:8px}
+.dk.on{color:var(--red);text-shadow:0 0 10px rgba(232,25,56,.5)}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="scroll">
+
+  <div class="hero">
+    <h1>LIFE<span>.</span></h1>
+    <div class="sub">DAY 128 // TAKEN 1 / TALKING 2</div>
+    <span class="lvl">LVL 12</span>
+    <div class="xp-strip"><div class="bar"><div class="fl"></div></div><span class="txt">480/1122</span></div>
+  </div>
+
+  <div class="slash">
+    <div class="tag">NORTHSTAR</div>
+    <div class="north-txt">Tokyo 2027 — Full Freedom Life</div>
+    <div class="north-sub">THE BLADE POINTS ONE WAY</div>
+  </div>
+
+  <div class="slash">
+    <div class="tag">CURRENT ERA</div>
+    <div class="era-n">MONK MODE</div>
+    <div class="era-d">APR 20 → AUG 01 // 58%</div>
+    <div class="era-bar"><div class="era-fl"></div></div>
+  </div>
+
+  <div class="slash">
+    <div class="tag">BIRTHDAY</div>
+    <div class="bday-row"><span class="n">2<em>1</em>4</span><span class="l">DAYS UNTIL 23</span></div>
+  </div>
+
+  <div class="slash">
+    <div class="tag">POTENTIAL LEADS // 3</div>
+    <div class="lead-strip">
+      <div class="lead-c"><div class="nm">INSTAGRAM</div><div class="st">&#9733;&#9733;&#9733;&#9733;</div></div>
+      <div class="lead-c"><div class="nm">JOB</div><div class="st">&#9733;&#9733;</div></div>
+      <div class="lead-c"><div class="nm">GYM</div><div class="st">&#9733;&#9733;&#9733;</div></div>
+    </div>
+  </div>
+
+  <div class="slash">
+    <div class="tag">MANIFEST</div>
+    <div class="goal-row"><span class="nm">10% body fat</span><div class="bar"><div class="fl" style="width:70%"></div></div><span class="pc">70%</span></div>
+    <div class="goal-row"><span class="nm">Launch clothing brand</span><div class="bar"><div class="fl" style="width:30%"></div></div><span class="pc">30%</span></div>
+  </div>
+
+  <div class="slash">
+    <div class="tag">STRIKE</div>
+    <div class="acts">
+      <button class="act">ACT</button>
+      <button class="act">RSTR</button>
+      <button class="act">END</button>
+    </div>
+  </div>
+
+  <div class="slash">
+    <div class="tag">LOG</div>
+    <div class="log-row"><span>Gym Session — +2 HP +2 PWR</span><span class="t">16:40</span></div>
+    <div class="log-row"><span>Body fat -0.4%</span><span class="t">14:00</span></div>
+    <div class="log-row"><span>IG lead replied — warm</span><span class="t">11:32</span></div>
+    <div class="log-row"><span>Era day 74/128</span><span class="t">09:00</span></div>
+  </div>
+
+</div>
+<nav class="dock">
+  <button class="dk">LIFESTYLE</button>
+  <button class="dk">SCHEDULE</button>
+  <button class="dk on">HOME</button>
+  <button class="dk">GIRLS</button>
+  <button class="dk">ME</button>
+</nav>
+</div>
+</body>
+</html>

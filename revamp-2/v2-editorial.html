@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V2 — Editorial</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,600&family=Inter:wght@400;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+/* V2 EDITORIAL — magazine layout. Huge serif headlines, generous 32-48px whitespace, single column. */
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#101321;color:#EFF1F8;font-family:Inter,sans-serif;display:flex;justify-content:center}
+.app{width:100%;max-width:480px;min-height:100vh;padding:40px 28px 120px}
+.kicker{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:3px;color:#4EC8FF}
+.masthead{font-family:'Playfair Display',serif;font-size:52px;font-weight:900;line-height:1;margin-top:10px}
+.dateline{font-size:12px;color:#8A93B5;margin-top:12px;padding-bottom:28px;border-bottom:1px solid rgba(255,255,255,.14)}
+.dateline b{color:#EFF1F8}
+.xpline{display:flex;align-items:baseline;gap:14px;margin-top:28px}
+.xpline .n{font-family:'Playfair Display',serif;font-size:64px;font-weight:900;color:#4EC8FF;line-height:.9}
+.xpline .t{font-size:12px;color:#8A93B5;line-height:1.5}
+.rule{height:1px;background:rgba(255,255,255,.14);margin:36px 0}
+section h3{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:3px;color:#6878A0;margin-bottom:14px}
+.headline{font-family:'Playfair Display',serif;font-size:30px;font-weight:700;line-height:1.15}
+.headline em{color:#4EC8FF;font-style:italic}
+.standfirst{font-size:14px;color:#A4ACC8;line-height:1.7;margin-top:12px}
+.pullquote{font-family:'Playfair Display',serif;font-style:italic;font-size:21px;line-height:1.4;color:#DDE2F2;border-left:2px solid #4EC8FF;padding-left:18px;margin-top:16px}
+.figures{display:flex;gap:32px;margin-top:20px}
+.fig .v{font-family:'Playfair Display',serif;font-size:34px;font-weight:900}
+.fig .l{font-size:10px;letter-spacing:2px;color:#6878A0;font-family:'JetBrains Mono',monospace;margin-top:4px}
+.fig .v.gold{color:#FFCB1C}.fig .v.green{color:#40E382}
+.story{padding:18px 0;border-bottom:1px solid rgba(255,255,255,.08);display:flex;gap:16px;align-items:baseline}
+.story time{font-family:'JetBrains Mono',monospace;font-size:10px;color:#5A6890;flex-shrink:0;width:44px}
+.story p{font-size:14px;line-height:1.55;color:#C9D0E6}
+.actions{display:flex;gap:12px;margin-top:36px}
+.actions button{flex:1;background:none;border:1px solid rgba(255,255,255,.25);color:#EFF1F8;padding:16px 0;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2px}
+.actions button.primary{background:#EFF1F8;color:#101321;border-color:#EFF1F8;font-weight:700}
+.dock{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;justify-content:space-between;padding:20px 28px;background:linear-gradient(180deg,transparent,#101321 40%)}
+.dock a{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;color:#6878A0;text-decoration:none}
+.dock a.on{color:#EFF1F8;border-bottom:2px solid #4EC8FF;padding-bottom:4px}
+</style></head>
+<body><div class="app">
+  <div class="kicker">VOL. 26 — DAY 94</div>
+  <h1 class="masthead">LIFE</h1>
+  <div class="dateline">July 2, 2026 · <b>Level 7</b> · taken 2, talking 3</div>
+
+  <div class="xpline">
+    <div class="n">68%</div>
+    <div class="t">340 / 500 XP<br>to Level 8</div>
+  </div>
+
+  <div class="rule"></div>
+
+  <section>
+    <h3>NORTHSTAR</h3>
+    <div class="headline">Move to <em>Lisbon</em>, run my own studio by 2027.</div>
+    <div class="standfirst">412 days remain. The era of drifting is over — every logged day compounds toward the coast.</div>
+  </section>
+
+  <div class="rule"></div>
+
+  <section>
+    <h3>CURRENT ERA — MONK MODE, Q3</h3>
+    <div class="pullquote">"Twelve days in. Ninety planned. No noise, only signal."</div>
+    <div class="figures">
+      <div class="fig"><div class="v">12/90</div><div class="l">ERA DAYS</div></div>
+      <div class="fig"><div class="v gold">147</div><div class="l">DAYS TO 27</div></div>
+      <div class="fig"><div class="v green">3</div><div class="l">HOT LEADS</div></div>
+    </div>
+  </section>
+
+  <div class="rule"></div>
+
+  <section>
+    <h3>THE RECORD</h3>
+    <div class="story"><time>07·02</time><p>Gym session logged — Fitness rises, +15 XP.</p></div>
+    <div class="story"><time>07·01</time><p>Sofia, met at the café, joins the roster.</p></div>
+    <div class="story"><time>07·01</time><p>Three deep hours on the studio site. +25 XP.</p></div>
+  </section>
+
+  <div class="actions">
+    <button>ACTIVITIES</button><button class="primary">END DAY</button>
+  </div>
+
+  <nav class="dock"><a>LIFESTYLE</a><a>SCHED</a><a class="on">HOME</a><a>GIRLS</a><a>ME</a></nav>
+</div></body></html>

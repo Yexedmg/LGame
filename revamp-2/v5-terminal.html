@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V5 — Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+/* V5 TERMINAL — all-mono CLI aesthetic. Compact line-based rows, ASCII bars, phosphor green/cyan on near-black. */
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#070A14;color:#B9E8C9;font-family:'JetBrains Mono',monospace;display:flex;justify-content:center}
+.app{width:100%;max-width:480px;min-height:100vh;padding:14px 14px 90px;font-size:12.5px;line-height:1.7}
+.crt{position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 1px,transparent 1px 3px)}
+.hd{color:#4EC8FF;font-weight:800}
+.dim{color:#48608A}
+.grn{color:#40E382}.yel{color:#FFE81A}.pnk{color:#FF3366}.wht{color:#E8F4EE}
+.line{white-space:pre-wrap;word-break:break-word}
+.sect{margin-top:16px;border:1px solid #1B2C4A;padding:10px 12px;background:rgba(20,32,58,.35)}
+.sect .t{color:#4EC8FF;font-weight:700;font-size:11px;letter-spacing:1px;margin-bottom:6px}
+.sect .t::before{content:"▸ "}
+.kv{display:flex;justify-content:space-between}
+.kv span:first-child{color:#7FA0CC}
+.cmd{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}
+.cmd button{background:#0D1526;border:1px solid #2A4470;color:#4EC8FF;font-family:inherit;font-size:11px;font-weight:700;padding:10px 2px}
+.cmd button.hot{border-color:#40E382;color:#40E382}
+.cursor{display:inline-block;width:8px;height:14px;background:#40E382;animation:bl 1s steps(1) infinite;vertical-align:-2px}
+@keyframes bl{50%{opacity:0}}
+.dock{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;background:#0D1526;border-top:1px solid #2A4470}
+.dock button{flex:1;background:none;border:0;color:#48608A;font-family:inherit;font-size:10px;padding:13px 0}
+.dock button.on{color:#40E382}
+.dock button.on::before{content:"["}.dock button.on::after{content:"]"}
+</style></head>
+<body><div class="crt"></div><div class="app">
+<div class="line"><span class="hd">LIFE v2.6</span> <span class="dim">— session restored 2026-07-02</span></div>
+<div class="line"><span class="grn">user@life</span><span class="dim">:~$</span> status</div>
+<div class="line">LVL <span class="yel">7</span>   DAY <span class="wht">94</span>   TAKEN <span class="pnk">2</span> / TALKING <span class="pnk">3</span>   STREAK <span class="grn">12</span></div>
+<div class="line">XP  [<span class="grn">██████████████████████████</span><span class="dim">████████████</span>] <span class="wht">340/500</span> 68%</div>
+
+<div class="sect"><div class="t">NORTHSTAR</div>
+<div class="line wht">Move to Lisbon — run my own studio by 2027</div>
+<div class="line dim">eta 412d · status: ON_TRACK</div></div>
+
+<div class="sect"><div class="t">ERA :: MONK_MODE_Q3</div>
+<div class="line">DAY [<span class="grn">████</span><span class="dim">██████████████████████████</span>] 12/90</div>
+<div class="kv"><span>focus</span><span class="grn">high</span></div>
+<div class="kv"><span>noise</span><span class="yel">low</span></div></div>
+
+<div class="sect"><div class="t">TIMERS</div>
+<div class="kv"><span>birthday(27)</span><span class="yel">147d</span></div>
+<div class="kv"><span>era_end</span><span class="wht">78d</span></div>
+<div class="kv"><span>northstar</span><span class="wht">412d</span></div></div>
+
+<div class="sect"><div class="t">LEADS (3 hot)</div>
+<div class="kv"><span>gym</span><span class="grn">★★★</span></div>
+<div class="kv"><span>cafe</span><span class="grn">★★</span></div>
+<div class="kv"><span>instagram</span><span class="grn">★★</span></div></div>
+
+<div class="sect"><div class="t">MANIFEST</div>
+<div class="line">studio_income  [<span class="grn">████████████▌</span><span class="dim">███████</span>] 62%</div>
+<div class="line">lisbon_visa&nbsp;&nbsp;&nbsp;&nbsp;[<span class="grn">██████</span><span class="dim">██████████████</span>] 30%</div></div>
+
+<div class="sect"><div class="t">LOG --tail 4</div>
+<div class="line"><span class="dim">07-02</span> gym_session <span class="grn">+15xp</span> fitness↑</div>
+<div class="line"><span class="dim">07-01</span> roster.add("Sofia", src=cafe)</div>
+<div class="line"><span class="dim">07-01</span> deep_work 3h studio_site <span class="grn">+25xp</span></div>
+<div class="line"><span class="dim">06-30</span> day.end(93) → recap_saved</div></div>
+
+<div class="cmd"><button>act</button><button>rstr</button><button>map</button><button class="hot">end_day</button></div>
+<div class="line" style="margin-top:14px"><span class="grn">user@life</span><span class="dim">:~$</span> <span class="cursor"></span></div>
+
+<nav class="dock"><button>life</button><button>sched</button><button class="on">home</button><button>girls</button><button>me</button></nav>
+</div></body></html>

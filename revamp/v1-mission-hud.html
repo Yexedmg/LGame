@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>V1 — Mission HUD</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#060b14;--panel:#0b1322;--cyan:#00e5ff;--amber:#ffb300;--green:#39ff88;--red:#ff4455;--dim:#3d5570;--text:#cfe3f5;--mono:'JetBrains Mono',monospace}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--mono)}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,229,255,.012) 3px,rgba(0,229,255,.012) 5px);pointer-events:none;z-index:99}
+#app{max-width:430px;height:100%;margin:0 auto;display:flex;flex-direction:column;position:relative}
+.scroll{flex:1;overflow-y:auto;padding:18px 18px 90px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+.corner{position:relative;border:1px solid rgba(0,229,255,.18);background:var(--panel);padding:14px;margin-bottom:14px}
+.corner::before,.corner::after{content:'';position:absolute;width:10px;height:10px;border:2px solid var(--cyan)}
+.corner::before{top:-2px;left:-2px;border-right:none;border-bottom:none}
+.corner::after{bottom:-2px;right:-2px;border-left:none;border-top:none}
+.hud-tag{font-size:8px;letter-spacing:3px;color:var(--cyan);opacity:.8;margin-bottom:8px}
+.hdr{display:flex;align-items:center;gap:12px}
+.lvl{width:54px;height:54px;border:2px solid var(--cyan);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 16px rgba(0,229,255,.15);flex-shrink:0}
+.lvl .n{font-size:24px;font-weight:800;color:var(--cyan)}
+.lvl .l{font-size:7px;letter-spacing:2px;color:var(--dim)}
+.hdr .t{font-size:16px;font-weight:800;letter-spacing:4px;color:#fff}
+.hdr .s{font-size:9px;color:var(--dim);margin-top:4px;letter-spacing:1px}
+.xp{margin-top:12px}
+.xp-bar{height:14px;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.2);position:relative}
+.xp-fill{height:100%;width:43%;background:linear-gradient(90deg,#005566,var(--cyan));box-shadow:0 0 10px rgba(0,229,255,.3)}
+.xp-meta{display:flex;justify-content:space-between;font-size:8px;color:var(--dim);margin-top:4px;letter-spacing:1px}
+.north .big{font-size:15px;font-weight:700;color:#fff;line-height:1.4}
+.north .sub{font-size:9px;color:var(--amber);margin-top:6px;letter-spacing:2px}
+.era-row{display:flex;justify-content:space-between;align-items:baseline}
+.era-row .name{font-size:14px;font-weight:800;color:var(--amber);letter-spacing:2px}
+.era-row .dates{font-size:8px;color:var(--dim)}
+.era-bar{height:8px;background:rgba(255,179,0,.08);border:1px solid rgba(255,179,0,.2);margin-top:10px}
+.era-fill{height:100%;width:58%;background:linear-gradient(90deg,#5c4000,var(--amber))}
+.bday{display:flex;align-items:baseline;gap:10px}
+.bday .n{font-size:40px;font-weight:800;color:var(--green);line-height:1;text-shadow:0 0 12px rgba(57,255,136,.3)}
+.bday .l{font-size:9px;color:var(--dim);letter-spacing:1px}
+.leads{display:flex;gap:10px}
+.lead{flex:1;border:1px solid rgba(0,229,255,.15);padding:10px;text-align:center}
+.lead .nm{font-size:9px;color:var(--text);letter-spacing:1px}
+.lead .st{font-size:10px;color:var(--amber);margin-top:6px}
+.mgoal{display:flex;align-items:center;gap:10px;padding:8px 0}
+.mgoal .nm{font-size:11px;flex:1}
+.mgoal .track{width:110px;height:6px;background:rgba(57,255,136,.08);border:1px solid rgba(57,255,136,.2)}
+.mgoal .fl{height:100%;background:var(--green)}
+.mgoal .pc{font-size:9px;color:var(--green);width:32px;text-align:right}
+.acts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.act{height:64px;border:1px solid rgba(0,229,255,.25);background:rgba(0,229,255,.04);color:var(--cyan);font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:2px;cursor:pointer}
+.act:hover{background:rgba(0,229,255,.1)}
+.log{font-size:10px;display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed rgba(0,229,255,.08)}
+.log:last-child{border:none}
+.log .t{color:var(--dim);font-size:8px}
+.dock{position:absolute;bottom:0;left:0;right:0;height:60px;background:#040810;border-top:1px solid rgba(0,229,255,.2);display:flex;align-items:center;justify-content:space-around;z-index:100}
+.dk{background:none;border:none;color:var(--dim);font-family:var(--mono);font-size:8px;letter-spacing:2px;cursor:pointer;display:flex;flex-direction:column;gap:4px;align-items:center}
+.dk .i{font-size:13px;font-weight:800}
+.dk.on{color:var(--cyan);text-shadow:0 0 8px rgba(0,229,255,.4)}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="scroll">
+
+  <div class="corner">
+    <div class="hud-tag">SYS//OPERATOR</div>
+    <div class="hdr">
+      <div class="lvl"><span class="n">12</span><span class="l">LVL</span></div>
+      <div><div class="t">LIFE::HUD</div><div class="s">DAY 128 // TAKEN 1 / TALKING 2</div></div>
+    </div>
+    <div class="xp">
+      <div class="xp-bar"><div class="xp-fill"></div></div>
+      <div class="xp-meta"><span>XP 480/1122</span><span>43%</span></div>
+    </div>
+  </div>
+
+  <div class="corner north">
+    <div class="hud-tag">NORTHSTAR//PRIMARY OBJECTIVE</div>
+    <div class="big">Tokyo 2027 — full freedom life</div>
+    <div class="sub">HEADING LOCKED</div>
+  </div>
+
+  <div class="corner">
+    <div class="hud-tag">CURRENT ERA</div>
+    <div class="era-row"><span class="name">MONK MODE</span><span class="dates">APR 20 → AUG 01</span></div>
+    <div class="era-bar"><div class="era-fill"></div></div>
+    <div class="xp-meta" style="margin-top:4px"><span>DISCIPLINE PHASE</span><span>58%</span></div>
+  </div>
+
+  <div class="corner">
+    <div class="hud-tag">BIRTHDAY COUNTDOWN</div>
+    <div class="bday"><span class="n">214</span><span class="l">DAYS UNTIL 23</span></div>
+  </div>
+
+  <div class="corner">
+    <div class="hud-tag">POTENTIAL LEADS // 3 ACTIVE</div>
+    <div class="leads">
+      <div class="lead"><div class="nm">INSTAGRAM</div><div class="st">&#9733;&#9733;&#9733;&#9733;</div></div>
+      <div class="lead"><div class="nm">JOB</div><div class="st">&#9733;&#9733;</div></div>
+      <div class="lead"><div class="nm">GYM</div><div class="st">&#9733;&#9733;&#9733;</div></div>
+    </div>
+  </div>
+
+  <div class="corner">
+    <div class="hud-tag">MANIFEST // GOALS</div>
+    <div class="mgoal"><span class="nm">10% body fat</span><div class="track"><div class="fl" style="width:70%"></div></div><span class="pc">70%</span></div>
+    <div class="mgoal"><span class="nm">Launch clothing brand</span><div class="track"><div class="fl" style="width:30%"></div></div><span class="pc">30%</span></div>
+  </div>
+
+  <div class="corner">
+    <div class="hud-tag">QUICK OPS</div>
+    <div class="acts">
+      <button class="act">ACT</button>
+      <button class="act">RSTR</button>
+      <button class="act">END</button>
+    </div>
+  </div>
+
+  <div class="corner">
+    <div class="hud-tag">COMMS LOG</div>
+    <div class="log"><span>Gym Session — +2 HP +2 PWR</span><span class="t">16:40</span></div>
+    <div class="log"><span>Manifest progress: body fat -0.4%</span><span class="t">14:00</span></div>
+    <div class="log"><span>IG lead replied — warm</span><span class="t">11:32</span></div>
+    <div class="log"><span>Era day 74/128 logged</span><span class="t">09:00</span></div>
+  </div>
+
+</div>
+<nav class="dock">
+  <button class="dk"><span class="i">LST</span>LIFESTYLE</button>
+  <button class="dk"><span class="i">SCH</span>SCHEDULE</button>
+  <button class="dk on"><span class="i">HUD</span>HOME</button>
+  <button class="dk"><span class="i">GRL</span>GIRLS</button>
+  <button class="dk"><span class="i">ME</span>ME</button>
+</nav>
+</div>
+</body>
+</html>

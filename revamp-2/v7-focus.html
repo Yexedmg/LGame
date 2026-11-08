@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V7 — Focus Zero</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+/* V7 FOCUS ZERO — extreme minimalism. One giant focal metric, huge negative space, everything else whisper-quiet. */
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0B0E1A;color:#E9EDF8;font-family:Inter,sans-serif;display:flex;justify-content:center}
+.app{width:100%;max-width:480px;min-height:100vh;padding:64px 32px 120px;display:flex;flex-direction:column}
+.micro{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:4px;color:#4A5578;text-align:center}
+.focal{text-align:center;margin-top:72px}
+.focal .num{font-size:120px;font-weight:800;letter-spacing:-6px;line-height:.9;background:linear-gradient(180deg,#EFF3FF,#4EC8FF);-webkit-background-clip:text;background-clip:text;color:transparent}
+.focal .cap{font-size:13px;color:#8A93B8;margin-top:16px;font-weight:300;letter-spacing:1px}
+.focal .cap b{color:#E9EDF8;font-weight:800}
+.thread{width:1px;height:56px;background:linear-gradient(180deg,#4EC8FF,transparent);margin:48px auto 0}
+.quiet{margin-top:48px}
+.qrow{display:flex;justify-content:space-between;align-items:baseline;padding:18px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.qrow:first-child{border-top:1px solid rgba(255,255,255,.06)}
+.qrow .k{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:3px;color:#4A5578}
+.qrow .v{font-size:14px;font-weight:500;text-align:right;max-width:60%}
+.qrow .v small{display:block;font-size:11px;color:#6A7498;font-weight:300;margin-top:2px}
+.endday{margin:56px auto 0;background:none;border:1px solid rgba(78,200,255,.45);color:#4EC8FF;border-radius:999px;padding:16px 44px;font-size:12px;letter-spacing:3px;font-family:'JetBrains Mono',monospace}
+.dock{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;justify-content:center;gap:36px;padding:22px 0 calc(22px + env(safe-area-inset-bottom));background:linear-gradient(180deg,transparent,#0B0E1A 45%)}
+.dock a{width:6px;height:6px;border-radius:50%;background:#39406040}
+.dock a.on{background:#4EC8FF;box-shadow:0 0 12px #4EC8FF}
+</style></head>
+<body><div class="app">
+  <div class="micro">LIFE · DAY 94 · LVL 7 · 340/500 XP</div>
+
+  <div class="focal">
+    <div class="num">412</div>
+    <div class="cap">days until <b>Lisbon</b> — your northstar</div>
+  </div>
+
+  <div class="thread"></div>
+
+  <div class="quiet">
+    <div class="qrow"><span class="k">ERA</span><span class="v">Monk Mode — Q3<small>day 12 of 90</small></span></div>
+    <div class="qrow"><span class="k">BIRTHDAY</span><span class="v">147 days<small>until 27</small></span></div>
+    <div class="qrow"><span class="k">LEADS</span><span class="v">3 warm<small>gym · café · ig</small></span></div>
+    <div class="qrow"><span class="k">MANIFEST</span><span class="v">62% studio<small>30% visa</small></span></div>
+    <div class="qrow"><span class="k">TODAY</span><span class="v">+40 XP<small>gym · deep work · sofia</small></span></div>
+  </div>
+
+  <button class="endday">END DAY</button>
+
+  <nav class="dock"><a></a><a></a><a class="on"></a><a></a><a></a></nav>
+</div></body></html>

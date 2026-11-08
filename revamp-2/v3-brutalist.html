@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V3 — Neo-Brutalist</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+/* V3 NEO-BRUTALIST — thick 3px borders, hard offset shadows, chunky blocks, loud color slabs. */
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#12172B;color:#F2F4FC;font-family:'Space Grotesk',sans-serif;display:flex;justify-content:center}
+.app{width:100%;max-width:480px;min-height:100vh;padding:16px 14px 110px}
+.block{border:3px solid #F2F4FC;box-shadow:6px 6px 0 #4EC8FF;padding:16px;margin-bottom:18px;background:#181F3C}
+.block.pink{box-shadow:6px 6px 0 #FF3366}
+.block.gold{box-shadow:6px 6px 0 #FFCB1C}
+.block.green{box-shadow:6px 6px 0 #40E382}
+h1{font-family:'Archivo Black',sans-serif;font-size:40px;letter-spacing:-1px}
+h1 span{color:#4EC8FF}
+.tag{display:inline-block;background:#4EC8FF;color:#12172B;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;padding:4px 8px;margin-top:8px}
+.xpwrap{margin-top:14px;border:3px solid #F2F4FC;height:26px;position:relative;background:#0C1020}
+.xpwrap i{position:absolute;inset:0;width:68%;background:repeating-linear-gradient(45deg,#40E382 0 8px,#2FBF69 8px 16px)}
+.xpwrap b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;color:#F2F4FC;mix-blend-mode:difference}
+.label{font-family:'Archivo Black',sans-serif;font-size:13px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.label button{border:2px solid #F2F4FC;background:#FF3366;color:#F2F4FC;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:4px 10px;box-shadow:3px 3px 0 #F2F4FC}
+.big{font-size:22px;font-weight:700;line-height:1.2}
+.meta{font-family:'JetBrains Mono',monospace;font-size:11px;color:#9AA6CC;margin-top:6px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.stat-num{font-family:'Archivo Black',sans-serif;font-size:42px;color:#FFCB1C;line-height:1}
+.qa{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:18px}
+.qa button{border:3px solid #F2F4FC;background:#181F3C;color:#F2F4FC;font-family:'Archivo Black',sans-serif;font-size:13px;padding:18px 4px;box-shadow:5px 5px 0 #C852FF}
+.qa button:active{transform:translate(4px,4px);box-shadow:1px 1px 0 #C852FF}
+.log{border-bottom:2px dashed rgba(242,244,252,.3);padding:9px 0;font-size:13px;display:flex;gap:10px}
+.log:last-child{border:0}
+.log time{font-family:'JetBrains Mono',monospace;font-size:11px;color:#4EC8FF;font-weight:700;flex-shrink:0}
+.dock{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;background:#F2F4FC;border-top:3px solid #12172B}
+.dock button{flex:1;background:#F2F4FC;color:#12172B;border:0;border-right:3px solid #12172B;font-family:'Archivo Black',sans-serif;font-size:10px;padding:16px 0}
+.dock button:last-child{border-right:0}
+.dock button.on{background:#4EC8FF}
+</style></head>
+<body><div class="app">
+  <div class="block">
+    <h1>LIFE<span>//7</span></h1>
+    <span class="tag">DAY 94 — TAKEN 2 / TALKING 3</span>
+    <div class="xpwrap"><i></i><b>340 / 500 XP</b></div>
+  </div>
+
+  <div class="block pink">
+    <div class="label">NORTHSTAR <button>SET</button></div>
+    <div class="big">MOVE TO LISBON. RUN MY OWN STUDIO. 2027.</div>
+    <div class="meta">412 DAYS LEFT — ON TRACK</div>
+  </div>
+
+  <div class="split">
+    <div class="block gold" style="margin-bottom:18px">
+      <div class="label">ERA</div>
+      <div class="stat-num">12<span style="font-size:20px">/90</span></div>
+      <div class="meta">MONK MODE Q3</div>
+    </div>
+    <div class="block green" style="margin-bottom:18px">
+      <div class="label">B-DAY</div>
+      <div class="stat-num" style="color:#40E382">147</div>
+      <div class="meta">DAYS TO 27</div>
+    </div>
+  </div>
+
+  <div class="qa"><button>ACT</button><button>ROSTER</button><button>END DAY</button></div>
+
+  <div class="block">
+    <div class="label">RECENT <button style="background:#4EC8FF;color:#12172B">LOG</button></div>
+    <div class="log"><time>07-02</time>Gym session · +15 XP · Fitness up</div>
+    <div class="log"><time>07-01</time>Sofia added to roster (café)</div>
+    <div class="log"><time>07-01</time>Deep work 3h studio site · +25 XP</div>
+  </div>
+
+  <nav class="dock"><button>LIFE</button><button>SCHED</button><button class="on">HOME</button><button>GIRLS</button><button>ME</button></nav>
+</div></body></html>
