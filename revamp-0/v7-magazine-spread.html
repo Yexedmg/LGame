@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>V7 — Magazine Spread</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0c0c0c;--text:#fff;--dim:#555;--muted:#2a2a2a;--gold:#d4a853;--sans:'Inter',sans-serif}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--sans)}
+#app{max-width:414px;height:100%;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.scroll{flex:1;overflow-y:auto;padding:0 32px 100px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+hr{border:none;border-top:1px solid rgba(255,255,255,.07);margin:0}
+
+/* Hero */
+.hero{padding:60px 0 20px}
+.hero h1{font-size:72px;font-weight:900;letter-spacing:-3px;line-height:.9;text-transform:uppercase}
+.hero .sub{font-size:14px;font-weight:300;color:var(--dim);margin-top:12px;letter-spacing:4px}
+.hero .xp-row{display:flex;align-items:center;gap:12px;margin-top:20px}
+.hero .xp-bar{flex:1;height:3px;background:var(--muted);border-radius:3px;overflow:hidden}
+.hero .xp-fill{height:100%;width:50%;background:var(--gold);border-radius:3px}
+.hero .xp-text{font-size:11px;color:var(--dim);font-weight:400;flex-shrink:0}
+
+/* Section */
+.sec{padding:48px 0 16px}
+.sec h2{font-size:10px;font-weight:700;letter-spacing:5px;color:var(--gold);text-transform:uppercase}
+.sec .italic{font-style:italic;font-family:Georgia,serif;font-size:13px;color:var(--dim);font-weight:400;margin-top:4px}
+
+/* Stats - editorial numbers */
+.stats-editorial{display:grid;grid-template-columns:repeat(3,1fr);gap:0}
+.stat-ed{padding:20px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.stat-ed:nth-child(3n+2){text-align:center}
+.stat-ed:nth-child(3n){text-align:right}
+.stat-ed .num{font-size:40px;font-weight:900;line-height:1;letter-spacing:-1px}
+.stat-ed .lbl{font-size:9px;font-weight:600;letter-spacing:3px;color:var(--dim);text-transform:uppercase;margin-top:4px}
+
+/* Meet - feature article */
+.feature{padding:32px 0}
+.feature .big{font-size:80px;font-weight:900;color:var(--gold);line-height:1;letter-spacing:-3px}
+.feature .caption{font-size:13px;color:var(--dim);font-weight:300;margin-top:8px}
+.feature .bar{height:3px;background:var(--muted);border-radius:3px;overflow:hidden;margin-top:16px}
+.feature .bar-fill{height:100%;width:62%;background:linear-gradient(90deg,var(--gold),#fff);border-radius:3px}
+
+/* Cover story - relationships */
+.cover{padding:24px 0}
+.cover-item{padding:16px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.cover-item:last-child{border:none}
+.cover-item .name{font-size:28px;font-weight:900;letter-spacing:-0.5px}
+.cover-item .meta{display:flex;gap:16px;margin-top:4px}
+.cover-item .meta span{font-size:11px;color:var(--dim);font-weight:400}
+.cover-item .meta .gold{color:var(--gold)}
+.cover-item .slot{font-style:italic;font-family:Georgia,serif;font-size:12px;color:var(--dim)}
+
+/* Headlines - activity */
+.headlines{padding:16px 0}
+.headline{padding:12px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.headline:last-child{border:none}
+.headline .h-title{font-size:15px;font-weight:700;line-height:1.3}
+.headline .h-meta{font-size:10px;color:var(--dim);font-weight:400;margin-top:4px;display:flex;justify-content:space-between}
+.headline .h-fx{color:var(--gold)}
+
+/* Actions - text links */
+.nav-links{display:flex;gap:24px;padding:32px 0;flex-wrap:wrap}
+.nav-link{font-size:13px;font-weight:500;color:var(--text);text-decoration:underline;text-underline-offset:4px;cursor:pointer;text-decoration-color:rgba(255,255,255,.2);transition:text-decoration-color .2s}
+.nav-link:hover{text-decoration-color:var(--gold)}
+
+/* Dock */
+.dock{position:absolute;bottom:0;left:0;right:0;height:50px;background:var(--bg);border-top:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-around;z-index:100}
+.dock-btn{background:none;border:none;color:var(--dim);font-family:var(--sans);font-size:11px;font-weight:500;cursor:pointer;letter-spacing:2px;padding:8px}
+.dock-btn.active{color:var(--gold)}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="scroll">
+
+  <!-- HERO -->
+  <div class="hero">
+    <h1>LIFE</h1>
+    <div class="sub">DAY 47 / LEVEL 7</div>
+    <div class="xp-row">
+      <div class="xp-bar"><div class="xp-fill"></div></div>
+      <span class="xp-text">340 / 680 XP</span>
+    </div>
+  </div>
+  <hr>
+
+  <!-- BY THE NUMBERS -->
+  <div class="sec"><h2>By the Numbers</h2><div class="italic">Your stats at a glance</div></div>
+  <div class="stats-editorial">
+    <div class="stat-ed"><div class="num" style="color:#ffcb1c">$1,240</div><div class="lbl">Money</div></div>
+    <div class="stat-ed"><div class="num" style="color:#40e382">18</div><div class="lbl">Health</div></div>
+    <div class="stat-ed"><div class="num" style="color:#ff7b00">12</div><div class="lbl">Boldness</div></div>
+    <div class="stat-ed"><div class="num" style="color:#ff3b30">4</div><div class="lbl">Fear</div></div>
+    <div class="stat-ed"><div class="num" style="color:#4ec8ff">9</div><div class="lbl">Social</div></div>
+    <div class="stat-ed"><div class="num" style="color:#ff3366">7</div><div class="lbl">Charm</div></div>
+    <div class="stat-ed"><div class="num" style="color:#c852ff">6</div><div class="lbl">Sex Appeal</div></div>
+    <div class="stat-ed"><div class="num" style="color:#ffe81a">8</div><div class="lbl">Power</div></div>
+    <div class="stat-ed"><div class="num" style="color:#ff6e40">5</div><div class="lbl">Fight</div></div>
+    <div class="stat-ed"><div class="num" style="color:#40e382">8</div><div class="lbl">Looks</div></div>
+    <div class="stat-ed"><div class="num" style="color:#a78bfa">14</div><div class="lbl">Vibe</div></div>
+    <div class="stat-ed"><div class="num" style="color:#fff">47</div><div class="lbl">Days</div></div>
+  </div>
+  <hr>
+
+  <!-- FEATURE: ENCOUNTER -->
+  <div class="sec"><h2>Your Encounter Rate</h2><div class="italic">The probability of meeting someone new</div></div>
+  <div class="feature">
+    <div class="big">62%</div>
+    <div class="caption">3&#9733; expected rarity / Taken: 2 / Talking: 3</div>
+    <div class="bar"><div class="bar-fill"></div></div>
+  </div>
+  <hr>
+
+  <!-- COVER STORY: RELATIONSHIPS -->
+  <div class="sec"><h2>Cover Story</h2><div class="italic">The women in your life</div></div>
+  <div class="cover">
+    <div class="cover-item">
+      <div class="name">Luna</div>
+      <div class="slot">The One</div>
+      <div class="meta"><span class="gold">&#9733;&#9733;&#9733;&#9733;&#9733; Legendary</span><span>Slot 1 / Locked</span></div>
+    </div>
+    <div class="cover-item">
+      <div class="name">Mia</div>
+      <div class="slot">Commons</div>
+      <div class="meta"><span>&#9733;&#9733;&#9733; Rare</span><span>Slot 2 / Active</span></div>
+    </div>
+    <div class="cover-item">
+      <div class="name">Ava</div>
+      <div class="slot">Commons</div>
+      <div class="meta"><span>&#9733;&#9733;&#9733;&#9733; Epic</span><span>Slot 2 / Active</span></div>
+    </div>
+  </div>
+  <hr>
+
+  <!-- LATEST HEADLINES -->
+  <div class="sec"><h2>Latest Headlines</h2><div class="italic">Today's activity log</div></div>
+  <div class="headlines">
+    <div class="headline">
+      <div class="h-title">Gym Session Completed</div>
+      <div class="h-meta"><span>16:40 — Fitness</span><span class="h-fx">+2 Health, +2 Power, +1 Sex Appeal</span></div>
+    </div>
+    <div class="headline">
+      <div class="h-title">Met Iris at Coffee Shop</div>
+      <div class="h-meta"><span>14:22 — Encounter</span><span class="h-fx">3&#9733; Rare</span></div>
+    </div>
+    <div class="headline">
+      <div class="h-title">Part-Time Job Shift</div>
+      <div class="h-meta"><span>10:00 — Work</span><span class="h-fx">+$25, -2 Health</span></div>
+    </div>
+    <div class="headline">
+      <div class="h-title">Cold Approach Success</div>
+      <div class="h-meta"><span>09:15 — Social</span><span class="h-fx">+3 Boldness, -1 Fear</span></div>
+    </div>
+  </div>
+  <hr>
+
+  <!-- NAV LINKS -->
+  <div class="nav-links">
+    <span class="nav-link">Activities</span>
+    <span class="nav-link">Meet Someone</span>
+    <span class="nav-link">Roster</span>
+    <span class="nav-link">End Day</span>
+  </div>
+
+</div>
+
+<nav class="dock">
+  <button class="dock-btn">Activities</button>
+  <button class="dock-btn">Meet</button>
+  <button class="dock-btn active">Home</button>
+  <button class="dock-btn">Girls</button>
+  <button class="dock-btn">World</button>
+</nav>
+</div>
+</body>
+</html>

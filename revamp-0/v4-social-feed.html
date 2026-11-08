@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>V4 — Social Feed</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0f0f0f;--card:#1a1a1a;--card2:#202020;--text:#fff;--dim:#777;--muted:#444;--accent:#5b7fff;--pink:#ff4080;--gold:#ffcb1c;--green:#40e382;--sans:'Inter',sans-serif}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--sans)}
+#app{max-width:414px;height:100%;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.scroll{flex:1;overflow-y:auto;padding:0 0 100px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+.stories{display:flex;gap:14px;padding:20px 16px 12px;overflow-x:auto;scrollbar-width:none}
+.stories::-webkit-scrollbar{display:none}
+.story{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0}
+.story-ring{width:60px;height:60px;border-radius:50%;padding:3px;background:linear-gradient(135deg,var(--pink),var(--accent))}
+.story-ring.gold{background:linear-gradient(135deg,var(--gold),#ff8c00)}
+.story-ring.dim{background:var(--muted)}
+.story-inner{width:100%;height:100%;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:var(--dim)}
+.story-name{font-size:10px;color:var(--dim);font-weight:500}
+.meet-thin{height:3px;background:var(--muted);margin:0 16px 8px}
+.meet-thin-fill{height:100%;width:62%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:3px}
+.meet-meta{display:flex;justify-content:space-between;padding:0 16px 16px;font-size:10px;color:var(--dim)}
+.chips{display:flex;gap:8px;padding:0 16px 16px;overflow-x:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex-shrink:0;padding:6px 14px;background:var(--card);border-radius:999px;font-size:12px;font-weight:600;display:flex;gap:6px;align-items:center}
+.chip .v{font-weight:800}
+.feed{display:flex;flex-direction:column;gap:16px;padding:0 16px}
+.fcard{background:var(--card);border-radius:20px;overflow:hidden}
+.fcard-head{display:flex;align-items:center;gap:10px;padding:14px 16px 0}
+.fcard-icon{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800}
+.fcard-icon.blue{background:rgba(91,127,255,.15);color:var(--accent)}
+.fcard-icon.pink{background:rgba(255,64,128,.15);color:var(--pink)}
+.fcard-icon.green{background:rgba(64,227,130,.15);color:var(--green)}
+.fcard-icon.gold{background:rgba(255,203,28,.15);color:var(--gold)}
+.fcard-title{font-size:13px;font-weight:700}
+.fcard-time{font-size:10px;color:var(--dim);margin-left:auto}
+.fcard-body{padding:12px 16px 16px}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.sg-item{text-align:center}
+.sg-item .n{font-size:22px;font-weight:800}
+.sg-item .l{font-size:9px;color:var(--dim);letter-spacing:1px;margin-top:2px}
+.rel-card{display:flex;align-items:center;gap:12px;padding:8px 0}
+.rel-avatar{width:40px;height:40px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:var(--dim)}
+.rel-info .rname{font-size:14px;font-weight:700}
+.rel-info .rstatus{font-size:11px;color:var(--dim)}
+.act-line{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px}
+.act-line:last-child{border:none}
+.act-line .fx{color:var(--green);font-size:11px;font-weight:600}
+.fab{position:fixed;bottom:76px;right:calc(50% - 187px);width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--pink),var(--accent));border:none;color:#fff;font-size:28px;cursor:pointer;box-shadow:0 4px 20px rgba(91,127,255,.4);z-index:200;display:flex;align-items:center;justify-content:center}
+.dock{position:absolute;bottom:0;left:0;right:0;height:56px;background:rgba(15,15,15,.95);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-around;z-index:100}
+.dock-btn{background:none;border:none;color:var(--dim);font-size:9px;font-weight:500;cursor:pointer;padding:8px;font-family:var(--sans)}
+.dock-btn.active{color:var(--text)}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="scroll">
+  <div class="stories">
+    <div class="story"><div class="story-ring gold"><div class="story-inner">L</div></div><span class="story-name">Luna</span></div>
+    <div class="story"><div class="story-ring"><div class="story-inner">M</div></div><span class="story-name">Mia</span></div>
+    <div class="story"><div class="story-ring"><div class="story-inner">A</div></div><span class="story-name">Ava</span></div>
+    <div class="story"><div class="story-ring dim"><div class="story-inner">I</div></div><span class="story-name">Iris</span></div>
+    <div class="story"><div class="story-ring dim"><div class="story-inner">Z</div></div><span class="story-name">Zoe</span></div>
+    <div class="story"><div class="story-ring dim"><div class="story-inner">+</div></div><span class="story-name">Meet</span></div>
+  </div>
+  <div class="meet-thin"><div class="meet-thin-fill"></div></div>
+  <div class="meet-meta"><span>Encounter 62%</span><span>3&#9733; expected</span></div>
+  <div class="chips">
+    <div class="chip"><span style="color:#ffcb1c">$</span><span class="v">1,240</span></div>
+    <div class="chip"><span style="color:#40e382">HP</span><span class="v">18</span></div>
+    <div class="chip"><span style="color:#5b7fff">SOC</span><span class="v">9</span></div>
+    <div class="chip"><span style="color:#a78bfa">VIB</span><span class="v">14</span></div>
+    <div class="chip"><span style="color:#ff4080">CHM</span><span class="v">7</span></div>
+    <div class="chip"><span>LVL</span><span class="v">7</span></div>
+  </div>
+  <div class="feed">
+    <div class="fcard">
+      <div class="fcard-head"><div class="fcard-icon blue">D</div><span class="fcard-title">Daily Status</span><span class="fcard-time">Day 47</span></div>
+      <div class="fcard-body">
+        <div class="stats-grid">
+          <div class="sg-item"><div class="n" style="color:#ffcb1c">$1.2k</div><div class="l">MONEY</div></div>
+          <div class="sg-item"><div class="n" style="color:#40e382">18</div><div class="l">HEALTH</div></div>
+          <div class="sg-item"><div class="n" style="color:#ff7b00">12</div><div class="l">BOLD</div></div>
+          <div class="sg-item"><div class="n" style="color:#5b7fff">9</div><div class="l">SOCIAL</div></div>
+          <div class="sg-item"><div class="n" style="color:#ff4080">7</div><div class="l">CHARM</div></div>
+          <div class="sg-item"><div class="n" style="color:#c852ff">6</div><div class="l">SEX APL</div></div>
+          <div class="sg-item"><div class="n" style="color:#ffe81a">8</div><div class="l">POWER</div></div>
+          <div class="sg-item"><div class="n" style="color:#ff6e40">5</div><div class="l">FIGHT</div></div>
+          <div class="sg-item"><div class="n" style="color:#a78bfa">14</div><div class="l">VIBE</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="fcard">
+      <div class="fcard-head"><div class="fcard-icon gold">R</div><span class="fcard-title">Relationships</span><span class="fcard-time">2 taken</span></div>
+      <div class="fcard-body">
+        <div class="rel-card"><div class="rel-avatar">L</div><div class="rel-info"><div class="rname">Luna &#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="rstatus">The One — Legendary</div></div></div>
+        <div class="rel-card"><div class="rel-avatar">M</div><div class="rel-info"><div class="rname">Mia &#9733;&#9733;&#9733;</div><div class="rstatus">Commons — Rare</div></div></div>
+        <div class="rel-card"><div class="rel-avatar">A</div><div class="rel-info"><div class="rname">Ava &#9733;&#9733;&#9733;&#9733;</div><div class="rstatus">Commons — Epic</div></div></div>
+      </div>
+    </div>
+    <div class="fcard">
+      <div class="fcard-head"><div class="fcard-icon green">A</div><span class="fcard-title">Recent Activity</span><span class="fcard-time">Today</span></div>
+      <div class="fcard-body">
+        <div class="act-line"><span>Gym Session</span><span class="fx">+2 HP, +2 PWR</span></div>
+        <div class="act-line"><span>Met Iris @ Coffee Shop</span><span class="fx">3&#9733; Rare</span></div>
+        <div class="act-line"><span>Part-time Job shift</span><span class="fx">+$25</span></div>
+        <div class="act-line"><span>Cold Approach</span><span class="fx">+3 BOLD</span></div>
+      </div>
+    </div>
+    <div class="fcard">
+      <div class="fcard-head"><div class="fcard-icon pink">E</div><span class="fcard-title">Encounter Ready</span><span class="fcard-time">62%</span></div>
+      <div class="fcard-body" style="text-align:center;padding:24px 16px">
+        <div style="font-size:48px;font-weight:900;background:linear-gradient(135deg,var(--accent),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent">62%</div>
+        <div style="font-size:12px;color:var(--dim);margin-top:8px">3&#9733; Expected Rarity</div>
+        <button style="margin-top:16px;padding:12px 32px;border-radius:999px;background:linear-gradient(135deg,var(--pink),var(--accent));border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--sans)">GO OUT</button>
+      </div>
+    </div>
+  </div>
+</div>
+<button class="fab">+</button>
+<nav class="dock">
+  <button class="dock-btn">Activities</button>
+  <button class="dock-btn">Meet</button>
+  <button class="dock-btn active">Home</button>
+  <button class="dock-btn">Girls</button>
+  <button class="dock-btn">World</button>
+</nav>
+</div>
+</body>
+</html>

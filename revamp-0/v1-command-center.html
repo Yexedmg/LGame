@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>V1 — Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0e1a;--card:#0f1524;--green:#00ff41;--amber:#ffb300;--red:#ff3b30;--dim-green:rgba(0,255,65,.08);--dim-amber:rgba(255,179,0,.08);--border:rgba(0,255,65,.15);--border-amber:rgba(255,179,0,.15);--text:#c8d6c8;--text-dim:#5a6a5a;--mono:'JetBrains Mono',monospace}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--mono)}
+body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,65,.015) 2px,rgba(0,255,65,.015) 4px);pointer-events:none;z-index:9999}
+#app{max-width:420px;height:100%;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.scroll{flex:1;overflow-y:auto;padding:20px 20px 100px;scrollbar-width:thin;scrollbar-color:rgba(0,255,65,.2) transparent}
+.scroll::-webkit-scrollbar{width:3px}
+.scroll::-webkit-scrollbar-thumb{background:rgba(0,255,65,.2)}
+
+/* Header */
+.hdr{display:flex;align-items:center;gap:14px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.lvl-badge{width:60px;height:60px;background:var(--dim-green);border:2px solid var(--green);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(0,255,65,.15)}
+.lvl-num{font-size:26px;font-weight:800;color:var(--green)}
+.lvl-lbl{font-size:8px;letter-spacing:3px;color:var(--green);opacity:.7}
+.hdr-info{flex:1}
+.hdr-title{font-size:16px;font-weight:800;letter-spacing:4px;color:var(--green)}
+.hdr-sub{font-size:10px;color:var(--text-dim);margin-top:4px;letter-spacing:1px}
+.menu-btn{width:40px;height:40px;background:var(--dim-green);border:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;cursor:pointer}
+.menu-btn span{width:16px;height:2px;background:var(--green)}
+
+/* XP bar */
+.xp-wrap{margin-top:20px}
+.xp-label{font-size:9px;letter-spacing:2px;color:var(--text-dim);margin-bottom:6px}
+.xp-bar{height:36px;background:rgba(0,255,65,.06);border:1px solid var(--border);position:relative;overflow:hidden}
+.xp-fill{height:100%;width:50%;background:linear-gradient(90deg,#004d00,#00ff41);box-shadow:0 0 15px rgba(0,255,65,.3);transition:width .4s}
+.xp-text{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;text-shadow:0 0 6px rgba(0,0,0,.8)}
+
+/* Section headers */
+.sec{display:flex;align-items:center;gap:10px;margin:28px 0 12px;font-size:10px;font-weight:700;letter-spacing:3px;color:var(--green);text-transform:uppercase}
+.sec::after{content:'';flex:1;height:1px;background:var(--border)}
+.sec.amber{color:var(--amber)}
+.sec.amber::after{background:var(--border-amber)}
+
+/* Stat groups */
+.stat-group{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat-card{background:var(--card);border:1px solid var(--border);padding:14px;display:flex;flex-direction:column;gap:4px}
+.stat-card.amber{border-color:var(--border-amber)}
+.stat-card .s-label{font-size:8px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase}
+.stat-card .s-val{font-size:32px;font-weight:800;line-height:1}
+.stat-card .s-bar{height:4px;background:rgba(255,255,255,.06);margin-top:6px}
+.stat-card .s-bar-fill{height:100%;transition:width .3s}
+.green .s-val{color:var(--green)}
+.green .s-bar-fill{background:var(--green)}
+.amber .s-val{color:var(--amber)}
+.amber .s-bar-fill{background:var(--amber)}
+.red .s-val{color:var(--red)}
+.red .s-bar-fill{background:var(--red)}
+.cyan .s-val{color:#4ec8ff}
+.cyan .s-bar-fill{background:#4ec8ff}
+.pink .s-val{color:#ff3366}
+.pink .s-bar-fill{background:#ff3366}
+.purple .s-val{color:#c852ff}
+.purple .s-bar-fill{background:#c852ff}
+.gold .s-val{color:#ffcb1c}
+.gold .s-bar-fill{background:#ffcb1c}
+.orange .s-val{color:#ff7b00}
+.orange .s-bar-fill{background:#ff7b00}
+
+/* Meet bar - RADAR */
+.radar-wrap{margin:12px 0}
+.radar-label{font-size:9px;letter-spacing:2px;color:var(--amber);margin-bottom:6px;display:flex;justify-content:space-between}
+.radar-bar{height:28px;background:rgba(255,179,0,.06);border:1px solid var(--border-amber);position:relative;overflow:hidden}
+.radar-fill{height:100%;width:62%;background:linear-gradient(90deg,#4d3600,var(--amber));box-shadow:0 0 12px rgba(255,179,0,.25)}
+.radar-text{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff}
+
+/* Quick actions */
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.act-btn{width:100%;height:80px;background:var(--card);border:2px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;color:var(--green);font-family:var(--mono);transition:all .15s}
+.act-btn:hover{background:var(--dim-green);box-shadow:0 0 15px rgba(0,255,65,.1)}
+.act-btn .ico{font-size:20px;font-weight:800}
+.act-btn .lbl{font-size:9px;letter-spacing:2px}
+
+/* Asset cards (relationships) */
+.asset{background:var(--card);border:1px solid var(--border-amber);padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:14px}
+.asset .rank{width:44px;height:44px;background:var(--dim-amber);border:1px solid var(--border-amber);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:var(--amber)}
+.asset .info .name{font-weight:700;font-size:14px;color:#fff}
+.asset .info .stars{font-size:11px;color:var(--amber);margin-top:2px}
+.asset .info .status{font-size:9px;color:var(--text-dim);margin-top:2px;letter-spacing:1px}
+
+/* Activity log */
+.log-item{display:flex;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--card);border:1px solid rgba(0,255,65,.06);margin-bottom:4px;font-size:11px;color:var(--text)}
+.log-item .t{color:var(--text-dim);font-size:9px;flex-shrink:0}
+
+/* Dock */
+.dock{position:absolute;bottom:0;left:0;right:0;height:64px;background:#060a14;border-top:2px solid var(--border);display:flex;align-items:center;justify-content:space-around;z-index:100}
+.dock-btn{background:none;border:none;color:var(--text-dim);font-family:var(--mono);font-size:9px;letter-spacing:2px;cursor:pointer;padding:8px 4px;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:4px}
+.dock-btn.active{color:var(--green)}
+.dock-btn .d-ico{font-size:16px;font-weight:800}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="scroll">
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="lvl-badge"><span class="lvl-num">7</span><span class="lvl-lbl">LVL</span></div>
+    <div class="hdr-info">
+      <div class="hdr-title">LIFE::OPS</div>
+      <div class="hdr-sub">DAY 47 // TAKEN: 2 / TALKING: 3</div>
+    </div>
+    <button class="menu-btn"><span></span><span></span><span></span></button>
+  </div>
+
+  <!-- XP -->
+  <div class="xp-wrap">
+    <div class="xp-label">EXPERIENCE PROGRESS</div>
+    <div class="xp-bar"><div class="xp-fill"></div><span class="xp-text">340 / 680 XP</span></div>
+  </div>
+
+  <!-- VITALS -->
+  <div class="sec">VITALS</div>
+  <div class="stat-group">
+    <div class="stat-card gold"><div class="s-label">Money</div><div class="s-val">$1,240</div><div class="s-bar"><div class="s-bar-fill" style="width:62%;background:#ffcb1c"></div></div></div>
+    <div class="stat-card green"><div class="s-label">Health</div><div class="s-val">18</div><div class="s-bar"><div class="s-bar-fill" style="width:72%;background:var(--green)"></div></div></div>
+    <div class="stat-card red"><div class="s-label">Fear</div><div class="s-val">4</div><div class="s-bar"><div class="s-bar-fill" style="width:16%;background:var(--red)"></div></div></div>
+    <div class="stat-card green"><div class="s-label">Vibe</div><div class="s-val">14</div><div class="s-bar"><div class="s-bar-fill" style="width:56%;background:var(--green)"></div></div></div>
+  </div>
+
+  <!-- COMBAT READINESS -->
+  <div class="sec amber">COMBAT READINESS</div>
+  <div class="stat-group">
+    <div class="stat-card amber"><div class="s-label">Boldness</div><div class="s-val">12</div><div class="s-bar"><div class="s-bar-fill" style="width:48%;background:var(--amber)"></div></div></div>
+    <div class="stat-card orange"><div class="s-label">Power</div><div class="s-val">8</div><div class="s-bar"><div class="s-bar-fill" style="width:32%;background:#ff7b00"></div></div></div>
+    <div class="stat-card orange"><div class="s-label">Fight</div><div class="s-val">5</div><div class="s-bar"><div class="s-bar-fill" style="width:20%;background:#ff7b00"></div></div></div>
+    <div class="stat-card green"><div class="s-label">Looks</div><div class="s-val">8</div><div class="s-bar"><div class="s-bar-fill" style="width:32%;background:var(--green)"></div></div></div>
+  </div>
+
+  <!-- SOCIAL OPS -->
+  <div class="sec">SOCIAL OPS</div>
+  <div class="stat-group">
+    <div class="stat-card cyan"><div class="s-label">Social</div><div class="s-val">9</div><div class="s-bar"><div class="s-bar-fill" style="width:36%;background:#4ec8ff"></div></div></div>
+    <div class="stat-card pink"><div class="s-label">Charm</div><div class="s-val">7</div><div class="s-bar"><div class="s-bar-fill" style="width:28%;background:#ff3366"></div></div></div>
+    <div class="stat-card purple"><div class="s-label">Sex Appeal</div><div class="s-val">6</div><div class="s-bar"><div class="s-bar-fill" style="width:24%;background:#c852ff"></div></div></div>
+  </div>
+
+  <!-- RADAR LOCK (Meet) -->
+  <div class="sec amber">RADAR LOCK</div>
+  <div class="radar-wrap">
+    <div class="radar-label"><span>ENCOUNTER SCAN</span><span>3&#9733; expected</span></div>
+    <div class="radar-bar"><div class="radar-fill"></div><span class="radar-text">62% LOCKED</span></div>
+  </div>
+
+  <!-- QUICK OPS -->
+  <div class="sec">QUICK OPS</div>
+  <div class="actions">
+    <button class="act-btn"><span class="ico">ACT</span><span class="lbl">Activities</span></button>
+    <button class="act-btn"><span class="ico">MEET</span><span class="lbl">Go Out</span></button>
+    <button class="act-btn"><span class="ico">RSTR</span><span class="lbl">Roster</span></button>
+    <button class="act-btn"><span class="ico">END</span><span class="lbl">End Day</span></button>
+  </div>
+
+  <!-- ASSETS (Relationships) -->
+  <div class="sec amber">ASSETS</div>
+  <div class="asset"><div class="rank">S1</div><div class="info"><div class="name">Luna</div><div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733; Legendary</div><div class="status">THE ONE // LOCKED</div></div></div>
+  <div class="asset"><div class="rank">S2</div><div class="info"><div class="name">Mia</div><div class="stars">&#9733;&#9733;&#9733;&#9734;&#9734; Rare</div><div class="status">COMMONS // ACTIVE</div></div></div>
+  <div class="asset"><div class="rank">S2</div><div class="info"><div class="name">Ava</div><div class="stars">&#9733;&#9733;&#9733;&#9733;&#9734; Epic</div><div class="status">COMMONS // ACTIVE</div></div></div>
+
+  <!-- ACTIVITY LOG -->
+  <div class="sec">COMMS LOG</div>
+  <div class="log-item"><span>Gym Session completed. +2 HP, +2 PWR, +1 SEX</span><span class="t">16:40</span></div>
+  <div class="log-item"><span>Met Iris at Coffee Shop. 3&#9733; Rare.</span><span class="t">14:22</span></div>
+  <div class="log-item"><span>Part-time Job shift. +$25, -2 HP</span><span class="t">10:00</span></div>
+  <div class="log-item"><span>Cold Approach success. +3 Bold, -1 Fear</span><span class="t">09:15</span></div>
+</div>
+
+<!-- DOCK -->
+<nav class="dock">
+  <button class="dock-btn"><span class="d-ico">ACT</span>Activities</button>
+  <button class="dock-btn"><span class="d-ico">MET</span>Meet</button>
+  <button class="dock-btn active"><span class="d-ico">HQ</span>Home</button>
+  <button class="dock-btn"><span class="d-ico">GRL</span>Girls</button>
+  <button class="dock-btn"><span class="d-ico">MAP</span>World</button>
+</nav>
+</div>
+</body>
+</html>

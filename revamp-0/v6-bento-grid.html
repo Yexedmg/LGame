@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>V6 — Bento Grid</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#111;--cell:#1a1a1a;--text:#fff;--dim:#666;--muted:#333;--mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--sans)}
+#app{max-width:460px;height:100%;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.scroll{flex:1;overflow-y:auto;padding:10px 10px 80px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;grid-auto-rows:auto}
+.cell{background:var(--cell);border-radius:20px;padding:18px;overflow:hidden;display:flex;flex-direction:column;justify-content:center}
+.c2{grid-column:span 2}
+.c3{grid-column:span 3}
+.c4{grid-column:span 4}
+.r2{grid-row:span 2}
+
+/* Title cell */
+.cell-title{background:linear-gradient(135deg,#1a1a2e,#1a1a1a)}
+.cell-title .t{font-family:var(--mono);font-size:22px;font-weight:800;letter-spacing:3px}
+.cell-title .lvl{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:4px 12px;background:rgba(255,255,255,.06);border-radius:999px;font-size:12px;font-weight:700}
+.cell-title .day{font-size:11px;color:var(--dim);margin-top:6px;font-family:var(--mono)}
+
+/* XP cell */
+.cell-xp{background:linear-gradient(135deg,#1a1028,#1a1a1a)}
+.cell-xp .lbl{font-size:10px;color:var(--dim);letter-spacing:2px;font-family:var(--mono);font-weight:700;text-transform:uppercase}
+.cell-xp .pct{font-size:36px;font-weight:900;background:linear-gradient(135deg,#ff3366,#c852ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;margin:8px 0}
+.cell-xp .bar{height:6px;background:var(--muted);border-radius:6px;overflow:hidden}
+.cell-xp .bar-fill{height:100%;width:50%;background:linear-gradient(90deg,#ff3366,#c852ff);border-radius:6px}
+.cell-xp .sub{font-size:10px;color:var(--dim);margin-top:6px}
+
+/* Meet cell */
+.cell-meet{background:linear-gradient(135deg,#0a1a1a,#1a1a1a)}
+.cell-meet .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.cell-meet .lbl{font-size:10px;color:var(--dim);letter-spacing:2px;font-family:var(--mono);font-weight:700}
+.cell-meet .pct{font-size:14px;font-weight:800;color:#4ec8ff;font-family:var(--mono)}
+.cell-meet .bar{height:8px;background:var(--muted);border-radius:8px;overflow:hidden}
+.cell-meet .bar-fill{height:100%;width:62%;background:linear-gradient(90deg,#4ec8ff,#40e382);border-radius:8px;box-shadow:0 0 10px rgba(78,200,255,.3)}
+.cell-meet .tag{font-size:10px;color:var(--dim);margin-top:6px}
+
+/* Stat cells */
+.cell-stat{position:relative}
+.cell-stat .num{font-family:var(--mono);font-size:42px;font-weight:800;line-height:1}
+.cell-stat .lbl{font-size:10px;color:var(--dim);letter-spacing:2px;font-family:var(--mono);margin-top:6px;text-transform:uppercase}
+.cell-stat.money{background:linear-gradient(135deg,#1a1810,#1a1a1a)}
+.cell-stat.money .num{color:#ffcb1c}
+.cell-stat.health{background:linear-gradient(135deg,#0a1a10,#1a1a1a)}
+.cell-stat.health .num{color:#40e382}
+.cell-stat.bold{background:linear-gradient(135deg,#1a1208,#1a1a1a)}
+.cell-stat.bold .num{color:#ff7b00}
+.cell-stat.social{background:linear-gradient(135deg,#0a1420,#1a1a1a)}
+.cell-stat.social .num{color:#4ec8ff}
+.cell-stat.charm{background:linear-gradient(135deg,#1a0a18,#1a1a1a)}
+.cell-stat.charm .num{color:#ff3366}
+.cell-stat.vibe{background:linear-gradient(135deg,#14081a,#1a1a1a)}
+.cell-stat.vibe .num{color:#c852ff}
+
+/* Combined stat cell */
+.cell-duo{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.duo-item .n{font-family:var(--mono);font-size:28px;font-weight:800;line-height:1}
+.duo-item .l{font-size:9px;color:var(--dim);letter-spacing:2px;font-family:var(--mono);margin-top:4px;text-transform:uppercase}
+
+/* Relationships cell */
+.cell-rel{background:linear-gradient(135deg,#1a1610,#1a1a1a)}
+.cell-rel .sec{font-size:9px;color:var(--dim);letter-spacing:2px;font-family:var(--mono);margin-bottom:10px;text-transform:uppercase}
+.rel-item{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.rel-item:last-child{margin:0}
+.rel-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.rel-dot.gold{background:#ffcb1c;box-shadow:0 0 8px rgba(255,203,28,.4)}
+.rel-dot.blue{background:#4ec8ff;box-shadow:0 0 8px rgba(78,200,255,.3)}
+.rel-item .name{font-size:14px;font-weight:700}
+.rel-item .tag{font-size:10px;color:var(--dim);margin-left:auto;font-family:var(--mono)}
+
+/* Actions cell */
+.cell-actions .mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mini-btn{padding:14px 8px;background:rgba(255,255,255,.04);border-radius:12px;border:none;color:var(--text);font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;text-align:center;letter-spacing:1px;transition:background .15s}
+.mini-btn:hover{background:rgba(255,255,255,.08)}
+
+/* Feed cell */
+.cell-feed .sec{font-size:9px;color:var(--dim);letter-spacing:2px;font-family:var(--mono);margin-bottom:10px;text-transform:uppercase}
+.feed-item{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px}
+.feed-item:last-child{border:none}
+.feed-item .t{color:var(--dim);font-size:10px;font-family:var(--mono)}
+
+/* Dock */
+.dock{position:absolute;bottom:0;left:0;right:0;height:56px;background:rgba(17,17,17,.95);backdrop-filter:blur(20px);border-top:1px solid var(--muted);display:flex;align-items:center;justify-content:space-around;z-index:100}
+.dock-btn{background:none;border:none;color:var(--dim);font-family:var(--sans);font-size:10px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
+.dock-btn .ico{font-family:var(--mono);font-size:14px;font-weight:800}
+.dock-btn.active{color:var(--text)}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="scroll">
+<div class="grid">
+  <!-- Row 1: Title + XP -->
+  <div class="cell cell-title c2">
+    <div class="t">LIFE</div>
+    <div class="lvl"><span style="color:#ff3366">7</span> LVL</div>
+    <div class="day">Day 47 // 2:3</div>
+  </div>
+  <div class="cell cell-xp c2">
+    <div class="lbl">Experience</div>
+    <div class="pct">50%</div>
+    <div class="bar"><div class="bar-fill"></div></div>
+    <div class="sub">340 / 680 XP</div>
+  </div>
+
+  <!-- Row 2: Meet bar full width -->
+  <div class="cell cell-meet c4">
+    <div class="top"><span class="lbl">Encounter Rate</span><span class="pct">62%</span></div>
+    <div class="bar"><div class="bar-fill"></div></div>
+    <div class="tag">3&#9733; expected rarity</div>
+  </div>
+
+  <!-- Row 3: Stats -->
+  <div class="cell cell-stat money"><div class="num">$1.2k</div><div class="lbl">Money</div></div>
+  <div class="cell cell-stat health"><div class="num">18</div><div class="lbl">Health</div></div>
+  <div class="cell cell-stat bold"><div class="num">12</div><div class="lbl">Bold</div></div>
+  <div class="cell cell-stat social"><div class="num">9</div><div class="lbl">Social</div></div>
+
+  <!-- Row 4: Combined + single -->
+  <div class="cell c2" style="background:linear-gradient(135deg,#1a0a18,#1a1a1a)">
+    <div class="cell-duo">
+      <div class="duo-item"><div class="n" style="color:#ff3366">7</div><div class="l">Charm</div></div>
+      <div class="duo-item"><div class="n" style="color:#c852ff">6</div><div class="l">Sex Apl</div></div>
+    </div>
+  </div>
+  <div class="cell cell-stat vibe"><div class="num">14</div><div class="lbl">Vibe</div></div>
+  <div class="cell cell-stat" style="background:linear-gradient(135deg,#1a1208,#1a1a1a)">
+    <div class="cell-duo">
+      <div class="duo-item"><div class="n" style="color:#ffe81a">8</div><div class="l">Power</div></div>
+      <div class="duo-item"><div class="n" style="color:#ff6e40">5</div><div class="l">Fight</div></div>
+    </div>
+  </div>
+
+  <!-- Row 5-6: Relationships (tall) + Actions -->
+  <div class="cell cell-rel c2 r2">
+    <div class="sec">Relationships</div>
+    <div class="rel-item"><div class="rel-dot gold"></div><span class="name">Luna</span><span class="tag">&#9733;5 THE ONE</span></div>
+    <div class="rel-item"><div class="rel-dot blue"></div><span class="name">Mia</span><span class="tag">&#9733;3 COMMON</span></div>
+    <div class="rel-item"><div class="rel-dot blue"></div><span class="name">Ava</span><span class="tag">&#9733;4 COMMON</span></div>
+  </div>
+  <div class="cell cell-actions c2">
+    <div class="mini-grid">
+      <button class="mini-btn">ACT</button>
+      <button class="mini-btn">MEET</button>
+      <button class="mini-btn">ROSTER</button>
+      <button class="mini-btn">END DAY</button>
+    </div>
+  </div>
+
+  <!-- Row 7: Feed full width -->
+  <div class="cell cell-feed c4">
+    <div class="sec">Recent Activity</div>
+    <div class="feed-item"><span>Gym Session — +2 HP, +2 PWR, +1 SEX</span><span class="t">16:40</span></div>
+    <div class="feed-item"><span>Met Iris at Coffee Shop — 3&#9733; Rare</span><span class="t">14:22</span></div>
+    <div class="feed-item"><span>Part-time Job shift — +$25, -2 HP</span><span class="t">10:00</span></div>
+    <div class="feed-item"><span>Cold Approach success — +3 Bold</span><span class="t">09:15</span></div>
+  </div>
+</div>
+</div>
+
+<nav class="dock">
+  <button class="dock-btn"><span class="ico">ACT</span>Activities</button>
+  <button class="dock-btn"><span class="ico">MET</span>Meet</button>
+  <button class="dock-btn active"><span class="ico">HM</span>Home</button>
+  <button class="dock-btn"><span class="ico">GRL</span>Girls</button>
+  <button class="dock-btn"><span class="ico">MAP</span>World</button>
+</nav>
+</div>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>V5 — Dark Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#000;color:#00ff41;font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.8}
+#app{max-width:500px;height:100%;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.scroll{flex:1;overflow-y:auto;padding:20px 20px 90px;scrollbar-width:thin;scrollbar-color:rgba(0,255,65,.2) transparent}
+.scroll::-webkit-scrollbar{width:3px}
+.scroll::-webkit-scrollbar-thumb{background:rgba(0,255,65,.2)}
+*{text-shadow:0 0 5px rgba(0,255,65,.3)}
+.prompt{color:#00ff41;opacity:.6}
+.title{font-size:16px;font-weight:700;color:#00ff41;margin-bottom:4px}
+.dim{color:#2a5a2a}
+.white{color:#b0d0b0;text-shadow:0 0 3px rgba(176,208,176,.2)}
+.gold{color:#ffcb1c;text-shadow:0 0 5px rgba(255,203,28,.3)}
+.cyan{color:#00bcd4;text-shadow:0 0 5px rgba(0,188,212,.3)}
+.pink{color:#ff4080;text-shadow:0 0 5px rgba(255,64,128,.3)}
+.red{color:#ff3b30;text-shadow:0 0 5px rgba(255,59,48,.3)}
+.purple{color:#c852ff;text-shadow:0 0 5px rgba(200,82,255,.3)}
+.orange{color:#ff7b00;text-shadow:0 0 5px rgba(255,123,0,.3)}
+hr{border:none;border-top:1px solid #1a3a1a;margin:12px 0}
+.section{margin:16px 0}
+pre{white-space:pre-wrap;word-wrap:break-word;font-family:inherit;font-size:inherit;line-height:inherit}
+.bar-ascii{letter-spacing:1px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.cursor{display:inline-block;width:8px;height:16px;background:#00ff41;animation:blink 1s infinite;vertical-align:middle;margin-left:4px}
+.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.act-cmd{padding:8px 16px;border:1px solid #1a4a1a;background:rgba(0,255,65,.03);color:#00ff41;cursor:pointer;font-family:inherit;font-size:12px;letter-spacing:1px;transition:all .15s}
+.act-cmd:hover{background:rgba(0,255,65,.08);border-color:#00ff41}
+.dock{position:absolute;bottom:0;left:0;right:0;height:48px;background:#000;border-top:1px solid #1a3a1a;display:flex;align-items:center;justify-content:center;gap:4px;font-size:12px;z-index:100}
+.dock span{padding:6px 12px;color:#2a5a2a;cursor:pointer}
+.dock span.active{color:#00ff41}
+.dock .sep{color:#1a3a1a}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="scroll">
+<pre>
+<span class="prompt">$</span> <span class="title">LIFE v2.4 — MAINFRAME</span>
+<span class="dim">────────────────────────────────────────</span>
+<span class="prompt">></span> Session: Day 47 | LVL 7 | Taken: 2 | Talking: 3
+<span class="prompt">></span> Date: 2026-05-17
+
+<span class="prompt">$</span> <span class="white">cat /status/xp</span>
+<span class="dim">XP:</span> <span class="bar-ascii"><span style="color:#00ff41">████████████████████</span><span class="dim">░░░░░░░░░░░░░░░░░░░░</span></span> 340/680 (50%)
+
+<span class="prompt">$</span> <span class="white">cat /status/encounter</span>
+<span class="dim">ENCOUNTER:</span> <span class="bar-ascii"><span class="cyan">████████████████████████</span><span class="dim">░░░░░░░░░░░░░░░░</span></span> 62% <span class="cyan">[3&#9733; expected]</span>
+
+<span class="dim">────────────────────────────────────────</span>
+<span class="prompt">$</span> <span class="white">cat /stats/all</span>
+
+<span class="dim">STAT          VALUE  PROGRESS</span>
+<span class="dim">───────────── ───── ─────────────────────</span>
+<span class="gold">Money         $1240 ████████████░░░░░░░░░</span>
+<span style="color:#40e382">Health           18 ██████████████░░░░░░░</span>
+<span class="orange">Boldness         12 █████████░░░░░░░░░░░░</span>
+<span class="red">Fear              4 ███░░░░░░░░░░░░░░░░░░</span>
+<span class="cyan">Social            9 ███████░░░░░░░░░░░░░░</span>
+<span class="pink">Charm             7 █████░░░░░░░░░░░░░░░░</span>
+<span class="purple">Sex Appeal        6 ████░░░░░░░░░░░░░░░░░</span>
+<span class="gold">Power             8 ██████░░░░░░░░░░░░░░░</span>
+<span class="orange">Fight             5 ████░░░░░░░░░░░░░░░░░</span>
+<span style="color:#40e382">Looks             8 ██████░░░░░░░░░░░░░░░</span>
+<span class="cyan">Vibe             14 ███████████░░░░░░░░░░</span>
+
+<span class="dim">────────────────────────────────────────</span>
+<span class="prompt">$</span> <span class="white">ls /relationships/</span>
+
+<span class="prompt">></span> SLOT 1 — THE ONE
+  <span class="gold">Luna &#9733;&#9733;&#9733;&#9733;&#9733; Legendary [LOCKED]</span>
+
+<span class="prompt">></span> SLOT 2 — COMMONS
+  <span class="cyan">Mia &#9733;&#9733;&#9733;&#9734;&#9734; Rare    [ACTIVE]</span>
+  <span class="cyan">Ava &#9733;&#9733;&#9733;&#9733;&#9734; Epic    [ACTIVE]</span>
+
+<span class="dim">────────────────────────────────────────</span>
+<span class="prompt">$</span> <span class="white">tail -4 /var/log/activity</span>
+
+<span class="dim">[16:40]</span> <span class="white">Gym Session completed.</span> <span style="color:#40e382">+2 HP, +2 PWR, +1 SEX</span>
+<span class="dim">[14:22]</span> <span class="white">Met Iris at Coffee Shop.</span> <span class="cyan">3&#9733; Rare</span>
+<span class="dim">[10:00]</span> <span class="white">Part-time Job shift.</span> <span class="gold">+$25, -2 HP</span>
+<span class="dim">[09:15]</span> <span class="white">Cold Approach success.</span> <span class="orange">+3 Bold, -1 Fear</span>
+
+<span class="dim">────────────────────────────────────────</span>
+<span class="prompt">$</span> <span class="white">help</span>
+</pre>
+<div class="actions">
+  <button class="act-cmd">[1] ACT</button>
+  <button class="act-cmd">[2] MEET</button>
+  <button class="act-cmd">[3] ROSTER</button>
+  <button class="act-cmd">[4] END DAY</button>
+</div>
+<pre>
+<span class="prompt">$</span> <span class="cursor"></span>
+</pre>
+</div>
+
+<nav class="dock">
+  <span>ACT</span><span class="sep">|</span>
+  <span>MEET</span><span class="sep">|</span>
+  <span class="active">HOME</span><span class="sep">|</span>
+  <span>GIRLS</span><span class="sep">|</span>
+  <span>WORLD</span>
+</nav>
+</div>
+</body>
+</html>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>LIFE — Final Merged Revamp</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a1a;
+  --glass:rgba(255,255,255,.055);
+  --glass-strong:rgba(255,255,255,.08);
+  --glass-border:rgba(255,255,255,.1);
+  --glass-border-hi:rgba(255,255,255,.18);
+  --text:#fff;
+  --dim:rgba(255,255,255,.5);
+  --muted:rgba(255,255,255,.15);
+  --mono:'JetBrains Mono','SF Mono',monospace;
+  --sans:'Inter',-apple-system,sans-serif;
+  --gold:#ffcb1c;--green:#40e382;--cyan:#4ec8ff;--pink:#ff3366;
+  --purple:#c852ff;--orange:#ff7b00;--red:#ff3b30;--yellow:#ffe81a;
+  --blue:#5b7fff;
+}
+html,body{height:100%;overflow:hidden;font-family:var(--sans);color:var(--text)}
+body{background:var(--bg)}
+
+/* Animated background blobs (from V8) */
+#bg{position:fixed;top:0;left:0;right:0;bottom:0;overflow:hidden;z-index:0}
+.blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5}
+.blob-1{width:320px;height:320px;background:#1a0840;top:-100px;left:-80px;animation:f1 14s ease-in-out infinite}
+.blob-2{width:260px;height:260px;background:#081830;top:35%;right:-50px;animation:f2 18s ease-in-out infinite}
+.blob-3{width:220px;height:220px;background:#082818;bottom:5%;left:25%;animation:f3 20s ease-in-out infinite}
+.blob-4{width:180px;height:180px;background:#280828;bottom:-40px;right:15%;animation:f1 22s ease-in-out infinite reverse}
+@keyframes f1{0%,100%{transform:translate(0,0)}50%{transform:translate(25px,-20px)}}
+@keyframes f2{0%,100%{transform:translate(0,0)}50%{transform:translate(-20px,25px)}}
+@keyframes f3{0%,100%{transform:translate(0,0)}50%{transform:translate(15px,-25px)}}
+
+#app{position:relative;max-width:460px;height:100%;margin:0 auto;display:flex;flex-direction:column;overflow:hidden;z-index:1}
+.scroll{flex:1;overflow-y:auto;padding:10px 10px 90px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+/* === BENTO GRID (from V6) with Glass (from V8) === */
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;grid-auto-rows:auto}
+.cell{
+  background:var(--glass);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--glass-border);
+  border-radius:20px;
+  padding:16px;
+  overflow:hidden;
+  display:flex;flex-direction:column;justify-content:center;
+  position:relative;
+}
+.cell::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent)}
+.c2{grid-column:span 2}
+.c3{grid-column:span 3}
+.c4{grid-column:span 4}
+.r2{grid-row:span 2}
+
+/* Section labels (from V1 grouping concept) */
+.sec-tag{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:3px;color:var(--dim);text-transform:uppercase;margin-bottom:10px}
+
+/* === HEADER CELL === */
+.cell-hdr{display:flex;align-items:center;gap:12px}
+.lvl-ring{width:50px;height:50px;border-radius:50%;background:var(--glass-strong);border:1px solid var(--glass-border-hi);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 20px rgba(91,127,255,.15)}
+.lvl-ring .n{font-family:var(--mono);font-size:22px;font-weight:800;line-height:1}
+.lvl-ring .l{font-size:7px;color:var(--dim);letter-spacing:2px}
+.hdr-text .title{font-family:var(--mono);font-size:18px;font-weight:800;letter-spacing:4px}
+.hdr-text .sub{font-size:10px;color:var(--dim);margin-top:3px}
+.hdr-menu{margin-left:auto;width:36px;height:36px;background:var(--glass-strong);border:1px solid var(--glass-border);border-radius:10px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:3px;cursor:pointer}
+.hdr-menu span{width:14px;height:1.5px;background:rgba(255,255,255,.5);border-radius:1px}
+
+/* === XP CELL === */
+.xp-pct{font-family:var(--mono);font-size:32px;font-weight:800;line-height:1;margin:6px 0;background:linear-gradient(135deg,var(--pink),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.xp-bar{height:6px;background:rgba(255,255,255,.06);border-radius:6px;overflow:hidden}
+.xp-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--pink),var(--purple));box-shadow:0 0 10px rgba(200,82,255,.3)}
+.xp-meta{font-size:9px;color:var(--dim);margin-top:5px;font-family:var(--mono)}
+
+/* === MEET BAR CELL (thick from V1, gradient from V8) === */
+.meet-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.meet-top .lbl{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:2px;color:var(--cyan);text-transform:uppercase}
+.meet-top .pct{font-family:var(--mono);font-size:16px;font-weight:800;color:var(--cyan)}
+.meet-bar{height:12px;background:rgba(78,200,255,.06);border:1px solid rgba(78,200,255,.12);border-radius:12px;overflow:hidden;position:relative}
+.meet-fill{height:100%;width:62%;background:linear-gradient(90deg,rgba(78,200,255,.3),var(--cyan));border-radius:12px;box-shadow:0 0 14px rgba(78,200,255,.3)}
+.meet-sheen{position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(255,255,255,.08),transparent);border-radius:12px;pointer-events:none}
+.meet-sub{display:flex;justify-content:space-between;margin-top:6px;font-size:9px;color:var(--dim);font-family:var(--mono)}
+
+/* === STAT CELLS (big numbers from V6, color tints from V8) === */
+.stat-num{font-family:var(--mono);font-size:36px;font-weight:800;line-height:1}
+.stat-lbl{font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;margin-top:5px}
+.stat-bar{height:3px;background:rgba(255,255,255,.06);border-radius:3px;margin-top:8px;overflow:hidden}
+.stat-bar-fill{height:100%;border-radius:3px}
+/* Color tints */
+.tint-gold::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(circle at 30% 40%,rgba(255,203,28,.07),transparent 70%);pointer-events:none;border-radius:20px}
+.tint-green::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(circle at 30% 40%,rgba(64,227,130,.07),transparent 70%);pointer-events:none;border-radius:20px}
+.tint-orange::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(circle at 30% 40%,rgba(255,123,0,.07),transparent 70%);pointer-events:none;border-radius:20px}
+.tint-cyan::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(circle at 30% 40%,rgba(78,200,255,.07),transparent 70%);pointer-events:none;border-radius:20px}
+.tint-pink::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(circle at 30% 40%,rgba(255,51,102,.07),transparent 70%);pointer-events:none;border-radius:20px}
+.tint-purple::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(circle at 30% 40%,rgba(200,82,255,.07),transparent 70%);pointer-events:none;border-radius:20px}
+.tint-red::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(circle at 30% 40%,rgba(255,59,48,.07),transparent 70%);pointer-events:none;border-radius:20px}
+
+/* Duo stat cell */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.duo-item .n{font-family:var(--mono);font-size:26px;font-weight:800;line-height:1}
+.duo-item .l{font-family:var(--mono);font-size:8px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+
+/* === RELATIONSHIPS (asset cards from V1, glass from V8) === */
+.rel-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.rel-item:last-child{border:none;padding-bottom:0}
+.rel-item:first-of-type{padding-top:0}
+.rel-rank{width:38px;height:38px;border-radius:12px;background:var(--glass-strong);border:1px solid var(--glass-border-hi);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:800;flex-shrink:0}
+.rel-rank.gold{border-color:rgba(255,203,28,.3);box-shadow:0 0 12px rgba(255,203,28,.15)}
+.rel-info .name{font-size:14px;font-weight:700}
+.rel-info .tag{font-size:10px;color:var(--dim)}
+.rel-stars{margin-left:auto;font-size:11px;color:var(--gold);font-family:var(--mono)}
+
+/* === ACTIONS (glass pills from V8) === */
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.act-btn{
+  padding:14px;text-align:center;
+  background:var(--glass-strong);
+  border:1px solid var(--glass-border);
+  border-radius:14px;
+  font-family:var(--mono);font-size:11px;font-weight:700;
+  color:var(--text);cursor:pointer;letter-spacing:1px;
+  transition:all .15s;
+}
+.act-btn:hover{background:rgba(255,255,255,.12);border-color:var(--glass-border-hi)}
+
+/* === FEED (with XP badges from V8) === */
+.feed-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:11px}
+.feed-item:last-child{border:none}
+.feed-item .msg{flex:1;color:rgba(255,255,255,.75)}
+.feed-item .time{font-family:var(--mono);font-size:9px;color:var(--dim);flex-shrink:0}
+.xp-badge{padding:2px 8px;background:rgba(91,127,255,.12);border-radius:999px;font-family:var(--mono);font-size:8px;font-weight:700;color:var(--blue);flex-shrink:0}
+
+/* === FROSTED DOCK (from V8 with raised home) === */
+.dock{
+  position:absolute;bottom:0;left:0;right:0;height:66px;
+  background:rgba(10,10,26,.65);
+  backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
+  border-top:1px solid rgba(255,255,255,.08);
+  display:flex;align-items:center;justify-content:space-around;
+  z-index:100;
+}
+.dock-btn{
+  background:none;border:none;
+  color:var(--dim);font-family:var(--mono);
+  font-size:8px;font-weight:700;letter-spacing:1.5px;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;
+}
+.dock-btn .ico{font-size:14px;font-weight:800}
+.dock-btn.active{color:var(--text)}
+.dock-home{
+  width:48px;height:48px;border-radius:50%;
+  background:rgba(255,255,255,.08);
+  backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.15);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:9px;font-weight:800;letter-spacing:1px;
+  color:var(--text);cursor:pointer;
+  margin-top:-22px;
+  box-shadow:0 4px 20px rgba(0,0,0,.4),0 0 20px rgba(91,127,255,.08);
+}
+</style>
+</head>
+<body>
+
+<!-- Animated gradient background -->
+<div id="bg">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+  <div class="blob blob-4"></div>
+</div>
+
+<div id="app">
+<div class="scroll">
+<div class="grid">
+
+  <!-- ======== ROW 1: HEADER + XP ======== -->
+  <div class="cell c2">
+    <div class="cell-hdr">
+      <div class="lvl-ring"><span class="n">7</span><span class="l">LVL</span></div>
+      <div class="hdr-text">
+        <div class="title">LIFE</div>
+        <div class="sub">Day 47 // 2:3</div>
+      </div>
+      <div class="hdr-menu"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+  <div class="cell c2">
+    <div class="sec-tag">Experience</div>
+    <div class="xp-pct">50%</div>
+    <div class="xp-bar"><div class="xp-fill" style="width:50%"></div></div>
+    <div class="xp-meta">340 / 680 XP</div>
+  </div>
+
+  <!-- ======== ROW 2: MEET BAR (full width, thick) ======== -->
+  <div class="cell c4">
+    <div class="meet-top">
+      <span class="lbl">Encounter Scan</span>
+      <span class="pct">62%</span>
+    </div>
+    <div class="meet-bar">
+      <div class="meet-fill"></div>
+      <div class="meet-sheen"></div>
+    </div>
+    <div class="meet-sub"><span>3&#9733; expected</span><span>Taken: 2 / Talking: 3</span></div>
+  </div>
+
+  <!-- ======== ROW 3: VITALS (from V1 grouping) ======== -->
+  <div class="cell tint-gold">
+    <div class="stat-num" style="color:var(--gold)">$1.2k</div>
+    <div class="stat-lbl">Money</div>
+    <div class="stat-bar"><div class="stat-bar-fill" style="width:62%;background:var(--gold)"></div></div>
+  </div>
+  <div class="cell tint-green">
+    <div class="stat-num" style="color:var(--green)">18</div>
+    <div class="stat-lbl">Health</div>
+    <div class="stat-bar"><div class="stat-bar-fill" style="width:72%;background:var(--green)"></div></div>
+  </div>
+  <div class="cell tint-orange">
+    <div class="stat-num" style="color:var(--orange)">12</div>
+    <div class="stat-lbl">Boldness</div>
+    <div class="stat-bar"><div class="stat-bar-fill" style="width:48%;background:var(--orange)"></div></div>
+  </div>
+  <div class="cell tint-red">
+    <div class="stat-num" style="color:var(--red)">4</div>
+    <div class="stat-lbl">Fear</div>
+    <div class="stat-bar"><div class="stat-bar-fill" style="width:16%;background:var(--red)"></div></div>
+  </div>
+
+  <!-- ======== ROW 4: SOCIAL OPS ======== -->
+  <div class="cell tint-cyan">
+    <div class="stat-num" style="color:var(--cyan)">9</div>
+    <div class="stat-lbl">Social</div>
+    <div class="stat-bar"><div class="stat-bar-fill" style="width:36%;background:var(--cyan)"></div></div>
+  </div>
+  <div class="cell tint-pink">
+    <div class="stat-num" style="color:var(--pink)">7</div>
+    <div class="stat-lbl">Charm</div>
+    <div class="stat-bar"><div class="stat-bar-fill" style="width:28%;background:var(--pink)"></div></div>
+  </div>
+  <div class="cell tint-purple c2">
+    <div class="duo">
+      <div class="duo-item"><div class="n" style="color:var(--purple)">6</div><div class="l">Sex Appeal</div></div>
+      <div class="duo-item"><div class="n" style="color:#a78bfa">14</div><div class="l">Vibe</div></div>
+    </div>
+  </div>
+
+  <!-- ======== ROW 5: COMBAT + QUICK OPS ======== -->
+  <div class="cell c2">
+    <div class="sec-tag">Combat</div>
+    <div class="duo">
+      <div class="duo-item"><div class="n" style="color:var(--yellow)">8</div><div class="l">Power</div></div>
+      <div class="duo-item"><div class="n" style="color:#ff6e40">5</div><div class="l">Fight</div></div>
+    </div>
+  </div>
+  <div class="cell c2">
+    <div class="actions">
+      <button class="act-btn">ACT</button>
+      <button class="act-btn">MEET</button>
+      <button class="act-btn">ROSTER</button>
+      <button class="act-btn">END DAY</button>
+    </div>
+  </div>
+
+  <!-- ======== ROW 6-7: RELATIONSHIPS (tall) + LOOKS ======== -->
+  <div class="cell c3 r2">
+    <div class="sec-tag">Assets</div>
+    <div class="rel-item">
+      <div class="rel-rank gold">S1</div>
+      <div class="rel-info"><div class="name">Luna</div><div class="tag">The One / Legendary</div></div>
+      <span class="rel-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+    </div>
+    <div class="rel-item">
+      <div class="rel-rank">S2</div>
+      <div class="rel-info"><div class="name">Mia</div><div class="tag">Commons / Rare</div></div>
+      <span class="rel-stars" style="color:var(--dim)">&#9733;&#9733;&#9733;</span>
+    </div>
+    <div class="rel-item">
+      <div class="rel-rank">S2</div>
+      <div class="rel-info"><div class="name">Ava</div><div class="tag">Commons / Epic</div></div>
+      <span class="rel-stars" style="color:var(--dim)">&#9733;&#9733;&#9733;&#9733;</span>
+    </div>
+  </div>
+  <div class="cell tint-green">
+    <div class="stat-num" style="color:var(--green)">8</div>
+    <div class="stat-lbl">Looks</div>
+    <div class="stat-bar"><div class="stat-bar-fill" style="width:32%;background:var(--green)"></div></div>
+  </div>
+
+  <!-- ======== ROW 8: ACTIVITY FEED (full width) ======== -->
+  <div class="cell c4">
+    <div class="sec-tag">Comms Log</div>
+    <div class="feed-item">
+      <span class="msg">Gym Session — +2 HP, +2 PWR, +1 SEX</span>
+      <span class="xp-badge">+6 XP</span>
+      <span class="time">16:40</span>
+    </div>
+    <div class="feed-item">
+      <span class="msg">Met Iris at Coffee Shop — 3&#9733; Rare</span>
+      <span class="xp-badge">+10 XP</span>
+      <span class="time">14:22</span>
+    </div>
+    <div class="feed-item">
+      <span class="msg">Part-time Job shift — +$25, -2 HP</span>
+      <span class="xp-badge">+8 XP</span>
+      <span class="time">10:00</span>
+    </div>
+    <div class="feed-item">
+      <span class="msg">Cold Approach success — +3 Bold</span>
+      <span class="xp-badge">+12 XP</span>
+      <span class="time">09:15</span>
+    </div>
+  </div>
+
+</div><!-- /grid -->
+</div><!-- /scroll -->
+
+<!-- FROSTED DOCK -->
+<nav class="dock">
+  <button class="dock-btn"><span class="ico">ACT</span>Activities</button>
+  <button class="dock-btn"><span class="ico">MET</span>Meet</button>
+  <div class="dock-home">HOME</div>
+  <button class="dock-btn"><span class="ico">GRL</span>Girls</button>
+  <button class="dock-btn"><span class="ico">MAP</span>World</button>
+</nav>
+
+</div><!-- /app -->
+</body>
+</html>
